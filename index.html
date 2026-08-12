@@ -1275,6 +1275,7 @@
       await fsSet(data.id, data);
       localSet(LAST_SEEN_KEY, String(data.ts)); // the person submitting doesn't need a notification for their own order
       alert('已送出並儲存！技工端會即時收到提醒（需開啟此頁面並允許通知）。');
+      clearForm(); // ready for the next order
     }catch(e){
       console.error(e);
       alert('儲存時發生錯誤，請確認網路連線與 Firebase 設定是否正確');
