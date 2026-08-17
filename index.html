@@ -513,8 +513,13 @@
 
   .tech-note-section{ background:#FAFAF8; }
   .edit-log-section{ background:#FFFBEF; }
-  .edit-log-row{ font-size:12.5px; color:var(--clay); padding:3px 0; }
-  .edit-log-row b{ color:#8A5A1E; }
+  .edit-log-row{ padding:6px 0; border-bottom:1px dashed #F0E3C8; }
+  .edit-log-row:last-child{ border-bottom:none; }
+  .edit-log-head{ font-size:12.5px; color:var(--clay); }
+  .edit-log-head b{ color:#8A5A1E; }
+  .edit-log-changes{ margin:4px 0 2px 20px; padding:0; font-size:12px; color:var(--ink); }
+  .edit-log-changes li{ margin-bottom:2px; }
+  .edit-log-nochange{ margin:4px 0 2px 20px; font-size:12px; color:var(--muted); font-style:italic; }
   .tech-note-grid{ display:grid; grid-template-columns:150px 1fr; gap:14px; align-items:start; }
   @media (max-width:640px){ .tech-note-grid{ grid-template-columns:1fr; } }
   .ro-field-label{ display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:5px; }
@@ -1077,11 +1082,55 @@
         ${buildEditLogHTML(r)}
       </div>`;
   }
+  const TOP_FIELD_LABELS = { patient:'患者', receiveDate:'收件日', registrar:'登記者', doctor:'醫師', apptDate:'約診日', chartNo:'病歷號碼', urgent:'急件' };
+  const TOOTH_FIELD_LABELS = { tooth_ur:'牙位-右上', tooth_ul:'牙位-左上', tooth_lr:'牙位-右下', tooth_ll:'牙位-左下' };
+  function itemFieldLabel(key){
+    for(const def of ITEM_DEFS){
+      if(def.key === key) return def.label;
+      if(def.subs){
+        for(const s of def.subs){
+          if(s.key === key) return `${def.label}－${s.label}`;
+          if(s.text === key) return `${def.label}－${s.label}（說明）`;
+        }
+      }
+      if(def.extra && def.extra.includes(key)) return `${def.label}－補充資訊`;
+    }
+    if(TOOTH_FIELD_LABELS[key]) return TOOTH_FIELD_LABELS[key];
+    if(key === 'notes') return '交待事項';
+    return key;
+  }
+  function formatFieldVal(v){
+    if(typeof v === 'boolean') return v ? '✓ 已勾選' : '未勾選';
+    if(v === '' || v === undefined || v === null) return '（空白）';
+    return String(v);
+  }
+  function buildChangeSummary(oldData, newData){
+    const changes = [];
+    Object.keys(TOP_FIELD_LABELS).forEach(k => {
+      const ov = oldData[k], nv = newData[k];
+      if(JSON.stringify(ov ?? null) !== JSON.stringify(nv ?? null)){
+        changes.push(`${TOP_FIELD_LABELS[k]}：${formatFieldVal(ov)} → ${formatFieldVal(nv)}`);
+      }
+    });
+    const oldItems = oldData.items || {};
+    const newItems = newData.items || {};
+    const allKeys = new Set([...Object.keys(oldItems), ...Object.keys(newItems)]);
+    allKeys.forEach(k => {
+      const ov = oldItems[k], nv = newItems[k];
+      if(JSON.stringify(ov ?? '') !== JSON.stringify(nv ?? '')){
+        changes.push(`${itemFieldLabel(k)}：${formatFieldVal(ov)} → ${formatFieldVal(nv)}`);
+      }
+    });
+    return changes;
+  }
   function buildEditLogHTML(r){
     if(!Array.isArray(r.editLog) || r.editLog.length === 0) return '';
-    const rows = r.editLog.slice().reverse().map(entry =>
-      `<div class="edit-log-row">✏️ <b>${esc(entry.editor || '未填寫')}</b> 修改於 ${entry.ts ? new Date(entry.ts).toLocaleString('zh-TW') : '-'}</div>`
-    ).join('');
+    const rows = r.editLog.slice().reverse().map(entry => {
+      const changesHtml = (entry.changes && entry.changes.length)
+        ? `<ul class="edit-log-changes">${entry.changes.map(c => `<li>${esc(c)}</li>`).join('')}</ul>`
+        : '<div class="edit-log-nochange">（未偵測到欄位變動）</div>';
+      return `<div class="edit-log-row"><div class="edit-log-head">✏️ <b>${esc(entry.editor || '未填寫')}</b> 修改於 ${entry.ts ? new Date(entry.ts).toLocaleString('zh-TW') : '-'}</div>${changesHtml}</div>`;
+    }).join('');
     return `<div class="section edit-log-section"><h2>修改紀錄</h2>${rows}</div>`;
   }
   function subLineText(r){
@@ -1374,26 +1423,63 @@
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
   }
 
+  function sectionSummaryText(section, items){
+    const defs = ITEM_DEFS.filter(d => d.section === section);
+    const parts = [];
+    defs.forEach(def => {
+      if(!items[def.key]) return;
+      const subLabels = (def.subs || [])
+        .filter(s => items[s.key])
+        .map(s => s.text && items[s.text] ? `${s.label}:${items[s.text]}` : s.label);
+      let extra = '';
+      if(def.extra){
+        const [em,ed,sm,sd,dr] = def.extra.map(k => items[k] || '');
+        const bits = [];
+        if(em || ed) bits.push(`約解釋${em||'-'}/${ed||'-'}`);
+        if(sm || sd) bits.push(`約手術${sm||'-'}/${sd||'-'}`);
+        if(dr) bits.push(`搭配DR.${dr}`);
+        if(bits.length) extra = `(${bits.join('、')})`;
+      }
+      parts.push(def.label + (subLabels.length ? `[${subLabels.join('、')}]` : '') + extra);
+    });
+    return parts.join('；');
+  }
+  function toothSummaryText(items){
+    const parts = [];
+    [['tooth_ur','右上'], ['tooth_ul','左上'], ['tooth_lr','右下'], ['tooth_ll','左下']].forEach(([k,label]) => {
+      if(items[k]) parts.push(`${label}:${items[k]}`);
+    });
+    return parts.join('；');
+  }
   function exportHistoryToExcel(){
     if(typeof XLSX === 'undefined'){ alert('匯出工具載入失敗，請確認網路連線後重新整理頁面再試一次'); return; }
     const deleted = cachedRecords.filter(r => r.deleted).sort((a,b) => (b.deletedAt||0) - (a.deletedAt||0));
     if(deleted.length === 0){ alert('目前歷史紀錄是空的，沒有東西可以匯出'); return; }
-    const rows = deleted.map(r => ({
-      '患者': r.patient || '',
-      '病歷號碼': r.chartNo || '',
-      '醫師': r.doctor || '',
-      '登記者': r.registrar || '',
-      '收件日': r.receiveDate || '',
-      '約診日': r.apptDate || '',
-      '急件': r.urgent ? '是' : '',
-      '狀態': STATUS_LABEL[r.status] || r.status || '',
-      '送出時間': r.ts ? new Date(r.ts).toLocaleString('zh-TW') : '',
-      '完成日期': r.completedDate || '',
-      '技工備註': r.techNote || '',
-      '刪除時間': r.deletedAt ? new Date(r.deletedAt).toLocaleString('zh-TW') : ''
-    }));
+    const rows = deleted.map(r => {
+      const items = r.items || {};
+      return {
+        '患者': r.patient || '',
+        '病歷號碼': r.chartNo || '',
+        '醫師': r.doctor || '',
+        '登記者': r.registrar || '',
+        '收件日': r.receiveDate || '',
+        '約診日': r.apptDate || '',
+        '急件': r.urgent ? '是' : '',
+        '狀態': STATUS_LABEL[r.status] || r.status || '',
+        '數位/模板': sectionSummaryText('digital', items),
+        '模型/咬合相關': sectionSummaryText('left', items),
+        '假牙/蠟型相關': sectionSummaryText('right', items),
+        '其他技工項目': sectionSummaryText('other', items),
+        '牙位': toothSummaryText(items),
+        '交待事項': items.notes || '',
+        '送出時間': r.ts ? new Date(r.ts).toLocaleString('zh-TW') : '',
+        '完成日期': r.completedDate || '',
+        '技工備註': r.techNote || '',
+        '刪除時間': r.deletedAt ? new Date(r.deletedAt).toLocaleString('zh-TW') : ''
+      };
+    });
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.max(10, k.length + 2, ...rows.map(row => String(row[k]||'').length + 2)) }));
+    ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.min(50, Math.max(10, k.length + 2, ...rows.map(row => String(row[k]||'').length + 2))) }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '歷史紀錄');
     XLSX.writeFile(wb, `技工單歷史紀錄_${todayISO()}.xlsx`);
@@ -1521,15 +1607,17 @@
   document.getElementById('btnSubmit').addEventListener('click', async () => {
     const data = collectForm();
     if(currentEditingId){
-      const editor = prompt('請輸入修改者姓名：');
-      if(!editor || !editor.trim()){ alert('未輸入修改者，已取消儲存。'); return; }
       const original = cachedRecords.find(x => x.id === currentEditingId);
       if(!original){ alert('找不到原始資料，無法儲存修改'); return; }
+      const changes = buildChangeSummary(original, data);
+      if(changes.length === 0){ alert('沒有偵測到任何欄位變動，未儲存。'); return; }
+      const editor = prompt('請輸入修改者姓名：');
+      if(!editor || !editor.trim()){ alert('未輸入修改者，已取消儲存。'); return; }
       const merged = Object.assign({}, original, data);
       merged.id = currentEditingId;
       merged.lastEditedAt = Date.now();
       merged.editLog = Array.isArray(original.editLog) ? original.editLog.slice() : [];
-      merged.editLog.push({ editor: editor.trim(), ts: Date.now() });
+      merged.editLog.push({ editor: editor.trim(), ts: Date.now(), changes });
       try{
         await fsSet(currentEditingId, merged);
         alert('修改已儲存！');
