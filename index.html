@@ -65,6 +65,13 @@
   }
   .body-pad{ padding:22px 26px 8px; }
 
+  .edit-mode-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:#FFF6E9; border:1px solid var(--clay); color:var(--clay);
+    border-radius:10px; padding:10px 14px; margin-bottom:18px; font-size:13px; font-weight:600;
+  }
+  .edit-mode-banner button{ font-size:12px; padding:6px 12px; }
+
   .urgent-toggle{
     display:flex; align-items:center; gap:12px;
     border:1.5px dashed var(--line); border-radius:10px;
@@ -390,18 +397,22 @@
 
   .rec-empty{ font-size:13px; color:var(--muted); padding:14px; border:1px dashed var(--line); border-radius:10px; background:#fff;}
 
-  .history-block{ margin-top:22px; }
-  .history-details{
+  .collapsible-block{ margin-top:16px; }
+  .history-details, .onhold-details{
     background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px;
   }
-  .history-details summary{
+  .history-details summary, .onhold-details summary{
     cursor:pointer; font-weight:700; font-size:13px; color:var(--muted);
     letter-spacing:.5px; list-style:none; display:flex; align-items:center; gap:6px;
   }
-  .history-details summary::-webkit-details-marker{ display:none; }
+  .history-details summary::-webkit-details-marker, .onhold-details summary::-webkit-details-marker{ display:none; }
   .history-details summary .count{ font-weight:700; color:var(--danger); }
-  .history-details[open] summary{ margin-bottom:8px; }
+  .onhold-details summary .count{ font-weight:700; color:#6E3FA8; }
+  .history-details[open] summary, .onhold-details[open] summary{ margin-bottom:8px; }
+  .history-toolbar{ display:flex; justify-content:flex-end; margin-bottom:10px; }
+  .history-toolbar button{ font-size:12.5px; padding:7px 14px; }
   .rec-deleted{ opacity:0.85; background:#FAFAF9; }
+  .rec-onhold{ background:#FBFAFD; border-left:4px solid #8B5FBF; }
   .rec-deleted .restoreBtn{
     padding:6px 12px; font-size:12.5px; border-radius:8px; border:1px solid var(--accent);
     background:var(--accent-soft); color:var(--accent-dark); cursor:pointer; font-family:inherit; font-weight:600;
@@ -501,6 +512,9 @@
   .ro-empty{ color:var(--muted); font-style:italic; }
 
   .tech-note-section{ background:#FAFAF8; }
+  .edit-log-section{ background:#FFFBEF; }
+  .edit-log-row{ font-size:12.5px; color:var(--clay); padding:3px 0; }
+  .edit-log-row b{ color:#8A5A1E; }
   .tech-note-grid{ display:grid; grid-template-columns:150px 1fr; gap:14px; align-items:start; }
   @media (max-width:640px){ .tech-note-grid{ grid-template-columns:1fr; } }
   .ro-field-label{ display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:5px; }
@@ -540,6 +554,7 @@
      ============================================================ -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyBywUmwcJ4Ry4V-glqtWz_XqWoqPfEFlxI",
@@ -588,6 +603,10 @@
     </div>
 
     <div class="body-pad">
+
+      <div id="editModeBanner" class="edit-mode-banner" style="display:none;">
+        ✏️ 正在編輯已送出的單子 <button type="button" class="ghost" id="btnCancelEdit">取消編輯</button>
+      </div>
 
       <div class="grid-header">
         <div class="cell"><label>患者</label><input id="f_patient" type="text" placeholder="姓名" /></div>
@@ -834,7 +853,6 @@
       <button class="filter-tab active" data-filter="all">全部 <span class="count">0</span></button>
       <button class="filter-tab" data-filter="pending">待處理 <span class="count">0</span></button>
       <button class="filter-tab" data-filter="in_progress">處理中 <span class="count">0</span></button>
-      <button class="filter-tab" data-filter="on_hold">壓單 <span class="count">0</span></button>
       <button class="filter-tab" data-filter="done">已完成 <span class="count">0</span></button>
     </div>
     <div class="sort-bar">
@@ -849,10 +867,19 @@
     <div id="recordsList"><div class="rec-empty">載入中…</div></div>
   </div>
 
-  <div class="records history-block">
+  <div class="records collapsible-block">
+    <details class="onhold-details">
+      <summary>🔒 壓單 <span class="count" id="onHoldCount">0</span></summary>
+      <p class="mini-note">被標記為壓單的單子集中在這裡，可以用下拉選單改回其他狀態，就會自動回到一般清單。</p>
+      <div id="onHoldList"><div class="rec-empty">載入中…</div></div>
+    </details>
+  </div>
+
+  <div class="records collapsible-block">
     <details class="history-details">
       <summary>🗑 歷史紀錄（已刪除） <span class="count" id="historyCount">0</span></summary>
       <p class="mini-note">從清單刪除的單子會先移到這裡，可以「還原」回一般清單，或「永久刪除」徹底移除（無法復原）。</p>
+      <div class="history-toolbar"><button class="ghost" id="btnExportHistory">📊 匯出 Excel</button></div>
       <div id="historyList"><div class="rec-empty">載入中…</div></div>
     </details>
   </div>
@@ -1047,7 +1074,15 @@
             <button type="button" class="techSaveBtn" data-id="${r.id}">確定</button>
           </div>
         </div>
+        ${buildEditLogHTML(r)}
       </div>`;
+  }
+  function buildEditLogHTML(r){
+    if(!Array.isArray(r.editLog) || r.editLog.length === 0) return '';
+    const rows = r.editLog.slice().reverse().map(entry =>
+      `<div class="edit-log-row">✏️ <b>${esc(entry.editor || '未填寫')}</b> 修改於 ${entry.ts ? new Date(entry.ts).toLocaleString('zh-TW') : '-'}</div>`
+    ).join('');
+    return `<div class="section edit-log-section"><h2>修改紀錄</h2>${rows}</div>`;
   }
   function subLineText(r){
     return `收件日 ${r.receiveDate || '-'} ・ 醫師 ${r.doctor || '-'} ・ 送出於 ${new Date(r.ts).toLocaleString('zh-TW')}`
@@ -1171,7 +1206,10 @@
     document.querySelectorAll('.tooth-btn.active').forEach(b => b.classList.remove('active'));
   }
   document.getElementById('btnClear').addEventListener('click', () => {
-    if(confirm('確定要清除整份表單嗎？')) clearForm();
+    if(confirm('確定要清除整份表單嗎？')){
+      clearForm();
+      if(currentEditingId) exitEditMode();
+    }
   });
   document.getElementById('btnPrint').addEventListener('click', () => window.print());
 
@@ -1193,8 +1231,8 @@
   function sortByTsDesc(recs){ return recs.slice().sort((a,b) => (b.ts||0) - (a.ts||0)); }
 
   function renderFilterCounts(){
-    const active = cachedRecords.filter(r => !r.deleted);
-    const counts = { all: active.length, pending:0, in_progress:0, on_hold:0, done:0 };
+    const active = cachedRecords.filter(r => !r.deleted && r.status !== 'on_hold');
+    const counts = { all: active.length, pending:0, in_progress:0, done:0 };
     active.forEach(r => { const s = r.status||'pending'; if(counts[s]!==undefined) counts[s]++; });
     document.querySelectorAll('.filter-tab').forEach(tab => {
       const key = tab.dataset.filter;
@@ -1205,6 +1243,9 @@
     const historyCount = cachedRecords.filter(r => r.deleted).length;
     const histCountEl = document.getElementById('historyCount');
     if(histCountEl) histCountEl.textContent = historyCount;
+    const onHoldCount = cachedRecords.filter(r => !r.deleted && r.status === 'on_hold').length;
+    const onHoldCountEl = document.getElementById('onHoldCount');
+    if(onHoldCountEl) onHoldCountEl.textContent = onHoldCount;
   }
 
   function sortRecords(recs){
@@ -1228,7 +1269,7 @@
   function drawRecordsList(){
     const listEl = document.getElementById('recordsList');
     const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
-    const nonDeleted = cachedRecords.filter(r => !r.deleted);
+    const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'on_hold');
     let filtered = currentFilter === 'all' ? nonDeleted : nonDeleted.filter(r => (r.status||'pending') === currentFilter);
     if(urgentOnly) filtered = filtered.filter(r => r.urgent);
     filtered = sortRecords(filtered);
@@ -1296,9 +1337,74 @@
     listEl.querySelectorAll('.permDelBtn').forEach(b => b.addEventListener('click', () => permanentlyDeleteRecord(b.dataset.id)));
   }
 
+  function drawOnHoldList(){
+    const listEl = document.getElementById('onHoldList');
+    if(!listEl) return;
+    const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
+    const onHold = cachedRecords.filter(r => !r.deleted && r.status === 'on_hold').sort((a,b) => (b.ts||0) - (a.ts||0));
+    if(onHold.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有壓單</div>'; return; }
+    listEl.innerHTML = '';
+    onHold.slice(0,60).forEach(r => {
+      const div = document.createElement('div');
+      div.className = 'rec rec-onhold' + (r.urgent ? ' is-urgent' : '');
+      div.innerHTML = `<div class="meta">
+          ${r.urgent ? '<span class="badge-urgent">🚨 急件</span>' : ''}
+          <span class="status-badge ${STATUS_CLASS.on_hold}">壓單</span>
+          <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
+          <div class="sub">${esc(subLineText(r))}</div>
+        </div>
+        <div class="rec-actions">
+          <select class="statusSel" data-id="${r.id}">
+            <option value="pending">待處理</option>
+            <option value="in_progress">處理中</option>
+            <option value="on_hold" selected>壓單</option>
+            <option value="done">已完成</option>
+          </select>
+          <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
+        </div>
+        <details class="rec-details" data-id="${r.id}">
+          <summary>查看完整單子</summary>
+          <div class="summary-body">${buildFullOrderHTML(r)}</div>
+        </details>`;
+      if(openIds.has(r.id)) div.querySelector('.rec-details').open = true;
+      listEl.appendChild(div);
+    });
+    listEl.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
+    listEl.querySelectorAll('.statusSel').forEach(s => s.addEventListener('change', () => setStatus(s.dataset.id, s.value)));
+    listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
+  }
+
+  function exportHistoryToExcel(){
+    if(typeof XLSX === 'undefined'){ alert('匯出工具載入失敗，請確認網路連線後重新整理頁面再試一次'); return; }
+    const deleted = cachedRecords.filter(r => r.deleted).sort((a,b) => (b.deletedAt||0) - (a.deletedAt||0));
+    if(deleted.length === 0){ alert('目前歷史紀錄是空的，沒有東西可以匯出'); return; }
+    const rows = deleted.map(r => ({
+      '患者': r.patient || '',
+      '病歷號碼': r.chartNo || '',
+      '醫師': r.doctor || '',
+      '登記者': r.registrar || '',
+      '收件日': r.receiveDate || '',
+      '約診日': r.apptDate || '',
+      '急件': r.urgent ? '是' : '',
+      '狀態': STATUS_LABEL[r.status] || r.status || '',
+      '送出時間': r.ts ? new Date(r.ts).toLocaleString('zh-TW') : '',
+      '完成日期': r.completedDate || '',
+      '技工備註': r.techNote || '',
+      '刪除時間': r.deletedAt ? new Date(r.deletedAt).toLocaleString('zh-TW') : ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.max(10, k.length + 2, ...rows.map(row => String(row[k]||'').length + 2)) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '歷史紀錄');
+    XLSX.writeFile(wb, `技工單歷史紀錄_${todayISO()}.xlsx`);
+  }
+  const btnExportHistoryEl = document.getElementById('btnExportHistory');
+  if(btnExportHistoryEl) btnExportHistoryEl.addEventListener('click', exportHistoryToExcel);
+
   function renderTechView(){
     renderFilterCounts();
     drawRecordsList();
+    drawOnHoldList();
     drawHistoryList();
   }
 
@@ -1311,6 +1417,8 @@
     document.getElementById('f_doctor').value = r.doctor || '';
     document.getElementById('f_apptDate').value = r.apptDate || '';
     document.getElementById('f_chartNo').value = r.chartNo || '';
+    urgentCheckbox.checked = !!r.urgent;
+    document.getElementById('urgentToggle').classList.toggle('is-checked', !!r.urgent);
     document.querySelectorAll('[data-key]').forEach(el => {
       if(el.tagName === 'DIV') return;
       const v = r.items ? r.items[el.dataset.key] : undefined;
@@ -1321,6 +1429,26 @@
     syncToothButtonsFromHidden();
     window.scrollTo({top:0, behavior:'smooth'});
   }
+
+  // ---- editing an already-submitted order (sender side) ----
+  let currentEditingId = null;
+  function startEditRecord(id){
+    loadRecord(id);
+    currentEditingId = id;
+    document.getElementById('editModeBanner').style.display = 'flex';
+    document.getElementById('btnSubmit').textContent = '儲存修改';
+  }
+  function exitEditMode(){
+    currentEditingId = null;
+    document.getElementById('editModeBanner').style.display = 'none';
+    document.getElementById('btnSubmit').textContent = '送出並儲存紀錄';
+  }
+  document.getElementById('btnCancelEdit').addEventListener('click', () => {
+    if(confirm('確定要取消編輯嗎？目前表單上的修改不會被儲存。')){
+      exitEditMode();
+      clearForm();
+    }
+  });
 
   async function setStatus(id, status){
     const rec = cachedRecords.find(x => x.id === id);
@@ -1343,9 +1471,13 @@
           <span class="status-badge ${STATUS_CLASS[status]}">${STATUS_LABEL[status]}</span>
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
           <div class="sub">${esc(subLineText(r))}</div>
+        </div>
+        <div class="rec-actions">
+          <button data-id="${r.id}" class="editBtn">✏️ 編輯</button>
         </div>`;
       listEl.appendChild(div);
     });
+    listEl.querySelectorAll('.editBtn').forEach(b => b.addEventListener('click', () => startEditRecord(b.dataset.id)));
   }
 
   async function deleteRecord(id){
@@ -1388,6 +1520,27 @@
 
   document.getElementById('btnSubmit').addEventListener('click', async () => {
     const data = collectForm();
+    if(currentEditingId){
+      const editor = prompt('請輸入修改者姓名：');
+      if(!editor || !editor.trim()){ alert('未輸入修改者，已取消儲存。'); return; }
+      const original = cachedRecords.find(x => x.id === currentEditingId);
+      if(!original){ alert('找不到原始資料，無法儲存修改'); return; }
+      const merged = Object.assign({}, original, data);
+      merged.id = currentEditingId;
+      merged.lastEditedAt = Date.now();
+      merged.editLog = Array.isArray(original.editLog) ? original.editLog.slice() : [];
+      merged.editLog.push({ editor: editor.trim(), ts: Date.now() });
+      try{
+        await fsSet(currentEditingId, merged);
+        alert('修改已儲存！');
+        exitEditMode();
+        clearForm();
+      }catch(e){
+        console.error(e);
+        alert('儲存時發生錯誤，請確認網路連線與 Firebase 設定是否正確');
+      }
+      return;
+    }
     data.id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
     data.ts = Date.now();
     data.status = 'pending';
