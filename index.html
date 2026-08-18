@@ -117,7 +117,7 @@
     margin-bottom:4px;
     font-weight:600;
   }
-  .cell input{
+  .cell input, .cell select{
     width:100%;
     border:none;
     outline:none;
@@ -127,7 +127,9 @@
     color:var(--ink);
     font-family:inherit;
   }
-  .cell input:focus{ background:var(--accent-soft); border-radius:4px; padding:2px 4px; }
+  .cell input:focus, .cell select:focus{ background:var(--accent-soft); border-radius:4px; padding:2px 4px; }
+  .cell select{ cursor:pointer; }
+  .doctor-other-input{ margin-top:6px; border-top:1px dashed var(--line) !important; padding-top:6px !important; }
 
   .section{
     border:1px solid var(--line);
@@ -617,7 +619,11 @@
         <div class="cell"><label>患者</label><input id="f_patient" type="text" placeholder="姓名" /></div>
         <div class="cell"><label>收件日</label><input id="f_receiveDate" type="date" /></div>
         <div class="cell"><label>登記者</label><input id="f_registrar" type="text" placeholder="登記人員" /></div>
-        <div class="cell"><label>醫師</label><input id="f_doctor" type="text" placeholder="主治醫師" /></div>
+        <div class="cell">
+          <label>醫師</label>
+          <select id="f_doctor"></select>
+          <input id="f_doctorOther" type="text" placeholder="請輸入醫師姓名" class="doctor-other-input" style="display:none;" />
+        </div>
         <div class="cell"><label>約診日</label><input id="f_apptDate" type="date" /></div>
         <div class="cell"><label>病歷號碼</label><input id="f_chartNo" type="text" placeholder="病歷號碼" /></div>
       </div>
@@ -893,6 +899,78 @@
 <script>
   const ALL_KEYS = Array.from(document.querySelectorAll('[data-key]')).map(el => el.dataset.key);
 
+  // ---- doctor list (grouped dropdown) ----
+  const DOCTOR_GROUPS = [
+    { label:'主治醫師', doctors:[
+      {name:'周庭嫃', code:'07314'}, {name:'黃薰玉', code:'07114'}, {name:'黃秋碧', code:'07111'},
+      {name:'劉育嘉', code:'07204'}, {name:'林敬偉', code:'07522'}, {name:'林佩玉', code:'07183'},
+      {name:'蔡佳君', code:'07462'}, {name:'蔡凰慈', code:'07356'}, {name:'張琬婷', code:'07170'},
+      {name:'楊惠敏', code:'07172'}, {name:'鄭嘉瑢', code:'07567'}, {name:'孫櫻珊', code:'07270'},
+      {name:'翁子甯', code:'07317'}, {name:'黃奕帛', code:'07318'}, {name:'蔡祐年', code:'07634'},
+      {name:'龔俊綺', code:'07697'}
+    ]},
+    { label:'總醫師', doctors:[
+      {name:'廖方圓', code:'07829'}, {name:'陳怡璇', code:'07802'}, {name:'郭芳妤', code:'07887'}
+    ]},
+    { label:'住院醫師', doctors:[
+      {name:'江典容', code:'07799'}, {name:'顏愉家', code:'07834'}, {name:'陳柯宏', code:'07913'},
+      {name:'高聖硯', code:'0F472'}, {name:'趙子彤', code:'7877'}
+    ]},
+    { label:'PGY2', doctors:[
+      {name:'紀久川', code:'07930'}, {name:'高文心', code:'07931'}, {name:'孫施仁', code:'07941'}
+    ]},
+    { label:'PGY1', doctors:[
+      {name:'陳萱', code:'07959'}, {name:'蕭竑展', code:'07962'}, {name:'朱亮穎', code:'07973'},
+      {name:'郭丞翰', code:'07972'}, {name:'顏辰媚', code:'07971'}
+    ]}
+  ];
+  function populateDoctorSelect(){
+    const sel = document.getElementById('f_doctor');
+    let html = '<option value="">請選擇醫師</option>';
+    DOCTOR_GROUPS.forEach(g => {
+      html += `<optgroup label="${g.label}">`;
+      g.doctors.forEach(d => { html += `<option value="${d.name}">${d.name}（${d.code}）</option>`; });
+      html += '</optgroup>';
+    });
+    html += '<option value="__other__">其他（自行填寫）</option>';
+    sel.innerHTML = html;
+  }
+  populateDoctorSelect();
+  document.getElementById('f_doctor').addEventListener('change', () => {
+    const sel = document.getElementById('f_doctor');
+    const other = document.getElementById('f_doctorOther');
+    if(sel.value === '__other__'){
+      other.style.display = 'block';
+      other.focus();
+    }else{
+      other.style.display = 'none';
+      other.value = '';
+    }
+  });
+  function getDoctorValue(){
+    const sel = document.getElementById('f_doctor');
+    if(sel.value === '__other__') return document.getElementById('f_doctorOther').value.trim();
+    return sel.value;
+  }
+  function setDoctorField(name){
+    const sel = document.getElementById('f_doctor');
+    const other = document.getElementById('f_doctorOther');
+    const found = Array.from(sel.options).some(o => o.value === name);
+    if(name && found){
+      sel.value = name;
+      other.style.display = 'none';
+      other.value = '';
+    }else if(name){
+      sel.value = '__other__';
+      other.style.display = 'block';
+      other.value = name;
+    }else{
+      sel.value = '';
+      other.style.display = 'none';
+      other.value = '';
+    }
+  }
+
   // ---- role management (submitter vs technician view) ----
   const ROLE_KEY = 'preferred_role';
 
@@ -903,10 +981,16 @@
     document.body.classList.remove('role-submit','role-tech','role-none');
     document.body.classList.add(role === 'submit' ? 'role-submit' : role === 'tech' ? 'role-tech' : 'role-none');
   }
-  function showRoleSelect(){ applyRole('none'); }
+  function showRoleSelect(){
+    applyRole('none');
+    try{
+      const url = new URL(window.location.href);
+      url.searchParams.delete('role');
+      history.replaceState(null, '', url.toString());
+    }catch(e){}
+  }
   function chooseRole(role){
     applyRole(role);
-    localSet(ROLE_KEY, role);
     try{
       const url = new URL(window.location.href);
       url.searchParams.set('role', role);
@@ -933,12 +1017,7 @@
     const params = new URLSearchParams(window.location.search);
     const urlRole = params.get('role');
     if(urlRole === 'submit' || urlRole === 'tech'){ chooseRole(urlRole); return; }
-    const savedRole = localGet(ROLE_KEY);
-    if(savedRole === 'submit' || savedRole === 'tech'){
-      applyRole(savedRole);
-      onRoleActivated(savedRole);
-      return;
-    }
+    // 每次開啟都先顯示身份選擇畫面，不再記住上次選的身份
     showRoleSelect();
   }
 
@@ -1229,7 +1308,7 @@
     const data = { patient: document.getElementById('f_patient').value,
       receiveDate: document.getElementById('f_receiveDate').value,
       registrar: document.getElementById('f_registrar').value,
-      doctor: document.getElementById('f_doctor').value,
+      doctor: getDoctorValue(),
       apptDate: document.getElementById('f_apptDate').value,
       chartNo: document.getElementById('f_chartNo').value,
       urgent: urgentCheckbox.checked,
@@ -1243,7 +1322,8 @@
   }
 
   function clearForm(){
-    ['f_patient','f_registrar','f_doctor','f_chartNo'].forEach(id => document.getElementById(id).value = '');
+    ['f_patient','f_registrar','f_chartNo'].forEach(id => document.getElementById(id).value = '');
+    setDoctorField('');
     document.getElementById('f_receiveDate').value = todayISO();
     document.getElementById('f_apptDate').value = '';
     urgentCheckbox.checked = false;
@@ -1500,7 +1580,7 @@
     document.getElementById('f_patient').value = r.patient || '';
     document.getElementById('f_receiveDate').value = r.receiveDate || '';
     document.getElementById('f_registrar').value = r.registrar || '';
-    document.getElementById('f_doctor').value = r.doctor || '';
+    setDoctorField(r.doctor || '');
     document.getElementById('f_apptDate').value = r.apptDate || '';
     document.getElementById('f_chartNo').value = r.chartNo || '';
     urgentCheckbox.checked = !!r.urgent;
