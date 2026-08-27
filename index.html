@@ -242,6 +242,21 @@
   .plan-extra .date-in{ width:52px; text-align:center; }
   .plan-extra .dr-in{ width:110px; }
 
+  .plan-deadline-notes{
+    margin:8px 0 0 24px;
+    padding:10px 12px;
+    background:#FAFAF8;
+    border:1px dashed var(--line);
+    border-radius:8px;
+  }
+  .plan-deadline-notes textarea{
+    width:100%; min-height:52px; margin-top:4px;
+    border:1px solid var(--line); border-radius:6px;
+    font-family:inherit; font-size:12.5px; padding:6px 8px;
+    outline:none; resize:vertical; color:var(--ink);
+  }
+  .plan-deadline-notes textarea:focus{ border-color:var(--clay); }
+
   /* tooth chart */
   .tooth-table{
     border:1px solid var(--line);
@@ -318,6 +333,13 @@
   }
   textarea.notes:focus{ border-color:var(--accent); }
 
+  .due-date-label{ display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:5px; }
+  .due-date-input{
+    display:block; margin-bottom:12px; font-family:inherit; font-size:13.5px;
+    padding:7px 10px; border:1px solid var(--line); border-radius:8px; outline:none; color:var(--ink);
+  }
+  .due-date-input:focus{ border-color:var(--accent); }
+
   .actions{
     display:flex; gap:10px; flex-wrap:wrap;
     padding:6px 26px 22px;
@@ -356,6 +378,34 @@
   .urgent-only-toggle{ margin-left:auto; }
   .urgent-only-toggle input{ accent-color:var(--danger); }
   .urgent-only-toggle .count{ font-weight:700; color:var(--danger); }
+  .my-orders-toggle input{ accent-color:#2E5AA8; }
+  .my-orders-toggle .count{ font-weight:700; color:#2E5AA8; }
+
+  .tech-identity-bar{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    background:#EFF5FB; border:1px solid #C9DCEF; border-radius:10px;
+    padding:9px 14px; margin:0 16px 12px; font-size:12.5px; color:#2E5AA8;
+    max-width:900px; margin-left:auto; margin-right:auto;
+  }
+  .tech-identity-bar b{ color:#1D3E6E; }
+  .identity-picker{ display:flex; gap:8px; }
+  .identity-btn{
+    font-family:inherit; font-size:12.5px; font-weight:700; padding:6px 16px;
+    border-radius:999px; border:1px solid #2E5AA8; background:#fff; color:#2E5AA8; cursor:pointer;
+  }
+  .identity-btn:hover{ background:#2E5AA8; color:#fff; }
+  .tech-identity-bar #btnChangeIdentity{ font-size:12px; padding:5px 12px; }
+
+  .badge-assignee{
+    display:inline-block; font-size:11px; font-weight:700;
+    padding:2px 9px; border-radius:999px; margin-right:8px; vertical-align:middle;
+    background:#E4ECF7; color:#2E5AA8;
+  }
+  .badge-assignee.unassigned{ background:#F1F1EF; color:var(--muted); }
+  .assignSel{
+    font-family:inherit; font-size:12.5px; padding:6px 8px;
+    border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink);
+  }
 
   .filter-tabs{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
   .filter-tab{
@@ -396,25 +446,45 @@
     background:#FCE4E4; color:var(--danger); font-weight:700; font-size:13px;
     padding:8px 12px; border-radius:8px; margin-bottom:12px;
   }
+  .full-ticket .assignee-banner{
+    display:flex; align-items:center; gap:6px;
+    background:#E4ECF7; color:#2E5AA8; font-weight:600; font-size:13px;
+    padding:7px 12px; border-radius:8px; margin-bottom:12px;
+  }
+  .full-ticket .assignee-banner b{ color:#1D3E6E; }
 
   .rec-empty{ font-size:13px; color:var(--muted); padding:14px; border:1px dashed var(--line); border-radius:10px; background:#fff;}
 
   .collapsible-block{ margin-top:16px; }
-  .history-details, .onhold-details{
+  .history-details{
     background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px;
   }
-  .history-details summary, .onhold-details summary{
+  .history-details summary{
     cursor:pointer; font-weight:700; font-size:13px; color:var(--muted);
     letter-spacing:.5px; list-style:none; display:flex; align-items:center; gap:6px;
   }
-  .history-details summary::-webkit-details-marker, .onhold-details summary::-webkit-details-marker{ display:none; }
+  .history-details summary::-webkit-details-marker{ display:none; }
   .history-details summary .count{ font-weight:700; color:var(--danger); }
-  .onhold-details summary .count{ font-weight:700; color:#6E3FA8; }
-  .history-details[open] summary, .onhold-details[open] summary{ margin-bottom:8px; }
-  .history-toolbar{ display:flex; justify-content:flex-end; margin-bottom:10px; }
+  .history-details[open] summary{ margin-bottom:8px; }
+  .done-details{
+    background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px;
+  }
+  .done-details summary{
+    cursor:pointer; font-weight:700; font-size:13px; color:var(--muted);
+    letter-spacing:.5px; list-style:none; display:flex; align-items:center; gap:6px;
+  }
+  .done-details summary::-webkit-details-marker{ display:none; }
+  .done-details summary .count{ font-weight:700; color:var(--accent-dark); }
+  .done-details[open] summary{ margin-bottom:8px; }
+  .history-toolbar{ display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:10px; }
+  .history-toolbar button{ font-size:12.5px; padding:7px 14px; }
+  .done-sort-select{
+    font-family:inherit; font-size:12.5px; padding:6px 10px;
+    border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink);
+  }
+  .rec-done{ background:#FAFCFB; }
   .history-toolbar button{ font-size:12.5px; padding:7px 14px; }
   .rec-deleted{ opacity:0.85; background:#FAFAF9; }
-  .rec-onhold{ background:#FBFAFD; border-left:4px solid #8B5FBF; }
   .rec-deleted .restoreBtn{
     padding:6px 12px; font-size:12.5px; border-radius:8px; border:1px solid var(--accent);
     background:var(--accent-soft); color:var(--accent-dark); cursor:pointer; font-family:inherit; font-weight:600;
@@ -511,6 +581,7 @@
   }
   .ro-extra{ flex-basis:100%; margin-left:22px; font-size:12px; color:var(--muted); }
   .ro-notes{ font-size:13.5px; line-height:1.7; white-space:pre-wrap; }
+  .ro-due-date{ font-size:13px; font-weight:700; color:var(--danger); margin-bottom:8px; }
   .ro-empty{ color:var(--muted); font-style:italic; }
 
   .tech-note-section{ background:#FAFAF8; }
@@ -580,7 +651,7 @@
   <div class="role-select" id="roleSelect">
     <div class="kicker">內部技工單 · 數位版</div>
     <h2>請選擇你的身份</h2>
-    <p>送單者與技工接收畫面已分開，選擇後這台裝置下次會記住你的身份。</p>
+    <p>送單者與牙技師接收畫面已分開，選擇後這台裝置下次會記住你的身份。</p>
     <div class="role-cards">
       <div class="role-card" data-role="submit">
         <div class="icon">📝</div>
@@ -589,7 +660,7 @@
       </div>
       <div class="role-card" data-role="tech">
         <div class="icon">🛠️</div>
-        <div class="title">我是技工</div>
+        <div class="title">我是牙技師</div>
         <div class="desc">接收通知、查看與處理技工單</div>
       </div>
     </div>
@@ -633,7 +704,7 @@
         <span class="urgent-box">🚨</span>
         <span class="urgent-text">
           <b>標記為急件</b>
-          <span class="urgent-sub">技工端會優先顯示、並在通知中特別標示</span>
+          <span class="urgent-sub">牙技師端會優先顯示、並在通知中特別標示</span>
         </span>
       </label>
 
@@ -675,6 +746,11 @@
             <input class="date-in" type="text" placeholder="日" data-key="dp_surgery_d" maxlength="2" />
             <span>搭配 DR.</span>
             <input class="dr-in" type="text" data-key="dp_with_dr" placeholder="醫師姓名" />
+          </div>
+
+          <div class="plan-deadline-notes">
+            <label class="ro-field-label">備註（期限提醒）</label>
+            <textarea data-key="dp_deadline_notes" placeholder="例如：8/20前須完成排牙，8/25前須完成灌模..."></textarea>
           </div>
 
           <div class="subs" style="margin-top:10px;">
@@ -827,6 +903,8 @@
       <!-- notes -->
       <div class="section">
         <h2>交待事項</h2>
+        <label class="due-date-label">須完成日期</label>
+        <input type="date" data-key="dueDate" class="due-date-input" />
         <textarea class="notes" data-key="notes" placeholder="請輸入交待事項…"></textarea>
       </div>
 
@@ -839,7 +917,7 @@
     </div>
   </div>
 
-  <p class="note-shared">送出後會自動存入共用清單，技工端會即時看到並收到通知。</p>
+  <p class="note-shared">送出後會自動存入共用清單，牙技師端會即時看到並收到通知。</p>
 
   <div class="records">
     <h3>近期送出狀態（唯讀）</h3>
@@ -850,8 +928,17 @@
 
   <div class="view" id="techView">
   <div class="view-topbar">
-    <span class="role-tag">🛠️ 技工接收畫面</span>
+    <span class="role-tag">🛠️ 牙技師接收畫面</span>
     <button class="switch-role" id="switchRoleFromTech">切換身份</button>
+  </div>
+
+  <div class="tech-identity-bar" id="techIdentityBar">
+    <span>目前身份：<b id="techIdentityLabel">尚未選擇</b></span>
+    <span class="identity-picker" id="identityPicker">
+      <button type="button" class="identity-btn" data-name="堅雯">堅雯</button>
+      <button type="button" class="identity-btn" data-name="菁優">菁優</button>
+    </span>
+    <button type="button" class="ghost" id="btnChangeIdentity" style="display:none;">切換身份</button>
   </div>
 
   <div class="records">
@@ -859,12 +946,12 @@
       <button class="ghost" id="btnNotifPermission">🔔 開啟通知提醒</button>
       <label class="sound-toggle"><input type="checkbox" id="chkSound" checked /> 提示音效</label>
       <label class="sound-toggle urgent-only-toggle"><input type="checkbox" id="chkUrgentOnly" /> 🚨 只看急件 <span class="count" id="urgentCount">0</span></label>
+      <label class="sound-toggle my-orders-toggle"><input type="checkbox" id="chkMyOrders" /> 👤 只看我的單 <span class="count" id="myOrdersCount">0</span></label>
     </div>
     <div class="filter-tabs">
       <button class="filter-tab active" data-filter="all">全部 <span class="count">0</span></button>
       <button class="filter-tab" data-filter="pending">待處理 <span class="count">0</span></button>
       <button class="filter-tab" data-filter="in_progress">處理中 <span class="count">0</span></button>
-      <button class="filter-tab" data-filter="done">已完成 <span class="count">0</span></button>
     </div>
     <div class="sort-bar">
       <label for="sortSelect">排序方式</label>
@@ -872,6 +959,7 @@
         <option value="ts_desc">送單日期（新到舊）</option>
         <option value="ts_asc">送單日期（舊到新）</option>
         <option value="doctor">醫師（A→Z）</option>
+        <option value="due_date">須完成日期（近→遠）</option>
       </select>
     </div>
     <h3>已送出紀錄</h3>
@@ -879,10 +967,16 @@
   </div>
 
   <div class="records collapsible-block">
-    <details class="onhold-details">
-      <summary>🔒 壓單 <span class="count" id="onHoldCount">0</span></summary>
-      <p class="mini-note">被標記為壓單的單子集中在這裡，可以用下拉選單改回其他狀態，就會自動回到一般清單。</p>
-      <div id="onHoldList"><div class="rec-empty">載入中…</div></div>
+    <details class="done-details">
+      <summary>✅ 已完成 <span class="count" id="doneCount">0</span></summary>
+      <div class="history-toolbar">
+        <select id="doneSortSelect" class="done-sort-select">
+          <option value="desc">完成日期（新→舊）</option>
+          <option value="asc">完成日期（舊→新）</option>
+        </select>
+        <button class="ghost" id="btnExportDone">📊 匯出 Excel</button>
+      </div>
+      <div id="doneList"><div class="rec-empty">載入中…</div></div>
     </details>
   </div>
 
@@ -977,6 +1071,44 @@
   function localGet(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
   function localSet(key, val){ try{ localStorage.setItem(key, val); }catch(e){} }
 
+  // ---- technician identity (for claiming / transferring orders) ----
+  const TECH_NAMES = ['堅雯', '菁優'];
+  const TECH_IDENTITY_KEY = 'tech_identity';
+  let currentTechIdentity = null;
+  function updateIdentityUI(){
+    const label = document.getElementById('techIdentityLabel');
+    const picker = document.getElementById('identityPicker');
+    const changeBtn = document.getElementById('btnChangeIdentity');
+    if(!label || !picker || !changeBtn) return;
+    if(currentTechIdentity){
+      label.textContent = currentTechIdentity;
+      picker.style.display = 'none';
+      changeBtn.style.display = 'inline-block';
+    }else{
+      label.textContent = '尚未選擇';
+      picker.style.display = 'inline-flex';
+      changeBtn.style.display = 'none';
+    }
+  }
+  function initTechIdentity(){
+    const saved = localGet(TECH_IDENTITY_KEY);
+    currentTechIdentity = (saved && TECH_NAMES.includes(saved)) ? saved : null;
+    updateIdentityUI();
+  }
+  document.querySelectorAll('.identity-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      currentTechIdentity = b.dataset.name;
+      localSet(TECH_IDENTITY_KEY, currentTechIdentity);
+      updateIdentityUI();
+    });
+  });
+  const btnChangeIdentityEl = document.getElementById('btnChangeIdentity');
+  if(btnChangeIdentityEl) btnChangeIdentityEl.addEventListener('click', () => {
+    currentTechIdentity = null;
+    localSet(TECH_IDENTITY_KEY, '');
+    updateIdentityUI();
+  });
+
   function applyRole(role){
     document.body.classList.remove('role-submit','role-tech','role-none');
     document.body.classList.add(role === 'submit' ? 'role-submit' : role === 'tech' ? 'role-tech' : 'role-none');
@@ -1002,6 +1134,7 @@
     startOrdersListener(); // one shared real-time listener drives both views
     if(role === 'tech'){
       updateNotifBtnLabel();
+      initTechIdentity();
       renderTechView(); // draw immediately with whatever the listener already cached
     }else if(role === 'submit'){
       renderMySubmissions(); // draw immediately with whatever the listener already cached
@@ -1029,7 +1162,7 @@
     { key:'digital_plan', label:'數位規劃', section:'digital', subs:[
       {key:'dp_implant', label:'植牙'}, {key:'dp_apic', label:'根尖切除'}, {key:'dp_other', label:'其他', text:'dp_other_text'},
       {key:'dp_romexis', label:'疊 ROMEXIS'}, {key:'dp_surg_template', label:'3D 列印手術導板'}, {key:'dp_vacuum', label:'VACUUM 式導板'}
-    ], extra:['dp_explain_m','dp_explain_d','dp_surgery_m','dp_surgery_d','dp_with_dr'] },
+    ], extra:['dp_explain_m','dp_explain_d','dp_surgery_m','dp_surgery_d','dp_with_dr'], note:'dp_deadline_notes' },
     { key:'clear_retainer', label:'透明維持板（硬 1MM）', section:'left' },
     { key:'whitening_tray', label:'美白牙托', section:'left' },
     { key:'pour_model', label:'灌模', section:'left', subs:[{key:'pour_boxing', label:'要 BOXING'}] },
@@ -1097,10 +1230,14 @@
       if(dr) parts.push(`搭配 DR. ${esc(dr)}`);
       if(parts.length) extraHtml = `<div class="ro-extra">${parts.join('、')}</div>`;
     }
+    let noteHtml = '';
+    if(checked && def.note && items[def.note]){
+      noteHtml = `<div class="ro-extra">📌 ${esc(items[def.note])}</div>`;
+    }
     return `<div class="ro-item ${checked ? 'is-checked' : ''}">
         <span class="ro-box">${checked ? '☑' : '☐'}</span>
         <span class="ro-label">${esc(def.label)}</span>
-        ${subsHtml}${extraHtml}
+        ${subsHtml}${extraHtml}${noteHtml}
       </div>`;
   }
   function renderHeaderRO(r){
@@ -1131,6 +1268,7 @@
     const bySection = s => ITEM_DEFS.filter(d => d.section === s).map(d => renderItemRO(d, items)).join('');
     return `<div class="full-ticket">
         ${r.urgent ? '<div class="urgent-banner">🚨 急件 — 請優先處理</div>' : ''}
+        <div class="assignee-banner">👤 目前負責人：<b>${r.assignedTo ? esc(r.assignedTo) : '未認領'}</b></div>
         ${renderHeaderRO(r)}
         <div class="section"><h2>數位 / 模板</h2>${bySection('digital')}</div>
         <div class="two-col">
@@ -1140,6 +1278,7 @@
         <div class="section"><h2>其他技工項目</h2>${bySection('other')}</div>
         <div class="section">${renderToothRO(items)}</div>
         <div class="section"><h2>交待事項</h2>
+          ${items.dueDate ? `<div class="ro-due-date">📅 須完成日期：${esc(items.dueDate)}</div>` : ''}
           <div class="ro-notes">${items.notes ? esc(items.notes).replace(/\n/g,'<br>') : '<span class="ro-empty">（無）</span>'}</div>
         </div>
         <div class="section tech-note-section">
@@ -1158,8 +1297,16 @@
             <button type="button" class="techSaveBtn" data-id="${r.id}">確定</button>
           </div>
         </div>
+        ${buildAssignLogHTML(r)}
         ${buildEditLogHTML(r)}
       </div>`;
+  }
+  function buildAssignLogHTML(r){
+    if(!Array.isArray(r.assignLog) || r.assignLog.length === 0) return '';
+    const rows = r.assignLog.slice().reverse().map(entry =>
+      `<div class="edit-log-row"><div class="edit-log-head">👤 <b>${esc(entry.by || '未知')}</b> 於 ${entry.ts ? new Date(entry.ts).toLocaleString('zh-TW') : '-'} 將負責人從「${esc(entry.from)}」改為「${esc(entry.to)}」</div></div>`
+    ).join('');
+    return `<div class="section edit-log-section"><h2>轉單紀錄</h2>${rows}</div>`;
   }
   const TOP_FIELD_LABELS = { patient:'患者', receiveDate:'收件日', registrar:'登記者', doctor:'醫師', apptDate:'約診日', chartNo:'病歷號碼', urgent:'急件' };
   const TOOTH_FIELD_LABELS = { tooth_ur:'牙位-右上', tooth_ul:'牙位-左上', tooth_lr:'牙位-右下', tooth_ll:'牙位-左下' };
@@ -1173,9 +1320,11 @@
         }
       }
       if(def.extra && def.extra.includes(key)) return `${def.label}－補充資訊`;
+      if(def.note === key) return `${def.label}－備註（期限提醒）`;
     }
     if(TOOTH_FIELD_LABELS[key]) return TOOTH_FIELD_LABELS[key];
     if(key === 'notes') return '交待事項';
+    if(key === 'dueDate') return '須完成日期';
     return key;
   }
   function formatFieldVal(v){
@@ -1348,6 +1497,7 @@
   let currentFilter = 'all';
   let currentSort = 'ts_desc';
   let urgentOnly = false;
+  let myOrdersOnly = false;
   let cachedRecords = [];
   let soundEnabled = true;
   let unseenCount = 0;
@@ -1360,8 +1510,8 @@
   function sortByTsDesc(recs){ return recs.slice().sort((a,b) => (b.ts||0) - (a.ts||0)); }
 
   function renderFilterCounts(){
-    const active = cachedRecords.filter(r => !r.deleted && r.status !== 'on_hold');
-    const counts = { all: active.length, pending:0, in_progress:0, done:0 };
+    const active = cachedRecords.filter(r => !r.deleted && r.status !== 'done');
+    const counts = { all: active.length, pending:0, in_progress:0 };
     active.forEach(r => { const s = r.status||'pending'; if(counts[s]!==undefined) counts[s]++; });
     document.querySelectorAll('.filter-tab').forEach(tab => {
       const key = tab.dataset.filter;
@@ -1369,12 +1519,14 @@
       tab.classList.toggle('active', currentFilter === key);
     });
     document.getElementById('urgentCount').textContent = active.filter(r => r.urgent).length;
+    const myOrdersCountEl = document.getElementById('myOrdersCount');
+    if(myOrdersCountEl) myOrdersCountEl.textContent = active.filter(r => r.assignedTo === currentTechIdentity && currentTechIdentity).length;
     const historyCount = cachedRecords.filter(r => r.deleted).length;
     const histCountEl = document.getElementById('historyCount');
     if(histCountEl) histCountEl.textContent = historyCount;
-    const onHoldCount = cachedRecords.filter(r => !r.deleted && r.status === 'on_hold').length;
-    const onHoldCountEl = document.getElementById('onHoldCount');
-    if(onHoldCountEl) onHoldCountEl.textContent = onHoldCount;
+    const doneCount = cachedRecords.filter(r => !r.deleted && r.status === 'done').length;
+    const doneCountEl = document.getElementById('doneCount');
+    if(doneCountEl) doneCountEl.textContent = doneCount;
   }
 
   function sortRecords(recs){
@@ -1386,6 +1538,16 @@
       case 'doctor':
         sorted.sort((a,b) => (a.doctor||'').localeCompare(b.doctor||'', 'zh-Hant') || (b.ts||0) - (a.ts||0));
         break;
+      case 'due_date':
+        sorted.sort((a,b) => {
+          const da = (a.items && a.items.dueDate) || '';
+          const db = (b.items && b.items.dueDate) || '';
+          if(!da && !db) return (b.ts||0) - (a.ts||0);
+          if(!da) return 1; // no due date sinks to the bottom
+          if(!db) return -1;
+          return da.localeCompare(db); // ISO date strings sort chronologically
+        });
+        break;
       case 'ts_desc':
       default:
         sorted.sort((a,b) => (b.ts||0) - (a.ts||0));
@@ -1395,12 +1557,25 @@
     return sorted;
   }
 
+  function assigneeBadgeHTML(r){
+    return r.assignedTo
+      ? `<span class="badge-assignee">👤 ${esc(r.assignedTo)}</span>`
+      : `<span class="badge-assignee unassigned">未認領</span>`;
+  }
+  function assigneeSelectHTML(r){
+    const val = r.assignedTo || '';
+    const opts = ['<option value="">未認領</option>']
+      .concat(TECH_NAMES.map(n => `<option value="${n}" ${val===n?'selected':''}>${n}</option>`));
+    return `<select class="assignSel" data-id="${r.id}">${opts.join('')}</select>`;
+  }
+
   function drawRecordsList(){
     const listEl = document.getElementById('recordsList');
     const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
-    const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'on_hold');
+    const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done');
     let filtered = currentFilter === 'all' ? nonDeleted : nonDeleted.filter(r => (r.status||'pending') === currentFilter);
     if(urgentOnly) filtered = filtered.filter(r => r.urgent);
+    if(myOrdersOnly) filtered = filtered.filter(r => r.assignedTo === currentTechIdentity);
     filtered = sortRecords(filtered);
     if(filtered.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有符合條件的紀錄</div>'; return; }
     listEl.innerHTML = '';
@@ -1410,17 +1585,19 @@
       div.className = 'rec' + (r.urgent ? ' is-urgent' : '');
       div.innerHTML = `<div class="meta">
           ${r.urgent ? '<span class="badge-urgent">🚨 急件</span>' : ''}
-          <span class="status-badge ${STATUS_CLASS[status]}">${STATUS_LABEL[status]}</span>
+          <span class="status-badge ${STATUS_CLASS[status] || 'st-pending'}">${STATUS_LABEL[status] || status}</span>
+          ${assigneeBadgeHTML(r)}
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
           <div class="sub">${esc(subLineText(r))}</div>
         </div>
         <div class="rec-actions">
+          ${assigneeSelectHTML(r)}
           <select class="statusSel" data-id="${r.id}">
             <option value="pending" ${status==='pending'?'selected':''}>待處理</option>
             <option value="in_progress" ${status==='in_progress'?'selected':''}>處理中</option>
-            <option value="on_hold" ${status==='on_hold'?'selected':''}>壓單</option>
             <option value="done" ${status==='done'?'selected':''}>已完成</option>
           </select>
+          <button data-id="${r.id}" class="editBtnTech">✏️ 編輯</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
         </div>
         <details class="rec-details" data-id="${r.id}">
@@ -1430,6 +1607,7 @@
       if(openIds.has(r.id)) div.querySelector('.rec-details').open = true;
       listEl.appendChild(div);
     });
+    listEl.querySelectorAll('.assignSel').forEach(s => s.addEventListener('change', () => setAssignee(s.dataset.id, s.value)));
     listEl.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
     listEl.querySelectorAll('.statusSel').forEach(s => s.addEventListener('change', () => setStatus(s.dataset.id, s.value)));
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
@@ -1466,29 +1644,39 @@
     listEl.querySelectorAll('.permDelBtn').forEach(b => b.addEventListener('click', () => permanentlyDeleteRecord(b.dataset.id)));
   }
 
-  function drawOnHoldList(){
-    const listEl = document.getElementById('onHoldList');
+  let doneSortOrder = 'desc'; // by completedDate
+  function drawDoneList(){
+    const listEl = document.getElementById('doneList');
     if(!listEl) return;
     const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
-    const onHold = cachedRecords.filter(r => !r.deleted && r.status === 'on_hold').sort((a,b) => (b.ts||0) - (a.ts||0));
-    if(onHold.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有壓單</div>'; return; }
+    const done = cachedRecords.filter(r => !r.deleted && r.status === 'done').sort((a,b) => {
+      const da = a.completedDate || '';
+      const db = b.completedDate || '';
+      if(!da && !db) return (b.ts||0) - (a.ts||0);
+      if(!da) return 1; // no completion date sinks to the bottom
+      if(!db) return -1;
+      return doneSortOrder === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
+    });
+    if(done.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有已完成的單子</div>'; return; }
     listEl.innerHTML = '';
-    onHold.slice(0,60).forEach(r => {
+    done.slice(0,80).forEach(r => {
       const div = document.createElement('div');
-      div.className = 'rec rec-onhold' + (r.urgent ? ' is-urgent' : '');
+      div.className = 'rec rec-done' + (r.urgent ? ' is-urgent' : '');
       div.innerHTML = `<div class="meta">
           ${r.urgent ? '<span class="badge-urgent">🚨 急件</span>' : ''}
-          <span class="status-badge ${STATUS_CLASS.on_hold}">壓單</span>
+          <span class="status-badge ${STATUS_CLASS.done}">已完成</span>
+          ${assigneeBadgeHTML(r)}
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
           <div class="sub">${esc(subLineText(r))}</div>
         </div>
         <div class="rec-actions">
+          ${assigneeSelectHTML(r)}
           <select class="statusSel" data-id="${r.id}">
             <option value="pending">待處理</option>
             <option value="in_progress">處理中</option>
-            <option value="on_hold" selected>壓單</option>
-            <option value="done">已完成</option>
+            <option value="done" selected>已完成</option>
           </select>
+          <button data-id="${r.id}" class="editBtnTech">✏️ 編輯</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
         </div>
         <details class="rec-details" data-id="${r.id}">
@@ -1498,10 +1686,14 @@
       if(openIds.has(r.id)) div.querySelector('.rec-details').open = true;
       listEl.appendChild(div);
     });
+    listEl.querySelectorAll('.assignSel').forEach(s => s.addEventListener('change', () => setAssignee(s.dataset.id, s.value)));
     listEl.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
     listEl.querySelectorAll('.statusSel').forEach(s => s.addEventListener('change', () => setStatus(s.dataset.id, s.value)));
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
+    listEl.querySelectorAll('.editBtnTech').forEach(b => b.addEventListener('click', () => startEditRecordFromTech(b.dataset.id)));
   }
+  const doneSortSelectEl = document.getElementById('doneSortSelect');
+  if(doneSortSelectEl) doneSortSelectEl.addEventListener('change', e => { doneSortOrder = e.target.value; drawDoneList(); });
 
   function sectionSummaryText(section, items){
     const defs = ITEM_DEFS.filter(d => d.section === section);
@@ -1531,46 +1723,63 @@
     });
     return parts.join('；');
   }
-  function exportHistoryToExcel(){
+  function buildExcelRow(r){
+    const items = r.items || {};
+    return {
+      '患者': r.patient || '',
+      '病歷號碼': r.chartNo || '',
+      '醫師': r.doctor || '',
+      '登記者': r.registrar || '',
+      '收件日': r.receiveDate || '',
+      '約診日': r.apptDate || '',
+      '急件': r.urgent ? '是' : '',
+      '負責人': r.assignedTo || '未認領',
+      '狀態': STATUS_LABEL[r.status] || r.status || '',
+      '數位/模板': sectionSummaryText('digital', items),
+      '模型/咬合相關': sectionSummaryText('left', items),
+      '假牙/蠟型相關': sectionSummaryText('right', items),
+      '其他技工項目': sectionSummaryText('other', items),
+      '牙位': toothSummaryText(items),
+      '須完成日期': items.dueDate || '',
+      '交待事項': items.notes || '',
+      '送出時間': r.ts ? new Date(r.ts).toLocaleString('zh-TW') : '',
+      '完成日期': r.completedDate || '',
+      '技工備註': r.techNote || '',
+      '刪除時間': r.deletedAt ? new Date(r.deletedAt).toLocaleString('zh-TW') : ''
+    };
+  }
+  function exportRowsToExcel(rows, sheetName, filenamePrefix){
     if(typeof XLSX === 'undefined'){ alert('匯出工具載入失敗，請確認網路連線後重新整理頁面再試一次'); return; }
-    const deleted = cachedRecords.filter(r => r.deleted).sort((a,b) => (b.deletedAt||0) - (a.deletedAt||0));
-    if(deleted.length === 0){ alert('目前歷史紀錄是空的，沒有東西可以匯出'); return; }
-    const rows = deleted.map(r => {
-      const items = r.items || {};
-      return {
-        '患者': r.patient || '',
-        '病歷號碼': r.chartNo || '',
-        '醫師': r.doctor || '',
-        '登記者': r.registrar || '',
-        '收件日': r.receiveDate || '',
-        '約診日': r.apptDate || '',
-        '急件': r.urgent ? '是' : '',
-        '狀態': STATUS_LABEL[r.status] || r.status || '',
-        '數位/模板': sectionSummaryText('digital', items),
-        '模型/咬合相關': sectionSummaryText('left', items),
-        '假牙/蠟型相關': sectionSummaryText('right', items),
-        '其他技工項目': sectionSummaryText('other', items),
-        '牙位': toothSummaryText(items),
-        '交待事項': items.notes || '',
-        '送出時間': r.ts ? new Date(r.ts).toLocaleString('zh-TW') : '',
-        '完成日期': r.completedDate || '',
-        '技工備註': r.techNote || '',
-        '刪除時間': r.deletedAt ? new Date(r.deletedAt).toLocaleString('zh-TW') : ''
-      };
-    });
+    if(rows.length === 0){ alert('目前沒有東西可以匯出'); return; }
     const ws = XLSX.utils.json_to_sheet(rows);
     ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.min(50, Math.max(10, k.length + 2, ...rows.map(row => String(row[k]||'').length + 2))) }));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '歷史紀錄');
-    XLSX.writeFile(wb, `技工單歷史紀錄_${todayISO()}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, `${filenamePrefix}_${todayISO()}.xlsx`);
+  }
+  function exportHistoryToExcel(){
+    const deleted = cachedRecords.filter(r => r.deleted).sort((a,b) => (b.deletedAt||0) - (a.deletedAt||0));
+    exportRowsToExcel(deleted.map(buildExcelRow), '歷史紀錄', '技工單歷史紀錄');
+  }
+  function exportDoneToExcel(){
+    const done = cachedRecords.filter(r => !r.deleted && r.status === 'done').sort((a,b) => {
+      const da = a.completedDate || '', db = b.completedDate || '';
+      if(!da && !db) return (b.ts||0) - (a.ts||0);
+      if(!da) return 1;
+      if(!db) return -1;
+      return doneSortOrder === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
+    });
+    exportRowsToExcel(done.map(buildExcelRow), '已完成', '技工單已完成紀錄');
   }
   const btnExportHistoryEl = document.getElementById('btnExportHistory');
   if(btnExportHistoryEl) btnExportHistoryEl.addEventListener('click', exportHistoryToExcel);
+  const btnExportDoneEl = document.getElementById('btnExportDone');
+  if(btnExportDoneEl) btnExportDoneEl.addEventListener('click', exportDoneToExcel);
 
   function renderTechView(){
     renderFilterCounts();
     drawRecordsList();
-    drawOnHoldList();
+    drawDoneList();
     drawHistoryList();
   }
 
@@ -1598,16 +1807,32 @@
 
   // ---- editing an already-submitted order (sender side) ----
   let currentEditingId = null;
+  let currentEditReturnRole = null;
   function startEditRecord(id){
     loadRecord(id);
     currentEditingId = id;
+    currentEditReturnRole = null;
     document.getElementById('editModeBanner').style.display = 'flex';
     document.getElementById('btnSubmit').textContent = '儲存修改';
+  }
+  function startEditRecordFromTech(id){
+    loadRecord(id);
+    currentEditingId = id;
+    currentEditReturnRole = 'tech';
+    document.getElementById('editModeBanner').style.display = 'flex';
+    document.getElementById('btnSubmit').textContent = '儲存修改';
+    applyRole('submit'); // temporarily reveal the form so the technician can edit it
+    window.scrollTo({top:0, behavior:'smooth'});
   }
   function exitEditMode(){
     currentEditingId = null;
     document.getElementById('editModeBanner').style.display = 'none';
     document.getElementById('btnSubmit').textContent = '送出並儲存紀錄';
+    if(currentEditReturnRole === 'tech'){
+      applyRole('tech');
+      renderTechView();
+    }
+    currentEditReturnRole = null;
   }
   document.getElementById('btnCancelEdit').addEventListener('click', () => {
     if(confirm('確定要取消編輯嗎？目前表單上的修改不會被儲存。')){
@@ -1621,6 +1846,18 @@
     if(!rec) return;
     rec.status = status;
     try{ await fsSet(id, rec); }catch(e){ alert('更新狀態失敗'); }
+  }
+
+  async function setAssignee(id, name){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    const from = rec.assignedTo || '未認領';
+    const to = name || '未認領';
+    if(from === to) return;
+    rec.assignedTo = name || null;
+    rec.assignLog = Array.isArray(rec.assignLog) ? rec.assignLog.slice() : [];
+    rec.assignLog.push({ from, to, by: currentTechIdentity || '未選擇身份', ts: Date.now() });
+    try{ await fsSet(id, rec); }catch(e){ alert('指派失敗'); }
   }
 
   function renderMySubmissions(){
@@ -1683,6 +1920,15 @@
     urgentOnly = e.target.checked;
     drawRecordsList();
   });
+  document.getElementById('chkMyOrders').addEventListener('change', e => {
+    if(e.target.checked && !currentTechIdentity){
+      alert('請先在上方選擇你的身份，才能篩選「我的單」');
+      e.target.checked = false;
+      return;
+    }
+    myOrdersOnly = e.target.checked;
+    drawRecordsList();
+  });
 
   document.getElementById('btnSubmit').addEventListener('click', async () => {
     const data = collectForm();
@@ -1715,7 +1961,7 @@
     try{
       await fsSet(data.id, data);
       localSet(LAST_SEEN_KEY, String(data.ts)); // the person submitting doesn't need a notification for their own order
-      alert('已送出並儲存！技工端會即時收到提醒（需開啟此頁面並允許通知）。');
+      alert('已送出並儲存！牙技師端會即時收到提醒（需開啟此頁面並允許通知）。');
       clearForm(); // ready for the next order
     }catch(e){
       console.error(e);
