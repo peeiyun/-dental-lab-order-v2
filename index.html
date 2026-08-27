@@ -65,6 +65,25 @@
   }
   .body-pad{ padding:22px 26px 8px; }
 
+  .modal-overlay{
+    position:fixed; inset:0; z-index:10000;
+    background:rgba(20,26,20,0.45);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .modal-box{
+    max-width:340px; width:100%;
+    background:#fff; border-radius:14px; padding:24px 22px;
+  }
+  .modal-box h3{ font-size:16px; margin:0 0 14px; color:var(--ink); }
+  .modal-box input{
+    width:100%; box-sizing:border-box; font-family:inherit; font-size:14.5px;
+    padding:10px 12px; border:1px solid var(--line); border-radius:8px; outline:none;
+  }
+  .modal-box input:focus{ border-color:var(--accent); }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+  .modal-actions button{ padding:8px 18px; font-size:13px; }
+
   .edit-mode-banner{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
     background:#FFF6E9; border:1px solid var(--clay); color:var(--clay);
@@ -406,6 +425,17 @@
     font-family:inherit; font-size:12.5px; padding:6px 8px;
     border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink);
   }
+  .badge-duedate{
+    display:inline-block; font-size:11px; font-weight:700;
+    padding:2px 9px; border-radius:999px; margin-right:8px; vertical-align:middle;
+    background:#FFF3D6; color:#8A5A1E;
+  }
+  .drag-handle{
+    display:inline-block; cursor:grab; color:var(--muted); font-size:16px;
+    margin-right:6px; vertical-align:middle; user-select:none;
+  }
+  .rec[draggable="true"]{ cursor:grab; }
+  .rec.dragging{ opacity:0.4; }
 
   .filter-tabs{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
   .filter-tab{
@@ -440,6 +470,8 @@
     padding:2px 9px; border-radius:999px; margin-right:8px;
     vertical-align:middle; background:#FCE4E4; color:var(--danger);
   }
+  .rec.assignee-a{ background:#EAF2FE; border-left:4px solid #2E5AA8; }
+  .rec.assignee-b{ background:#FFF4E9; border-left:4px solid #C1793A; }
   .rec.is-urgent{ border-left:4px solid var(--danger); background:#FFFBFA; }
   .full-ticket .urgent-banner{
     display:flex; align-items:center; gap:8px;
@@ -647,6 +679,17 @@
 </script>
 </head>
 <body class="role-none">
+
+  <div class="modal-overlay" id="editorNameModal" style="display:none;">
+    <div class="modal-box">
+      <h3>請輸入修改者姓名</h3>
+      <input type="text" id="editorNameInput" placeholder="姓名" autocomplete="off" />
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="editorNameCancel">取消</button>
+        <button type="button" class="primary" id="editorNameConfirm">確定</button>
+      </div>
+    </div>
+  </div>
 
   <div class="role-select" id="roleSelect">
     <div class="kicker">內部技工單 · 數位版</div>
@@ -993,6 +1036,32 @@
 <script>
   const ALL_KEYS = Array.from(document.querySelectorAll('[data-key]')).map(el => el.dataset.key);
 
+  // ---- custom "who made this edit" input (replaces window.prompt, which is unreliable
+  //      inside standalone/home-screen web-app mode on some phones) ----
+  function askEditorName(){
+    return new Promise(resolve => {
+      const modal = document.getElementById('editorNameModal');
+      const input = document.getElementById('editorNameInput');
+      const confirmBtn = document.getElementById('editorNameConfirm');
+      const cancelBtn = document.getElementById('editorNameCancel');
+      input.value = '';
+      modal.style.display = 'flex';
+      setTimeout(() => input.focus(), 30);
+      function cleanup(){
+        modal.style.display = 'none';
+        confirmBtn.removeEventListener('click', onConfirm);
+        cancelBtn.removeEventListener('click', onCancel);
+        input.removeEventListener('keydown', onKeydown);
+      }
+      function onConfirm(){ const v = input.value.trim(); cleanup(); resolve(v || null); }
+      function onCancel(){ cleanup(); resolve(null); }
+      function onKeydown(e){ if(e.key === 'Enter') onConfirm(); else if(e.key === 'Escape') onCancel(); }
+      confirmBtn.addEventListener('click', onConfirm);
+      cancelBtn.addEventListener('click', onCancel);
+      input.addEventListener('keydown', onKeydown);
+    });
+  }
+
   // ---- doctor list (grouped dropdown) ----
   const DOCTOR_GROUPS = [
     { label:'主治醫師', doctors:[
@@ -1268,7 +1337,7 @@
     const bySection = s => ITEM_DEFS.filter(d => d.section === s).map(d => renderItemRO(d, items)).join('');
     return `<div class="full-ticket">
         ${r.urgent ? '<div class="urgent-banner">🚨 急件 — 請優先處理</div>' : ''}
-        <div class="assignee-banner">👤 目前負責人：<b>${r.assignedTo ? esc(r.assignedTo) : '未認領'}</b></div>
+        <div class="assignee-banner">👤 目前負責人：<b>${r.assignedTo ? esc(r.assignedTo) : '未處理'}</b></div>
         ${renderHeaderRO(r)}
         <div class="section"><h2>數位 / 模板</h2>${bySection('digital')}</div>
         <div class="two-col">
@@ -1560,13 +1629,21 @@
   function assigneeBadgeHTML(r){
     return r.assignedTo
       ? `<span class="badge-assignee">👤 ${esc(r.assignedTo)}</span>`
-      : `<span class="badge-assignee unassigned">未認領</span>`;
+      : `<span class="badge-assignee unassigned">未處理</span>`;
   }
   function assigneeSelectHTML(r){
     const val = r.assignedTo || '';
-    const opts = ['<option value="">未認領</option>']
+    const opts = ['<option value="">未處理</option>']
       .concat(TECH_NAMES.map(n => `<option value="${n}" ${val===n?'selected':''}>${n}</option>`));
     return `<select class="assignSel" data-id="${r.id}">${opts.join('')}</select>`;
+  }
+  function assigneeColorClass(r){
+    const idx = TECH_NAMES.indexOf(r.assignedTo);
+    return idx === 0 ? 'assignee-a' : idx === 1 ? 'assignee-b' : '';
+  }
+  function dueDateBadgeHTML(r){
+    const due = r.items && r.items.dueDate;
+    return due ? `<span class="badge-duedate">📅 須完成 ${esc(due)}</span>` : '';
   }
 
   function drawRecordsList(){
@@ -1576,15 +1653,31 @@
     let filtered = currentFilter === 'all' ? nonDeleted : nonDeleted.filter(r => (r.status||'pending') === currentFilter);
     if(urgentOnly) filtered = filtered.filter(r => r.urgent);
     if(myOrdersOnly) filtered = filtered.filter(r => r.assignedTo === currentTechIdentity);
-    filtered = sortRecords(filtered);
+    const isPendingTab = currentFilter === 'pending';
+    if(isPendingTab){
+      // in the 待處理 tab, respect manual drag order instead of the sort dropdown
+      filtered = filtered.slice().sort((a,b) => {
+        const ma = typeof a.manualOrder === 'number' ? a.manualOrder : 0;
+        const mb = typeof b.manualOrder === 'number' ? b.manualOrder : 0;
+        if(ma !== mb) return mb - ma; // higher manualOrder sorts first
+        return (b.ts||0) - (a.ts||0);
+      });
+      filtered.sort((a,b) => (b.urgent?1:0) - (a.urgent?1:0)); // urgent still bubbles to top
+    }else{
+      filtered = sortRecords(filtered);
+    }
     if(filtered.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有符合條件的紀錄</div>'; return; }
     listEl.innerHTML = '';
     filtered.slice(0,40).forEach(r => {
       const status = r.status || 'pending';
       const div = document.createElement('div');
-      div.className = 'rec' + (r.urgent ? ' is-urgent' : '');
+      div.className = 'rec ' + assigneeColorClass(r) + (r.urgent ? ' is-urgent' : '');
+      div.dataset.id = r.id;
+      if(isPendingTab) div.setAttribute('draggable', 'true');
       div.innerHTML = `<div class="meta">
+          ${isPendingTab ? '<span class="drag-handle" title="拖曳調整順序">⠿</span>' : ''}
           ${r.urgent ? '<span class="badge-urgent">🚨 急件</span>' : ''}
+          ${dueDateBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS[status] || 'st-pending'}">${STATUS_LABEL[status] || status}</span>
           ${assigneeBadgeHTML(r)}
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
@@ -1607,10 +1700,48 @@
       if(openIds.has(r.id)) div.querySelector('.rec-details').open = true;
       listEl.appendChild(div);
     });
+    if(isPendingTab) enableDragReorder(listEl);
     listEl.querySelectorAll('.assignSel').forEach(s => s.addEventListener('change', () => setAssignee(s.dataset.id, s.value)));
     listEl.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
     listEl.querySelectorAll('.statusSel').forEach(s => s.addEventListener('change', () => setStatus(s.dataset.id, s.value)));
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
+  }
+
+  function enableDragReorder(listEl){
+    let dragEl = null;
+    listEl.querySelectorAll('.rec[draggable="true"]').forEach(row => {
+      row.addEventListener('dragstart', () => {
+        dragEl = row;
+        row.classList.add('dragging');
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        dragEl = null;
+        persistPendingOrder(listEl);
+      });
+      row.addEventListener('dragover', e => {
+        e.preventDefault();
+        if(!dragEl || dragEl === row) return;
+        const rect = row.getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+        if(e.clientY < midpoint) listEl.insertBefore(dragEl, row);
+        else listEl.insertBefore(dragEl, row.nextSibling);
+      });
+    });
+  }
+  function persistPendingOrder(listEl){
+    const rows = Array.from(listEl.querySelectorAll('.rec[data-id]'));
+    const n = rows.length;
+    rows.forEach((row, idx) => {
+      const id = row.dataset.id;
+      const rec = cachedRecords.find(x => x.id === id);
+      if(!rec) return;
+      const newOrder = (n - idx) * 1000;
+      if(rec.manualOrder !== newOrder){
+        rec.manualOrder = newOrder;
+        fsSet(id, rec).catch(e => console.error(e));
+      }
+    });
   }
 
   function drawHistoryList(){
@@ -1661,9 +1792,10 @@
     listEl.innerHTML = '';
     done.slice(0,80).forEach(r => {
       const div = document.createElement('div');
-      div.className = 'rec rec-done' + (r.urgent ? ' is-urgent' : '');
+      div.className = 'rec rec-done ' + assigneeColorClass(r) + (r.urgent ? ' is-urgent' : '');
       div.innerHTML = `<div class="meta">
           ${r.urgent ? '<span class="badge-urgent">🚨 急件</span>' : ''}
+          ${dueDateBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS.done}">已完成</span>
           ${assigneeBadgeHTML(r)}
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
@@ -1733,7 +1865,7 @@
       '收件日': r.receiveDate || '',
       '約診日': r.apptDate || '',
       '急件': r.urgent ? '是' : '',
-      '負責人': r.assignedTo || '未認領',
+      '負責人': r.assignedTo || '未處理',
       '狀態': STATUS_LABEL[r.status] || r.status || '',
       '數位/模板': sectionSummaryText('digital', items),
       '模型/咬合相關': sectionSummaryText('left', items),
@@ -1851,8 +1983,8 @@
   async function setAssignee(id, name){
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
-    const from = rec.assignedTo || '未認領';
-    const to = name || '未認領';
+    const from = rec.assignedTo || '未處理';
+    const to = name || '未處理';
     if(from === to) return;
     rec.assignedTo = name || null;
     rec.assignLog = Array.isArray(rec.assignLog) ? rec.assignLog.slice() : [];
@@ -1868,7 +2000,7 @@
     active.slice(0,10).forEach(r => {
       const status = r.status || 'pending';
       const div = document.createElement('div');
-      div.className = 'rec' + (r.urgent ? ' is-urgent' : '');
+      div.className = 'rec ' + assigneeColorClass(r) + (r.urgent ? ' is-urgent' : '');
       div.innerHTML = `<div class="meta">
           ${r.urgent ? '<span class="badge-urgent">🚨 急件</span>' : ''}
           <span class="status-badge ${STATUS_CLASS[status]}">${STATUS_LABEL[status]}</span>
@@ -1937,8 +2069,8 @@
       if(!original){ alert('找不到原始資料，無法儲存修改'); return; }
       const changes = buildChangeSummary(original, data);
       if(changes.length === 0){ alert('沒有偵測到任何欄位變動，未儲存。'); return; }
-      const editor = prompt('請輸入修改者姓名：');
-      if(!editor || !editor.trim()){ alert('未輸入修改者，已取消儲存。'); return; }
+      const editor = await askEditorName();
+      if(!editor){ alert('未輸入修改者，已取消儲存。'); return; }
       const merged = Object.assign({}, original, data);
       merged.id = currentEditingId;
       merged.lastEditedAt = Date.now();
