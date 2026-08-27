@@ -1653,9 +1653,9 @@
     let filtered = currentFilter === 'all' ? nonDeleted : nonDeleted.filter(r => (r.status||'pending') === currentFilter);
     if(urgentOnly) filtered = filtered.filter(r => r.urgent);
     if(myOrdersOnly) filtered = filtered.filter(r => r.assignedTo === currentTechIdentity);
-    const isPendingTab = currentFilter === 'pending';
-    if(isPendingTab){
-      // in the 待處理 tab, respect manual drag order instead of the sort dropdown
+    const isDraggableTab = currentFilter === 'pending' || currentFilter === 'in_progress';
+    if(isDraggableTab){
+      // in 待處理／處理中, respect manual drag order instead of the sort dropdown
       filtered = filtered.slice().sort((a,b) => {
         const ma = typeof a.manualOrder === 'number' ? a.manualOrder : 0;
         const mb = typeof b.manualOrder === 'number' ? b.manualOrder : 0;
@@ -1673,9 +1673,9 @@
       const div = document.createElement('div');
       div.className = 'rec ' + assigneeColorClass(r) + (r.urgent ? ' is-urgent' : '');
       div.dataset.id = r.id;
-      if(isPendingTab) div.setAttribute('draggable', 'true');
+      if(isDraggableTab) div.setAttribute('draggable', 'true');
       div.innerHTML = `<div class="meta">
-          ${isPendingTab ? '<span class="drag-handle" title="拖曳調整順序">⠿</span>' : ''}
+          ${isDraggableTab ? '<span class="drag-handle" title="拖曳調整順序">⠿</span>' : ''}
           ${r.urgent ? '<span class="badge-urgent">🚨 急件</span>' : ''}
           ${dueDateBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS[status] || 'st-pending'}">${STATUS_LABEL[status] || status}</span>
@@ -1700,7 +1700,7 @@
       if(openIds.has(r.id)) div.querySelector('.rec-details').open = true;
       listEl.appendChild(div);
     });
-    if(isPendingTab) enableDragReorder(listEl);
+    if(isDraggableTab) enableDragReorder(listEl);
     listEl.querySelectorAll('.assignSel').forEach(s => s.addEventListener('change', () => setAssignee(s.dataset.id, s.value)));
     listEl.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
     listEl.querySelectorAll('.statusSel').forEach(s => s.addEventListener('change', () => setStatus(s.dataset.id, s.value)));
