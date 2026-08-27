@@ -1705,6 +1705,7 @@
     listEl.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
     listEl.querySelectorAll('.statusSel').forEach(s => s.addEventListener('change', () => setStatus(s.dataset.id, s.value)));
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
+    listEl.querySelectorAll('.editBtnTech').forEach(b => b.addEventListener('click', () => startEditRecordFromTech(b.dataset.id)));
   }
 
   function enableDragReorder(listEl){
