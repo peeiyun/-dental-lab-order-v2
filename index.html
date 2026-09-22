@@ -403,6 +403,7 @@
   .urgent-only-toggle{ margin-left:auto; }
   .urgent-only-toggle input{ accent-color:var(--danger); }
   .urgent-only-toggle .count{ font-weight:700; color:var(--danger); }
+  .my-orders-toggle{ margin-left:auto; }
   .my-orders-toggle input{ accent-color:#2E5AA8; }
   .my-orders-toggle .count{ font-weight:700; color:#2E5AA8; }
 
@@ -528,6 +529,9 @@
     display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;
   }
   .calendar-toolbar button{ font-size:12.5px; padding:6px 12px; }
+  .cal-scope-note{ font-size:12px; color:#2E5AA8; font-weight:600; }
+  .cal-unassigned-toggle{ margin-left:auto; }
+  .cal-chip.cal-chip-unassigned{ background:#F1F1EF; color:var(--muted); }
   .calendar-month-label{ font-size:14px; font-weight:700; color:var(--ink); min-width:90px; text-align:center; }
   .cal-weekdays{
     display:grid; grid-template-columns:repeat(7,1fr); gap:4px;
@@ -556,6 +560,28 @@
     .cal-chip{ font-size:9px; }
   }
 
+  .quota-details{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .quota-details summary{
+    cursor:pointer; font-weight:700; font-size:13px; color:var(--muted);
+    letter-spacing:.5px; list-style:none; display:flex; align-items:center; gap:6px;
+  }
+  .quota-details summary::-webkit-details-marker{ display:none; }
+  .quota-details summary .count{ font-weight:700; color:var(--accent-dark); }
+  .quota-details[open] summary{ margin-bottom:10px; }
+  .quota-row{ display:flex; justify-content:space-between; font-size:13px; padding:4px 0; color:var(--ink); }
+  .quota-row span{ color:var(--muted); }
+  .quota-bar{ height:10px; background:#EEF0EC; border-radius:999px; overflow:hidden; margin:6px 0 10px; }
+  .quota-bar-fill{ height:100%; width:0; background:var(--accent); border-radius:999px; transition:width .3s ease; }
+  .quota-bar-fill.warn{ background:#D9A233; }
+  .quota-bar-fill.danger{ background:var(--danger); }
+  .quota-details .mini-note{ margin:10px 0 0; line-height:1.7; }
+  .quota-details .mini-note a{ color:var(--accent-dark); font-weight:600; }
+  .quota-warning{
+    max-width:900px; margin:0 auto 12px; padding:10px 14px; border-radius:10px;
+    font-size:13px; font-weight:600;
+  }
+  .quota-warning.warn{ background:#FFF6E0; color:#8A5A1E; border:1px solid #E8C77A; }
+  .quota-warning.danger{ background:#FCE4E4; color:var(--danger); border:1px solid var(--danger); }
   .modal-box-wide{ max-width:640px; max-height:85vh; overflow-y:auto; }
   .modal-box-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
   .modal-box-header h3{ margin:0; font-size:16px; }
@@ -717,6 +743,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyBywUmwcJ4Ry4V-glqtWz_XqWoqPfEFlxI",
@@ -728,6 +755,22 @@
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
+
+  // ============================================================
+  // EmailJS 設定：送單後自動寄信通知。
+  // 請把下面三個值換成你在 EmailJS 申請到的代碼（申請步驟見教學文件）。
+  // 三個值都填好之前，寄信功能會自動略過，不影響送單。
+  // ============================================================
+  const EMAILJS_CONFIG = {
+    publicKey:  "W9H1qq8DlfIxignab",   // Account → General → Public Key
+    serviceId:  "service_oigirww",     // Email Services → Service ID
+    templateId: "template_uw9dro9"     // Email Templates → Template ID
+  };
+  // 新單通知的收件人
+  const NEW_ORDER_RECIPIENTS = [
+    { name:'堅雯', email:'14652@cych.org.tw' },
+    { name:'姵云', email:'16659@cych.org.tw' }
+  ];
 </script>
 </head>
 <body class="role-none">
@@ -793,15 +836,6 @@
         <div class="cell"><label>約診日 <span class="req-star">*</span></label><input id="f_apptDate" type="date" /></div>
         <div class="cell"><label>病歷號碼 <span class="req-star">*</span></label><input id="f_chartNo" type="text" placeholder="病歷號碼" /></div>
       </div>
-
-      <label class="urgent-toggle" id="urgentToggle">
-        <input type="checkbox" id="f_urgent" />
-        <span class="urgent-box">🚨</span>
-        <span class="urgent-text">
-          <b>標記為急件</b>
-          <span class="urgent-sub">牙技師端會優先顯示、並在通知中特別標示</span>
-        </span>
-      </label>
 
       <!-- Section: CT / 數位規劃 -->
       <div class="section">
@@ -1036,14 +1070,18 @@
     <button type="button" class="ghost" id="btnChangeIdentity" style="display:none;">切換身份</button>
   </div>
 
+  <div class="quota-warning" id="quotaWarning" style="display:none;"></div>
+
   <div class="records collapsible-block">
     <details class="calendar-details" open>
-      <summary>📅 須完成日曆</summary>
+      <summary>📅 日曆</summary>
       <div class="calendar-toolbar">
         <button type="button" class="ghost" id="calPrevMonth">‹ 上個月</button>
         <span id="calMonthLabel" class="calendar-month-label">—</span>
         <button type="button" class="ghost" id="calNextMonth">下個月 ›</button>
         <button type="button" class="ghost" id="calToday">回到今天</button>
+        <span class="cal-scope-note" id="calScopeNote"></span>
+        <label class="sound-toggle cal-unassigned-toggle"><input type="checkbox" id="chkCalUnassigned" checked /> 含未處理（未指派）的單</label>
       </div>
       <div class="calendar-grid" id="calendarGrid"></div>
     </details>
@@ -1061,9 +1099,6 @@
 
   <div class="records">
     <div class="notif-bar">
-      <button class="ghost" id="btnNotifPermission">🔔 開啟通知提醒</button>
-      <label class="sound-toggle"><input type="checkbox" id="chkSound" checked /> 提示音效</label>
-      <label class="sound-toggle urgent-only-toggle"><input type="checkbox" id="chkUrgentOnly" /> 🚨 只看急件 <span class="count" id="urgentCount">0</span></label>
       <label class="sound-toggle my-orders-toggle"><input type="checkbox" id="chkMyOrders" /> 👤 只看我的單 <span class="count" id="myOrdersCount">0</span></label>
     </div>
     <div class="filter-tabs">
@@ -1088,11 +1123,12 @@
     <details class="done-details">
       <summary>✅ 已完成 <span class="count" id="doneCount">0</span></summary>
       <div class="history-toolbar">
+        <select id="doneMonthSelect" class="done-sort-select"></select>
         <select id="doneSortSelect" class="done-sort-select">
           <option value="desc">完成日期（新→舊）</option>
           <option value="asc">完成日期（舊→新）</option>
         </select>
-        <button class="ghost" id="btnExportDone">📊 匯出 Excel</button>
+        <button class="ghost" id="btnExportDone">📊 匯出這個月份 Excel</button>
       </div>
       <div id="doneList"><div class="rec-empty">載入中…</div></div>
     </details>
@@ -1104,6 +1140,21 @@
       <p class="mini-note">從清單刪除的單子會先移到這裡，可以「還原」回一般清單，或「永久刪除」徹底移除（無法復原）。</p>
       <div class="history-toolbar"><button class="ghost" id="btnExportHistory">📊 匯出 Excel</button></div>
       <div id="historyList"><div class="rec-empty">載入中…</div></div>
+    </details>
+  </div>
+
+  <div class="records collapsible-block">
+    <details class="quota-details">
+      <summary>📊 額度監控 <span class="count" id="quotaPctSummary">—</span></summary>
+      <div class="quota-body">
+        <div class="quota-row"><span>儲存空間（估算）</span><b id="quotaStorageText">—</b></div>
+        <div class="quota-bar"><div class="quota-bar-fill" id="quotaBarFill"></div></div>
+        <div class="quota-row"><span>目前單子總數（含歷史紀錄）</span><b id="quotaDocCount">—</b></div>
+        <div class="quota-row"><span>依目前平均大小，約還能再存</span><b id="quotaRemaining">—</b></div>
+        <p class="mini-note">免費方案上限：儲存 1 GB、每日讀取 5 萬次、每日寫入 2 萬次。<br>
+        這裡的儲存量是依單子內容保守估算（包含資料庫索引的額外空間），實際用量以 Firebase 主控台為準。每日讀寫次數無法從網頁端取得，如需查看請到主控台的「用量」頁面。
+        <a id="quotaConsoleLink" href="https://console.firebase.google.com/" target="_blank" rel="noopener">開啟 Firebase 主控台 ↗</a></p>
+      </div>
     </details>
   </div>
   </div>
@@ -1227,6 +1278,8 @@
       picker.style.display = 'inline-flex';
       changeBtn.style.display = 'none';
     }
+    // identity affects the calendar and the "my orders" counts, so redraw
+    if(document.body.classList.contains('role-tech')) renderTechView();
   }
   function initTechIdentity(){
     const saved = localGet(TECH_IDENTITY_KEY);
@@ -1271,7 +1324,6 @@
   function onRoleActivated(role){
     startOrdersListener(); // one shared real-time listener drives both views
     if(role === 'tech'){
-      updateNotifBtnLabel();
       initTechIdentity();
       renderTechView(); // draw immediately with whatever the listener already cached
     }else if(role === 'submit'){
@@ -1405,7 +1457,6 @@
     const items = r.items || {};
     const bySection = s => ITEM_DEFS.filter(d => d.section === s).map(d => renderItemRO(d, items)).join('');
     return `<div class="full-ticket">
-        ${r.urgent ? '<div class="urgent-banner">🚨 急件 — 請優先處理</div>' : ''}
         <div class="assignee-banner">👤 目前負責人：<b>${r.assignedTo ? esc(r.assignedTo) : '未處理'}</b></div>
         ${renderHeaderRO(r)}
         <div class="section"><h2>數位 / 模板</h2>${bySection('digital')}</div>
@@ -1446,7 +1497,7 @@
     ).join('');
     return `<div class="section edit-log-section"><h2>轉單紀錄</h2>${rows}</div>`;
   }
-  const TOP_FIELD_LABELS = { patient:'患者', receiveDate:'收件日', registrar:'登記者', doctor:'醫師', apptDate:'約診日', chartNo:'病歷號碼', urgent:'急件' };
+  const TOP_FIELD_LABELS = { patient:'患者', receiveDate:'收件日', registrar:'登記者', doctor:'醫師', apptDate:'約診日', chartNo:'病歷號碼' };
   const TOOTH_FIELD_LABELS = { tooth_ur:'牙位-右上', tooth_ul:'牙位-左上', tooth_lr:'牙位-右下', tooth_ll:'牙位-左下' };
   function itemFieldLabel(key){
     for(const def of ITEM_DEFS){
@@ -1582,10 +1633,6 @@
   }
   buildToothButtons();
 
-  const urgentCheckbox = document.getElementById('f_urgent');
-  urgentCheckbox.addEventListener('change', () => {
-    document.getElementById('urgentToggle').classList.toggle('is-checked', urgentCheckbox.checked);
-  });
 
   function todayISO(){ return new Date().toISOString().slice(0,10); }
   document.getElementById('dateBadge').textContent = todayISO();
@@ -1598,7 +1645,6 @@
       doctor: getDoctorValue(),
       apptDate: document.getElementById('f_apptDate').value,
       chartNo: document.getElementById('f_chartNo').value,
-      urgent: urgentCheckbox.checked,
       items: {} };
     document.querySelectorAll('[data-key]').forEach(el => {
       if(el.tagName === 'DIV') return;
@@ -1650,8 +1696,6 @@
     setDoctorField('');
     document.getElementById('f_receiveDate').value = todayISO();
     document.getElementById('f_apptDate').value = '';
-    urgentCheckbox.checked = false;
-    document.getElementById('urgentToggle').classList.remove('is-checked');
     document.querySelectorAll('[data-key]').forEach(el => {
       if(el.type === 'checkbox') el.checked = false;
       else if(el.tagName !== 'DIV') el.value = '';
@@ -1672,7 +1716,6 @@
   const STATUS_CLASS = { pending:'st-pending', in_progress:'st-progress', on_hold:'st-hold', done:'st-done' };
   let currentFilter = 'all';
   let currentSort = 'ts_desc';
-  let urgentOnly = false;
   let myOrdersOnly = false;
   let cachedRecords = [];
   let soundEnabled = true;
@@ -1694,7 +1737,6 @@
       tab.querySelector('.count').textContent = counts[key] ?? 0;
       tab.classList.toggle('active', currentFilter === key);
     });
-    document.getElementById('urgentCount').textContent = active.filter(r => r.urgent).length;
     const myOrdersCountEl = document.getElementById('myOrdersCount');
     if(myOrdersCountEl) myOrdersCountEl.textContent = active.filter(r => r.assignedTo === currentTechIdentity && currentTechIdentity).length;
     const historyCount = cachedRecords.filter(r => r.deleted).length;
@@ -1728,8 +1770,6 @@
       default:
         sorted.sort((a,b) => (b.ts||0) - (a.ts||0));
     }
-    // urgent orders always bubble to the top, regardless of the chosen sort
-    sorted.sort((a,b) => (b.urgent?1:0) - (a.urgent?1:0));
     return sorted;
   }
 
@@ -1758,7 +1798,6 @@
     const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
     const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done');
     let filtered = currentFilter === 'all' ? nonDeleted : nonDeleted.filter(r => (r.status||'pending') === currentFilter);
-    if(urgentOnly) filtered = filtered.filter(r => r.urgent);
     if(myOrdersOnly) filtered = filtered.filter(r => r.assignedTo === currentTechIdentity);
     const isDraggableTab = currentFilter === 'pending' || currentFilter === 'in_progress';
     if(isDraggableTab){
@@ -1769,7 +1808,6 @@
         if(ma !== mb) return mb - ma; // higher manualOrder sorts first
         return (b.ts||0) - (a.ts||0);
       });
-      filtered.sort((a,b) => (b.urgent?1:0) - (a.urgent?1:0)); // urgent still bubbles to top
     }else{
       filtered = sortRecords(filtered);
     }
@@ -1778,12 +1816,11 @@
     filtered.slice(0,40).forEach(r => {
       const status = r.status || 'pending';
       const div = document.createElement('div');
-      div.className = 'rec ' + assigneeColorClass(r) + (r.urgent ? ' is-urgent' : '');
+      div.className = 'rec ' + assigneeColorClass(r);
       div.dataset.id = r.id;
       if(isDraggableTab) div.setAttribute('draggable', 'true');
       div.innerHTML = `<div class="meta">
           ${isDraggableTab ? '<span class="drag-handle" title="拖曳調整順序">⠿</span>' : ''}
-          ${r.urgent ? '<span class="badge-urgent">🚨 急件</span>' : ''}
           ${dueDateBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS[status] || 'st-pending'}">${STATUS_LABEL[status] || status}</span>
           ${assigneeBadgeHTML(r)}
@@ -1884,11 +1921,15 @@
   }
 
   let doneSortOrder = 'desc'; // by completedDate
-  function drawDoneList(){
-    const listEl = document.getElementById('doneList');
-    if(!listEl) return;
-    const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
-    const done = cachedRecords.filter(r => !r.deleted && r.status === 'done').sort((a,b) => {
+  let doneMonth = null;       // 'YYYY-MM' currently shown
+  function doneMonthKey(r){
+    if(r.completedDate) return r.completedDate.slice(0,7);
+    const d = new Date(r.ts || Date.now()); // no completion date: fall back to the submit month
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+  function allDoneRecords(){ return cachedRecords.filter(r => !r.deleted && r.status === 'done'); }
+  function doneRecordsForMonth(month){
+    return allDoneRecords().filter(r => doneMonthKey(r) === month).sort((a,b) => {
       const da = a.completedDate || '';
       const db = b.completedDate || '';
       if(!da && !db) return (b.ts||0) - (a.ts||0);
@@ -1896,13 +1937,30 @@
       if(!db) return -1;
       return doneSortOrder === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
     });
+  }
+  function refreshDoneMonthOptions(){
+    const sel = document.getElementById('doneMonthSelect');
+    if(!sel) return;
+    const counts = {};
+    allDoneRecords().forEach(r => { const k = doneMonthKey(r); counts[k] = (counts[k]||0) + 1; });
+    const months = Object.keys(counts).sort().reverse();
+    if(!months.includes(doneMonth)) doneMonth = months[0] || null;
+    sel.innerHTML = months.length
+      ? months.map(m => `<option value="${m}" ${m===doneMonth?'selected':''}>${m.replace('-','年')}月（${counts[m]} 張）</option>`).join('')
+      : '<option value="">（無資料）</option>';
+  }
+  function drawDoneList(){
+    const listEl = document.getElementById('doneList');
+    if(!listEl) return;
+    refreshDoneMonthOptions();
+    const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
+    const done = doneMonth ? doneRecordsForMonth(doneMonth) : [];
     if(done.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有已完成的單子</div>'; return; }
     listEl.innerHTML = '';
     done.slice(0,80).forEach(r => {
       const div = document.createElement('div');
-      div.className = 'rec rec-done ' + assigneeColorClass(r) + (r.urgent ? ' is-urgent' : '');
+      div.className = 'rec rec-done ' + assigneeColorClass(r);
       div.innerHTML = `<div class="meta">
-          ${r.urgent ? '<span class="badge-urgent">🚨 急件</span>' : ''}
           ${dueDateBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS.done}">已完成</span>
           ${assigneeBadgeHTML(r)}
@@ -1932,6 +1990,8 @@
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
     listEl.querySelectorAll('.editBtnTech').forEach(b => b.addEventListener('click', () => startEditRecordFromTech(b.dataset.id)));
   }
+  const doneMonthSelectEl = document.getElementById('doneMonthSelect');
+  if(doneMonthSelectEl) doneMonthSelectEl.addEventListener('change', e => { doneMonth = e.target.value || null; drawDoneList(); });
   const doneSortSelectEl = document.getElementById('doneSortSelect');
   if(doneSortSelectEl) doneSortSelectEl.addEventListener('change', e => { doneSortOrder = e.target.value; drawDoneList(); });
 
@@ -1972,7 +2032,6 @@
       '登記者': r.registrar || '',
       '收件日': r.receiveDate || '',
       '約診日': r.apptDate || '',
-      '急件': r.urgent ? '是' : '',
       '負責人': r.assignedTo || '未處理',
       '狀態': STATUS_LABEL[r.status] || r.status || '',
       '數位/模板': sectionSummaryText('digital', items),
@@ -1988,28 +2047,39 @@
       '刪除時間': r.deletedAt ? new Date(r.deletedAt).toLocaleString('zh-TW') : ''
     };
   }
-  function exportRowsToExcel(rows, sheetName, filenamePrefix){
-    if(typeof XLSX === 'undefined'){ alert('匯出工具載入失敗，請確認網路連線後重新整理頁面再試一次'); return; }
-    if(rows.length === 0){ alert('目前沒有東西可以匯出'); return; }
+  function exportRowsToExcel(rows, sheetName, filenamePrefix, fileTag){
+    if(typeof XLSX === 'undefined'){ alert('匯出工具載入失敗，請確認網路連線後重新整理頁面再試一次'); return false; }
+    if(rows.length === 0){ alert('目前沒有東西可以匯出'); return false; }
     const ws = XLSX.utils.json_to_sheet(rows);
     ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.min(50, Math.max(10, k.length + 2, ...rows.map(row => String(row[k]||'').length + 2))) }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    XLSX.writeFile(wb, `${filenamePrefix}_${todayISO()}.xlsx`);
+    XLSX.writeFile(wb, `${filenamePrefix}_${fileTag || todayISO()}.xlsx`);
+    return true;
   }
   function exportHistoryToExcel(){
     const deleted = cachedRecords.filter(r => r.deleted).sort((a,b) => (b.deletedAt||0) - (a.deletedAt||0));
     exportRowsToExcel(deleted.map(buildExcelRow), '歷史紀錄', '技工單歷史紀錄');
   }
-  function exportDoneToExcel(){
-    const done = cachedRecords.filter(r => !r.deleted && r.status === 'done').sort((a,b) => {
-      const da = a.completedDate || '', db = b.completedDate || '';
-      if(!da && !db) return (b.ts||0) - (a.ts||0);
-      if(!da) return 1;
-      if(!db) return -1;
-      return doneSortOrder === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
-    });
-    exportRowsToExcel(done.map(buildExcelRow), '已完成', '技工單已完成紀錄');
+  async function exportDoneToExcel(){
+    if(!doneMonth){ alert('目前沒有已完成的單子可以匯出'); return; }
+    const month = doneMonth;
+    const done = doneRecordsForMonth(month);
+    const ok = exportRowsToExcel(done.map(buildExcelRow), `已完成${month}`, '技工單已完成紀錄', month);
+    if(!ok) return;
+    const label = month.replace('-','年') + '月';
+    if(!confirm(`已匯出 ${label} 共 ${done.length} 張單子。\n\n是否將這些單子移到「歷史紀錄」？\n（移過去後仍可在歷史紀錄中還原）`)) return;
+    const now = Date.now();
+    try{
+      await Promise.all(done.map(r => {
+        const rec = Object.assign({}, r, { deleted:true, deletedAt:now });
+        return fsSet(r.id, rec);
+      }));
+      alert(`已將 ${label} 的 ${done.length} 張單子移到歷史紀錄。`);
+    }catch(e){
+      console.error(e);
+      alert('移到歷史紀錄時發生錯誤，部分單子可能沒有移動成功，請重新整理後確認。');
+    }
   }
   const btnExportHistoryEl = document.getElementById('btnExportHistory');
   if(btnExportHistoryEl) btnExportHistoryEl.addEventListener('click', exportHistoryToExcel);
@@ -2022,9 +2092,55 @@
     drawDoneList();
     drawHistoryList();
     renderCalendar();
+    renderQuota();
   }
 
-  // ---- 須完成日曆 ----
+  // ---- 額度監控 (storage estimate; the web client can't read Firebase's own usage stats) ----
+  const QUOTA_BYTES = 1024 * 1024 * 1024; // Spark plan: 1 GiB stored data
+  const QUOTA_OVERHEAD = 3;               // conservative multiplier for index entries + metadata
+  function formatBytes(b){
+    if(b < 1024) return b + ' B';
+    if(b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+    return (b/1024/1024).toFixed(2) + ' MB';
+  }
+  function renderQuota(){
+    const enc = new TextEncoder();
+    const count = cachedRecords.length;
+    const raw = cachedRecords.reduce((sum, r) => sum + enc.encode(JSON.stringify(r)).length, 0);
+    const est = raw * QUOTA_OVERHEAD;
+    const pct = est / QUOTA_BYTES * 100;
+    const pctText = pct < 0.01 ? '< 0.01%' : pct.toFixed(2) + '%';
+    const setText = (id, t) => { const el = document.getElementById(id); if(el) el.textContent = t; };
+    setText('quotaStorageText', `約 ${formatBytes(est)} / 1 GB（${pctText}）`);
+    setText('quotaPctSummary', pctText);
+    setText('quotaDocCount', `${count} 張`);
+    const avg = count ? est / count : 0;
+    setText('quotaRemaining', avg ? `約 ${Math.max(0, Math.floor((QUOTA_BYTES - est) / avg)).toLocaleString()} 張` : '—');
+    const fill = document.getElementById('quotaBarFill');
+    if(fill){
+      fill.style.width = Math.min(100, Math.max(pct, 0.5)) + '%';
+      fill.classList.toggle('warn', pct >= 70 && pct < 90);
+      fill.classList.toggle('danger', pct >= 90);
+    }
+    const link = document.getElementById('quotaConsoleLink');
+    if(link && firebaseConfig.projectId) link.href = `https://console.firebase.google.com/project/${firebaseConfig.projectId}/overview`;
+    const warn = document.getElementById('quotaWarning');
+    if(warn){
+      if(pct >= 90){
+        warn.className = 'quota-warning danger';
+        warn.textContent = `⚠️ 資料庫儲存空間已使用約 ${pctText}，即將達到免費上限，請盡快匯出並永久刪除舊的歷史紀錄，或升級 Firebase 方案。`;
+        warn.style.display = 'block';
+      }else if(pct >= 70){
+        warn.className = 'quota-warning warn';
+        warn.textContent = `提醒：資料庫儲存空間已使用約 ${pctText}，建議定期匯出並永久刪除舊的歷史紀錄。`;
+        warn.style.display = 'block';
+      }else{
+        warn.style.display = 'none';
+      }
+    }
+  }
+
+  // ---- 日曆 ----
   let calendarViewDate = new Date();
   function renderCalendar(){
     const grid = document.getElementById('calendarGrid');
@@ -2040,7 +2156,15 @@
     const todayStr = todayISO();
 
     const dueMap = {};
-    cachedRecords.filter(r => !r.deleted && r.items && r.items.dueDate).forEach(r => {
+    const includeUnassigned = !!(document.getElementById('chkCalUnassigned') || {}).checked;
+    const scopeNote = document.getElementById('calScopeNote');
+    if(scopeNote) scopeNote.textContent = currentTechIdentity ? `只顯示「${currentTechIdentity}」負責的單` : '尚未選擇身份，顯示全部單子';
+    cachedRecords.filter(r => {
+      if(r.deleted || !r.items || !r.items.dueDate) return false;
+      if(!currentTechIdentity) return true;
+      if(r.assignedTo === currentTechIdentity) return true;
+      return includeUnassigned && !r.assignedTo;
+    }).forEach(r => {
       const d = r.items.dueDate;
       if(!dueMap[d]) dueMap[d] = [];
       dueMap[d].push(r);
@@ -2059,7 +2183,7 @@
       if(orders.length) cellClass += ' cal-has-orders';
       if(hasOverdue) cellClass += ' cal-overdue';
       const chips = orders.slice(0,3).map(o =>
-        `<div class="cal-chip${o.status==='done' ? ' cal-chip-done' : ''}" data-id="${o.id}" title="${esc(o.patient || '')}">${o.urgent ? '🚨' : ''}${esc(o.patient || '(未填)')}</div>`
+        `<div class="cal-chip${o.status==='done' ? ' cal-chip-done' : ''}${!o.assignedTo ? ' cal-chip-unassigned' : ''}" data-id="${o.id}" title="${esc(o.patient || '')}">${esc(o.patient || '(未填)')}</div>`
       ).join('');
       const more = orders.length > 3 ? `<div class="cal-more">+${orders.length - 3} 筆</div>` : '';
       html += `<div class="${cellClass}"><div class="cal-daynum">${day}</div>${chips}${more}</div>`;
@@ -2092,6 +2216,8 @@
     calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
     renderCalendar();
   });
+  const chkCalUnassignedEl = document.getElementById('chkCalUnassigned');
+  if(chkCalUnassignedEl) chkCalUnassignedEl.addEventListener('change', renderCalendar);
   const calTodayEl = document.getElementById('calToday');
   if(calTodayEl) calTodayEl.addEventListener('click', () => {
     calendarViewDate = new Date();
@@ -2108,8 +2234,6 @@
     setDoctorField(r.doctor || '');
     document.getElementById('f_apptDate').value = r.apptDate || '';
     document.getElementById('f_chartNo').value = r.chartNo || '';
-    urgentCheckbox.checked = !!r.urgent;
-    document.getElementById('urgentToggle').classList.toggle('is-checked', !!r.urgent);
     document.querySelectorAll('[data-key]').forEach(el => {
       if(el.tagName === 'DIV') return;
       const v = r.items ? r.items[el.dataset.key] : undefined;
@@ -2184,9 +2308,8 @@
     active.slice(0,10).forEach(r => {
       const status = r.status || 'pending';
       const div = document.createElement('div');
-      div.className = 'rec ' + assigneeColorClass(r) + (r.urgent ? ' is-urgent' : '');
+      div.className = 'rec ' + assigneeColorClass(r);
       div.innerHTML = `<div class="meta">
-          ${r.urgent ? '<span class="badge-urgent">🚨 急件</span>' : ''}
           <span class="status-badge ${STATUS_CLASS[status]}">${STATUS_LABEL[status]}</span>
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
           <div class="sub">${esc(subLineText(r))}</div>
@@ -2230,10 +2353,6 @@
   });
   document.getElementById('sortSelect').addEventListener('change', e => {
     currentSort = e.target.value;
-    drawRecordsList();
-  });
-  document.getElementById('chkUrgentOnly').addEventListener('change', e => {
-    urgentOnly = e.target.checked;
     drawRecordsList();
   });
   document.getElementById('chkMyOrders').addEventListener('change', e => {
@@ -2282,13 +2401,54 @@
     try{
       await fsSet(data.id, data);
       localSet(LAST_SEEN_KEY, String(data.ts)); // the person submitting doesn't need a notification for their own order
-      alert('已送出並儲存！牙技師端會即時收到提醒（需開啟此頁面並允許通知）。');
+      let mailNote = '';
+      try{
+        const result = await sendNewOrderEmail(data);
+        if(result === 'sent') mailNote = '\n已寄出通知信給牙技師。';
+      }catch(mailErr){
+        console.error('EmailJS error', mailErr);
+        mailNote = '\n（單子已儲存，但通知信寄送失敗，請口頭告知牙技師。）';
+      }
+      alert('已送出並儲存！牙技師端會即時看到這張單。' + mailNote);
       clearForm(); // ready for the next order
     }catch(e){
       console.error(e);
       alert('儲存時發生錯誤，請確認網路連線與 Firebase 設定是否正確');
     }
   });
+
+  // ---- 新單 email 通知 (EmailJS) ----
+  function emailConfigured(){
+    return typeof emailjs !== 'undefined' && EMAILJS_CONFIG.publicKey && EMAILJS_CONFIG.serviceId && EMAILJS_CONFIG.templateId;
+  }
+  async function sendNewOrderEmail(order){
+    if(!emailConfigured()){ console.warn('EmailJS 尚未設定，略過寄信'); return 'skipped'; }
+    const items = order.items || {};
+    const sections = [
+      ['數位/模板', sectionSummaryText('digital', items)],
+      ['模型/咬合相關', sectionSummaryText('left', items)],
+      ['假牙/蠟型相關', sectionSummaryText('right', items)],
+      ['其他技工項目', sectionSummaryText('other', items)],
+      ['牙位', toothSummaryText(items)]
+    ].filter(([, v]) => v).map(([k, v]) => `${k}：${v}`).join('\n');
+    const pageUrl = location.origin + location.pathname + '?role=tech';
+    const params = {
+      to_email: NEW_ORDER_RECIPIENTS.map(r => r.email).join(','),
+      patient: order.patient || '',
+      chart_no: order.chartNo || '',
+      doctor: order.doctor || '',
+      registrar: order.registrar || '',
+      receive_date: order.receiveDate || '',
+      appt_date: order.apptDate || '',
+      due_date: items.dueDate || '',
+      items_summary: sections || '（未勾選項目）',
+      notes: items.notes || '（無）',
+      submitted_at: new Date(order.ts).toLocaleString('zh-TW'),
+      page_url: pageUrl
+    };
+    await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, params, { publicKey: EMAILJS_CONFIG.publicKey });
+    return 'sent';
+  }
 
   // ---- notification: works only while this page is open in the technician's browser ----
   const LAST_SEEN_KEY = 'tech_last_seen_ts';
@@ -2319,19 +2479,6 @@
     if(!document.hidden){ unseenCount = 0; updateTitleAlert(); }
   });
 
-  function updateNotifBtnLabel(){
-    const btn = document.getElementById('btnNotifPermission');
-    if(!('Notification' in window)){ btn.textContent = '🔕 瀏覽器不支援通知'; btn.disabled = true; return; }
-    if(Notification.permission === 'granted') btn.textContent = '🔔 通知已開啟';
-    else if(Notification.permission === 'denied') btn.textContent = '🔕 通知已被封鎖（請至瀏覽器設定開啟）';
-    else btn.textContent = '🔔 開啟通知提醒';
-  }
-  document.getElementById('btnNotifPermission').addEventListener('click', async () => {
-    if(!('Notification' in window)){ alert('此瀏覽器不支援通知功能'); return; }
-    await Notification.requestPermission();
-    updateNotifBtnLabel();
-  });
-  document.getElementById('chkSound').addEventListener('change', e => { soundEnabled = e.target.checked; });
 
   let lastKnownSeenTs = null;
   let ordersListenerStarted = false;
@@ -2362,16 +2509,6 @@
     }
     const newOnes = recs.filter(r => (r.ts||0) > lastKnownSeenTs);
     if(newOnes.length > 0){
-      let hasUrgent = false;
-      newOnes.forEach(r => {
-        if(r.urgent) hasUrgent = true;
-        if('Notification' in window && Notification.permission === 'granted'){
-          new Notification(r.urgent ? '🚨 急件送達！請優先處理' : '📋 新技工單送達', {
-            body: `${r.patient || '(未填患者)'} ・ 病歷號 ${r.chartNo || '-'} ・ 醫師 ${r.doctor || '-'}`
-          });
-        }
-      });
-      if(soundEnabled){ beep(); if(hasUrgent) setTimeout(beep, 260); }
       unseenCount += newOnes.length;
       updateTitleAlert();
       lastKnownSeenTs = Math.max(lastKnownSeenTs, ...recs.map(r => r.ts||0));
