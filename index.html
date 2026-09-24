@@ -537,6 +537,7 @@
   .cal-scope-note{ font-size:12px; color:#2E5AA8; font-weight:600; }
   .cal-unassigned-toggle{ margin-left:auto; }
   .cal-chip.cal-chip-unassigned{ background:#F1F1EF; color:var(--muted); }
+  .cal-chip.cal-chip-appt{ background:#E4ECF7; color:#2E5AA8; font-weight:700; }
   .calendar-month-label{ font-size:14px; font-weight:700; color:var(--ink); min-width:90px; text-align:center; }
   .cal-weekdays{
     display:grid; grid-template-columns:repeat(7,1fr); gap:4px;
@@ -580,6 +581,22 @@
   .dp-details summary::-webkit-details-marker{ display:none; }
   .dp-details summary .count{ font-weight:700; color:#2E5AA8; }
   .dp-details[open] summary{ margin-bottom:8px; }
+  .dp-filter-bar{ display:flex; align-items:center; gap:8px; margin:6px 0 10px; font-size:12.5px; color:var(--muted); }
+  .dp-filter-bar select{
+    font-family:inherit; font-size:12.5px; padding:6px 10px;
+    border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink);
+  }
+  .dp-group-head{
+    font-size:12.5px; font-weight:700; color:#2E5AA8; background:#EAF2FE;
+    padding:6px 10px; border-radius:4px; margin:14px 0 8px;
+  }
+  .dp-nonext{ font-size:11px; display:flex; align-items:center; gap:4px; cursor:pointer; }
+  .dp-nonext input{ accent-color:#2E5AA8; }
+  .dp-step.current .dp-nonext{ color:#fff; }
+  .badge-nonext{
+    display:inline-block; font-size:11px; font-weight:700; padding:2px 9px;
+    border-radius:999px; margin-right:8px; vertical-align:middle; background:#F1F1EF; color:var(--muted);
+  }
   .dp-flow-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:8px 0 10px; font-size:12.5px; color:var(--muted); }
   .dp-flow-bar select{
     font-family:inherit; font-size:12.5px; padding:6px 8px;
@@ -1261,6 +1278,10 @@
     <details class="dp-details" open>
       <summary>數位規劃 <span class="count" id="dpCount">0</span></summary>
       <p class="mini-note">數位規劃的單子集中在這裡追蹤進度。先選擇情形，再點選目前完成到哪個階段；標示「時間」的階段要填日期。點到「結單」會自動把狀態改成已完成。</p>
+      <div class="dp-filter-bar">
+        <label for="dpStageFilter">只看階段</label>
+        <select id="dpStageFilter"><option value="all">全部（依階段分組）</option></select>
+      </div>
       <div id="dpList"><div class="rec-empty">載入中…</div></div>
     </details>
   </div>
@@ -2255,14 +2276,19 @@
   const DP_FLOWS = {
     I:   { label:'I. 已有CT板', steps:[
             {k:'ct',t:'已有CT板'},{k:'plan',t:'植牙規劃'},{k:'appt',t:'和醫師約時間',date:true},
-            {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'close',t:'結單'}]},
+            {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'}]},
     II:  { label:'II. 需蠟型設計', steps:[
-            {k:'wax',t:'需蠟型設計'},{k:'confirm1',t:'和醫師確認',date:true,beforeExplain:true},
-            {k:'plan',t:'植牙規劃'},{k:'confirm2',t:'醫師確認',date:true},
-            {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'close',t:'結單'}]},
-    III: { label:'III. 需設計蠟型（等後續）', steps:[
-            {k:'wax',t:'需設計蠟型'},{k:'wait',t:'設計好等後續（無下次時間）'}]}
+            {k:'wax',t:'待設計蠟型'},{k:'waxdone',t:'已設計好蠟型',noNext:true},
+            {k:'plan',t:'植牙規劃'},{k:'confirm2',t:'和醫師確認',date:true,beforeExplain:true},
+            {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'}]}
   };
+  // 依進度分組時的排列順序
+  const DP_STAGE_ORDER = ['wax','waxdone','ct','plan','appt','confirm2','guide','print','fit'];
+  function dpStepOf(r){
+    const flow = dpFlowOf(r);
+    if(!flow) return null;
+    return DP_FLOWS[flow].steps.find(st => st.k === r.dpStage) || null;
+  }
   function dpFlowOf(r){ return DP_FLOWS[r.dpFlow] ? r.dpFlow : ''; }
   // 約解釋日期（數位規劃的 月/日 欄位）轉成 YYYY-MM-DD，用來檢查「和醫師確認」是否早於約解釋
   function explainDateOf(r){
@@ -2283,10 +2309,12 @@
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
     rec.dpStage = rec.dpStage === stepKey ? '' : stepKey;   // 再點一次可取消
-    if(rec.dpStage === 'close'){                            // 結單＝完成
-      rec.status = 'done';
-      if(!rec.completedDate) rec.completedDate = todayISO();
-    }
+    try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
+  }
+  async function setDpNoNext(id, checked){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    rec.dpNoNextAppt = !!checked;
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
   async function setDpTime(id, stepKey, value, step){
@@ -2299,6 +2327,7 @@
     rec.dpTimes = Object.assign({}, rec.dpTimes || {}, { [stepKey]: value });
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
+  let dpStageFilter = 'all';
   function drawDigitalPlanList(){
     const listEl = document.getElementById('dpList');
     if(!listEl) return;
@@ -2308,9 +2337,46 @@
       .sort((a,b) => (b.ts||0) - (a.ts||0));
     const cnt = document.getElementById('dpCount');
     if(cnt) cnt.textContent = list.length;
+    // 階段篩選選單（保留目前選擇）
+    const filterSel = document.getElementById('dpStageFilter');
+    const stageLabel = k => {
+      for(const f of Object.values(DP_FLOWS)){
+        const st = f.steps.find(x => x.k === k);
+        if(st) return st.t;
+      }
+      return k;
+    };
+    if(filterSel){
+      const present = DP_STAGE_ORDER.filter(k => list.some(r => r.dpStage === k));
+      const want = ['all'].concat(present).concat(list.some(r => !r.dpStage || !dpFlowOf(r)) ? ['none'] : []);
+      const cur = want.includes(dpStageFilter) ? dpStageFilter : 'all';
+      dpStageFilter = cur;
+      filterSel.innerHTML = want.map(k =>
+        `<option value="${k}" ${k===cur?'selected':''}>${k==='all' ? '全部（依階段分組）' : (k==='none' ? '尚未選擇情形／階段' : stageLabel(k))}</option>`).join('');
+    }
     if(list.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有進行中的數位規劃</div>'; return; }
     listEl.innerHTML = '';
-    list.forEach(r => {
+    const groupOf = r => (dpFlowOf(r) && r.dpStage) ? r.dpStage : 'none';
+    const visible = dpStageFilter === 'all' ? list : list.filter(r => groupOf(r) === dpStageFilter);
+    if(visible.length === 0){ listEl.innerHTML = '<div class="rec-empty">這個階段目前沒有單子</div>'; return; }
+    const order = DP_STAGE_ORDER.concat(['none']);
+    const sorted = visible.slice().sort((a,b) => {
+      const d = order.indexOf(groupOf(a)) - order.indexOf(groupOf(b));
+      return d !== 0 ? d : (b.ts||0) - (a.ts||0);
+    });
+    let lastGroup = null;
+    sorted.forEach(r => {
+      if(dpStageFilter === 'all'){
+        const g = groupOf(r);
+        if(g !== lastGroup){
+          const head = document.createElement('div');
+          head.className = 'dp-group-head';
+          const cnt2 = sorted.filter(x => groupOf(x) === g).length;
+          head.textContent = `${g === 'none' ? '尚未選擇情形／階段' : stageLabel(g)}（${cnt2}）`;
+          listEl.appendChild(head);
+          lastGroup = g;
+        }
+      }
       const flow = dpFlowOf(r);
       const steps = flow ? DP_FLOWS[flow].steps : [];
       const curIdx = steps.findIndex(st => st.k === r.dpStage);
@@ -2320,14 +2386,18 @@
         const dateInput = st.date
           ? `<input type="date" class="dpTime" data-id="${r.id}" data-step="${st.k}" value="${esc(times[st.k] || '')}" onclick="event.stopPropagation()" />`
           : '';
+        const noNext = st.noNext
+          ? `<label class="dp-nonext" onclick="event.stopPropagation()"><input type="checkbox" class="dpNoNext" data-id="${r.id}" ${r.dpNoNextAppt ? 'checked' : ''} /> 沒約下次時間</label>`
+          : '';
         return `<div class="dp-step ${cls}" data-id="${r.id}" data-step="${st.k}">
-            <span><span class="dp-step-no">${i+1}.</span> ${esc(st.t)}</span>${dateInput}
+            <span><span class="dp-step-no">${i+1}.</span> ${esc(st.t)}</span>${dateInput}${noNext}
           </div>`;
       }).join('');
       const ex = explainDateOf(r);
       const div = document.createElement('div');
       div.className = 'rec ' + assigneeColorClass(r);
       div.innerHTML = `<div class="meta">
+          ${r.dpNoNextAppt ? '<span class="badge-nonext">沒約下次時間</span>' : ''}
           ${dueDateBadgeHTML(r)}
           ${assigneeBadgeHTML(r)}
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'} ・ 醫師 ${r.doctor || '-'}
@@ -2356,6 +2426,7 @@
     });
     listEl.querySelectorAll('.dpFlowSel').forEach(sel => sel.addEventListener('change', () => setDpFlow(sel.dataset.id, sel.value)));
     listEl.querySelectorAll('.dp-step').forEach(el => el.addEventListener('click', () => setDpStage(el.dataset.id, el.dataset.step)));
+    listEl.querySelectorAll('.dpNoNext').forEach(cb => cb.addEventListener('change', () => setDpNoNext(cb.dataset.id, cb.checked)));
     listEl.querySelectorAll('.dpTime').forEach(inp => inp.addEventListener('change', () => {
       const rec = cachedRecords.find(x => x.id === inp.dataset.id);
       const flow = rec && dpFlowOf(rec);
@@ -2367,6 +2438,9 @@
     listEl.querySelectorAll('.editBtnTech').forEach(b => b.addEventListener('click', () => startEditRecordFromTech(b.dataset.id)));
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
   }
+
+  const dpStageFilterEl = document.getElementById('dpStageFilter');
+  if(dpStageFilterEl) dpStageFilterEl.addEventListener('change', e => { dpStageFilter = e.target.value; drawDigitalPlanList(); });
 
   function drawHistoryList(){
     const listEl = document.getElementById('historyList');
@@ -2656,6 +2730,22 @@
       dueMap[d].push(r);
     });
 
+    // 數位規劃「和醫師約時間／和醫師確認」也標在牙技師日曆上
+    const apptMap = {};
+    if(o.editable){
+      cachedRecords.forEach(r => {
+        if(r.deleted || !isDigitalPlan(r) || !r.dpTimes) return;
+        const flow = dpFlowOf(r);
+        if(!flow) return;
+        DP_FLOWS[flow].steps.filter(st => st.date).forEach(st => {
+          const dt = r.dpTimes[st.k];
+          if(!dt) return;
+          if(!apptMap[dt]) apptMap[dt] = [];
+          apptMap[dt].push({ r, label: st.t });
+        });
+      });
+    }
+
     let html = '<div class="cal-weekdays">' + ['日','一','二','三','四','五','六'].map(w => `<div>${w}</div>`).join('') + '</div>';
     html += '<div class="cal-days">';
     for(let i = 0; i < startWeekday; i++) html += '<div class="cal-cell empty"></div>';
@@ -2670,13 +2760,17 @@
       let cellClass = 'cal-cell';
       if(off) cellClass += ' cal-offday';
       if(isToday) cellClass += ' cal-today';
-      if(orders.length) cellClass += ' cal-has-orders';
+      if(orders.length || appts.length) cellClass += ' cal-has-orders';
       if(hasOverdue) cellClass += ' cal-overdue';
       if(isLeave) cellClass += ' cal-holiday';
       let tag = '';
       if(isLeave) tag = '<span class="cal-holiday-tag">休</span>';
       else if(gov && gov.off && gov.name && !isMakeupHoliday(dateStr)) tag = `<span class="cal-gov-tag">${esc(gov.name)}</span>`;
-      const chips = orders.slice(0,3).map(x =>
+      const appts = apptMap[dateStr] || [];
+      const apptChips = appts.slice(0,2).map(a =>
+        `<div class="cal-chip cal-chip-appt" data-id="${a.r.id}" title="${esc(a.label)}：${esc(a.r.patient || '')}">約 ${esc(a.r.patient || '(未填)')}</div>`
+      ).join('');
+      const chips = apptChips + orders.slice(0,3).map(x =>
         `<div class="cal-chip${x.status==='done' ? ' cal-chip-done' : ''}${!x.assignedTo ? ' cal-chip-unassigned' : ''}" data-id="${x.id}" title="${esc(x.patient || '')}">${esc(x.patient || '(未填)')}</div>`
       ).join('');
       const more = orders.length > 3 ? `<div class="cal-more">+${orders.length - 3} 筆</div>` : '';
