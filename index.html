@@ -572,6 +572,35 @@
     .cal-chip{ font-size:9px; }
   }
 
+  .dp-details{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .dp-details summary{
+    cursor:pointer; font-weight:700; font-size:13px; color:var(--muted);
+    letter-spacing:.5px; list-style:none; display:flex; align-items:center; gap:6px;
+  }
+  .dp-details summary::-webkit-details-marker{ display:none; }
+  .dp-details summary .count{ font-weight:700; color:#2E5AA8; }
+  .dp-details[open] summary{ margin-bottom:8px; }
+  .dp-flow-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:8px 0 10px; font-size:12.5px; color:var(--muted); }
+  .dp-flow-bar select{
+    font-family:inherit; font-size:12.5px; padding:6px 8px;
+    border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink);
+  }
+  .dp-steps{ display:flex; flex-wrap:wrap; gap:6px; align-items:stretch; }
+  .dp-step{
+    display:flex; flex-direction:column; gap:4px; align-items:flex-start;
+    border:1px solid var(--line); border-radius:6px; padding:6px 10px; background:#fff;
+    font-size:12px; color:var(--muted); cursor:pointer; transition:all .12s ease;
+  }
+  .dp-step:hover{ border-color:#2E5AA8; }
+  .dp-step.done{ background:#EAF2FE; border-color:#9FC2EA; color:#2E5AA8; }
+  .dp-step.current{ background:#2E5AA8; border-color:#2E5AA8; color:#fff; font-weight:700; }
+  .dp-step .dp-step-no{ font-size:10px; opacity:.75; }
+  .dp-step input[type=date]{
+    font-family:inherit; font-size:11.5px; padding:2px 4px; border:1px solid var(--line);
+    border-radius:4px; background:#fff; color:var(--ink);
+  }
+  .dp-step.current input[type=date]{ border-color:#fff; }
+  .dp-warn{ font-size:12px; color:var(--danger); margin-top:6px; }
   .quota-details{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
   .quota-details summary{
     cursor:pointer; font-weight:700; font-size:13px; color:var(--muted);
@@ -1229,6 +1258,14 @@
   </div>
 
   <div class="records collapsible-block">
+    <details class="dp-details" open>
+      <summary>數位規劃 <span class="count" id="dpCount">0</span></summary>
+      <p class="mini-note">數位規劃的單子集中在這裡追蹤進度。先選擇情形，再點選目前完成到哪個階段；標示「時間」的階段要填日期。點到「結單」會自動把狀態改成已完成。</p>
+      <div id="dpList"><div class="rec-empty">載入中…</div></div>
+    </details>
+  </div>
+
+  <div class="records collapsible-block">
     <details class="done-details">
       <summary>已完成 <span class="count" id="doneCount">0</span></summary>
       <div class="history-toolbar">
@@ -1683,6 +1720,7 @@
       completedDate: dateInput ? dateInput.value : '',
       techNote: noteInput ? noteInput.value : ''
     };
+    if(patch.completedDate) patch.status = 'done';   // 有填完成日期就自動歸入已完成
     btn.disabled = true;
     try{
       await updateTechFields(id, patch);
@@ -1780,6 +1818,23 @@
     return null;
   }
 
+  function isDigitalPlan(r){ return !!(r.items && r.items.digital_plan); }
+  // 同醫師同病患若已有未結單的數位規劃，提醒是否重新開單
+  function checkDuplicateDigitalPlan(data){
+    if(!data.items || !data.items.digital_plan) return null;
+    const key = (data.chartNo || '').trim() || (data.patient || '').trim();
+    if(!key) return null;
+    const prev = cachedRecords.filter(r => {
+      if(r.deleted || !isDigitalPlan(r)) return false;
+      if(r.status === 'done' || r.dpStage === 'close') return false;
+      const rk = (r.chartNo || '').trim() || (r.patient || '').trim();
+      return rk === key && (r.doctor || '') === (data.doctor || '');
+    });
+    if(!prev.length) return null;
+    const list = prev.map(r => `・${r.patient || ''}（${r.chartNo || '-'}）${new Date(r.ts).toLocaleDateString('zh-TW')}`).join('\n');
+    return confirm(`先前已開單，是否重新開單？\n\n同醫師、同病患已有未結單的數位規劃：\n${list}`) ? null : 'cancel';
+  }
+
   // 一張單只能勾一個主項目
   function checkedMainItems(items){
     return ITEM_DEFS.filter(d => items[d.key]).map(d => d.label);
@@ -1824,6 +1879,9 @@
 
   document.getElementById('submitView').addEventListener('change', e => {
     if(e.target.matches('[data-key], #f_receiveDate')) refreshDueDateHint();
+    if(e.target.matches('[data-key="dp_implant"]') && e.target.checked){
+      alert('植牙規劃，若缺牙、假牙多、沒有咬合關係，請先印模做 CT 模板。');
+    }
   });
   document.addEventListener('toothchange', refreshDueDateHint);
 
@@ -1949,12 +2007,18 @@
     refreshDueDateHint();
   }
   // 是否為休息日（國定假日、週末、牙技師休假）
+  function isMakeupHoliday(dateStr){    // 政府行事曆的「補假」——醫院不補休，視為上班日
+    const gov = govCalendar[dateStr];
+    return !!(gov && gov.off && /補假/.test(gov.name || ''));
+  }
   function isOffDay(dateStr){
     if(holidaySet.has(dateStr)) return true;
+    const wd = new Date(dateStr + 'T00:00:00').getDay();
+    const isWeekend = wd === 0 || wd === 6;
+    if(isMakeupHoliday(dateStr)) return isWeekend;   // 補假日照常上班
     const gov = govCalendar[dateStr];
     if(gov) return gov.off;              // 政府行事曆已含補班日（補班六為上班日）
-    const wd = new Date(dateStr + 'T00:00:00').getDay();
-    return wd === 0 || wd === 6;
+    return isWeekend;
   }
   function isWorkday(dateStr){ return !isOffDay(dateStr); }
   function addWorkdays(startDateStr, days){
@@ -2027,7 +2091,7 @@
   function sortByTsDesc(recs){ return recs.slice().sort((a,b) => (b.ts||0) - (a.ts||0)); }
 
   function renderFilterCounts(){
-    const active = cachedRecords.filter(r => !r.deleted && r.status !== 'done');
+    const active = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r));
     const counts = { all: active.length, pending:0, in_progress:0 };
     active.forEach(r => { const s = r.status||'pending'; if(counts[s]!==undefined) counts[s]++; });
     document.querySelectorAll('.filter-tab').forEach(tab => {
@@ -2094,7 +2158,7 @@
   function drawRecordsList(){
     const listEl = document.getElementById('recordsList');
     const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
-    const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done');
+    const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r));
     let filtered = currentFilter === 'all' ? nonDeleted : nonDeleted.filter(r => (r.status||'pending') === currentFilter);
     if(myOrdersOnly) filtered = filtered.filter(r => r.assignedTo === currentTechIdentity);
     const isDraggableTab = currentFilter === 'pending' || currentFilter === 'in_progress';
@@ -2185,6 +2249,123 @@
         fsSet(id, rec).catch(e => console.error(e));
       }
     });
+  }
+
+  // ---- 數位規劃流程 ----
+  const DP_FLOWS = {
+    I:   { label:'I. 已有CT板', steps:[
+            {k:'ct',t:'已有CT板'},{k:'plan',t:'植牙規劃'},{k:'appt',t:'和醫師約時間',date:true},
+            {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'close',t:'結單'}]},
+    II:  { label:'II. 需蠟型設計', steps:[
+            {k:'wax',t:'需蠟型設計'},{k:'confirm1',t:'和醫師確認',date:true,beforeExplain:true},
+            {k:'plan',t:'植牙規劃'},{k:'confirm2',t:'醫師確認',date:true},
+            {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'close',t:'結單'}]},
+    III: { label:'III. 需設計蠟型（等後續）', steps:[
+            {k:'wax',t:'需設計蠟型'},{k:'wait',t:'設計好等後續（無下次時間）'}]}
+  };
+  function dpFlowOf(r){ return DP_FLOWS[r.dpFlow] ? r.dpFlow : ''; }
+  // 約解釋日期（數位規劃的 月/日 欄位）轉成 YYYY-MM-DD，用來檢查「和醫師確認」是否早於約解釋
+  function explainDateOf(r){
+    const m = (r.items && r.items.dp_explain_m || '').trim();
+    const d = (r.items && r.items.dp_explain_d || '').trim();
+    if(!m || !d) return '';
+    const year = (r.items.dueDate || todayISO()).slice(0,4);
+    return `${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  async function setDpFlow(id, flow){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    rec.dpFlow = flow || '';
+    rec.dpStage = '';
+    try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
+  }
+  async function setDpStage(id, stepKey){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    rec.dpStage = rec.dpStage === stepKey ? '' : stepKey;   // 再點一次可取消
+    if(rec.dpStage === 'close'){                            // 結單＝完成
+      rec.status = 'done';
+      if(!rec.completedDate) rec.completedDate = todayISO();
+    }
+    try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
+  }
+  async function setDpTime(id, stepKey, value, step){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    if(value && step && step.beforeExplain){
+      const ex = explainDateOf(rec);
+      if(ex && value >= ex) alert(`提醒：「${step.t}」的時間應早於約解釋日期（${ex}）。`);
+    }
+    rec.dpTimes = Object.assign({}, rec.dpTimes || {}, { [stepKey]: value });
+    try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
+  }
+  function drawDigitalPlanList(){
+    const listEl = document.getElementById('dpList');
+    if(!listEl) return;
+    const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
+    const list = cachedRecords
+      .filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done')
+      .sort((a,b) => (b.ts||0) - (a.ts||0));
+    const cnt = document.getElementById('dpCount');
+    if(cnt) cnt.textContent = list.length;
+    if(list.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有進行中的數位規劃</div>'; return; }
+    listEl.innerHTML = '';
+    list.forEach(r => {
+      const flow = dpFlowOf(r);
+      const steps = flow ? DP_FLOWS[flow].steps : [];
+      const curIdx = steps.findIndex(st => st.k === r.dpStage);
+      const times = r.dpTimes || {};
+      const stepsHtml = steps.map((st, i) => {
+        const cls = i === curIdx ? 'current' : (curIdx > -1 && i < curIdx ? 'done' : '');
+        const dateInput = st.date
+          ? `<input type="date" class="dpTime" data-id="${r.id}" data-step="${st.k}" value="${esc(times[st.k] || '')}" onclick="event.stopPropagation()" />`
+          : '';
+        return `<div class="dp-step ${cls}" data-id="${r.id}" data-step="${st.k}">
+            <span><span class="dp-step-no">${i+1}.</span> ${esc(st.t)}</span>${dateInput}
+          </div>`;
+      }).join('');
+      const ex = explainDateOf(r);
+      const div = document.createElement('div');
+      div.className = 'rec ' + assigneeColorClass(r);
+      div.innerHTML = `<div class="meta">
+          ${dueDateBadgeHTML(r)}
+          ${assigneeBadgeHTML(r)}
+          <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'} ・ 醫師 ${r.doctor || '-'}
+          <div class="sub">${esc(subLineText(r))}${ex ? ` ・ 約解釋 ${ex}` : ''}</div>
+        </div>
+        <div class="rec-actions">
+          ${assigneeSelectHTML(r)}
+          <button data-id="${r.id}" class="editBtnTech">編輯</button>
+          <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
+        </div>
+        <div class="dp-flow-bar">
+          <span>情形</span>
+          <select class="dpFlowSel" data-id="${r.id}">
+            <option value="" ${!flow?'selected':''}>請選擇</option>
+            ${Object.keys(DP_FLOWS).map(k => `<option value="${k}" ${flow===k?'selected':''}>${DP_FLOWS[k].label}</option>`).join('')}
+          </select>
+          ${flow ? '<span>目前階段：點選下方步驟</span>' : ''}
+        </div>
+        ${flow ? `<div class="dp-steps">${stepsHtml}</div>` : ''}
+        <details class="rec-details" data-id="${r.id}">
+          <summary>查看完整單子</summary>
+          <div class="summary-body">${buildFullOrderHTML(r)}</div>
+        </details>`;
+      if(openIds.has(r.id)) div.querySelector('.rec-details').open = true;
+      listEl.appendChild(div);
+    });
+    listEl.querySelectorAll('.dpFlowSel').forEach(sel => sel.addEventListener('change', () => setDpFlow(sel.dataset.id, sel.value)));
+    listEl.querySelectorAll('.dp-step').forEach(el => el.addEventListener('click', () => setDpStage(el.dataset.id, el.dataset.step)));
+    listEl.querySelectorAll('.dpTime').forEach(inp => inp.addEventListener('change', () => {
+      const rec = cachedRecords.find(x => x.id === inp.dataset.id);
+      const flow = rec && dpFlowOf(rec);
+      const step = flow ? DP_FLOWS[flow].steps.find(x => x.k === inp.dataset.step) : null;
+      setDpTime(inp.dataset.id, inp.dataset.step, inp.value, step);
+    }));
+    listEl.querySelectorAll('.assignSel').forEach(sel => sel.addEventListener('change', () => setAssignee(sel.dataset.id, sel.value)));
+    listEl.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
+    listEl.querySelectorAll('.editBtnTech').forEach(b => b.addEventListener('click', () => startEditRecordFromTech(b.dataset.id)));
+    listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
   }
 
   function drawHistoryList(){
@@ -2388,6 +2569,7 @@
   function renderTechView(){
     renderFilterCounts();
     drawRecordsList();
+    drawDigitalPlanList();
     drawDoneList();
     drawHistoryList();
     renderAllCalendars();
@@ -2493,7 +2675,7 @@
       if(isLeave) cellClass += ' cal-holiday';
       let tag = '';
       if(isLeave) tag = '<span class="cal-holiday-tag">休</span>';
-      else if(gov && gov.off && gov.name) tag = `<span class="cal-gov-tag">${esc(gov.name)}</span>`;
+      else if(gov && gov.off && gov.name && !isMakeupHoliday(dateStr)) tag = `<span class="cal-gov-tag">${esc(gov.name)}</span>`;
       const chips = orders.slice(0,3).map(x =>
         `<div class="cal-chip${x.status==='done' ? ' cal-chip-done' : ''}${!x.assignedTo ? ' cal-chip-unassigned' : ''}" data-id="${x.id}" title="${esc(x.patient || '')}">${esc(x.patient || '(未填)')}</div>`
       ).join('');
@@ -2651,7 +2833,7 @@
     const active = cachedRecords.filter(r => !r.deleted);
     if(active.length === 0){ listEl.innerHTML = '<div class="rec-empty">尚無紀錄</div>'; return; }
     listEl.innerHTML = '';
-    active.slice(0,10).forEach(r => {
+    active.slice(0,5).forEach(r => {
       const status = r.status || 'pending';
       const div = document.createElement('div');
       div.className = 'rec ' + assigneeColorClass(r);
@@ -2717,6 +2899,10 @@
       alert('請填寫以下必填欄位：\n' + invalids.join('、'));
       return;
     }
+    if(!currentEditingId){
+      const dupErr = checkDuplicateDigitalPlan(data);
+      if(dupErr === 'cancel') return;
+    }
     const mains = checkedMainItems(currentFormItems());
     if(mains.length > 1){
       alert(`如有多個項目，請分開開單。\n\n目前勾選了 ${mains.length} 個項目：${mains.join('、')}`);
@@ -2781,10 +2967,10 @@
       ['數位/模板', sectionSummaryText('digital', items)],
       ['模型/咬合相關', sectionSummaryText('left', items)],
       ['假牙/蠟型相關', sectionSummaryText('right', items)],
-      ['其他技工項目', sectionSummaryText('other', items)],
-      ['牙位', toothSummaryText(items)]
-    ].filter(([, v]) => v).map(([k, v]) => `${k}：${v}`).join('\n');
+      ['其他技工項目', sectionSummaryText('other', items)]
+    ].filter(([, v]) => v).map(([k, v]) => `${k}：${v}`).join('\n');   // 牙位另外一列，不併入項目
     const pageUrl = location.origin + location.pathname + '?role=tech';
+    const sectionsHtml = sections.split('\n').join('<br>');
     const params = {
       to_email: NEW_ORDER_RECIPIENTS.map(r => r.email).join(','),
       patient: order.patient || '',
@@ -2794,6 +2980,10 @@
       receive_date: order.receiveDate || '',
       appt_date: order.apptDate || '',
       due_date: items.dueDate || '',
+      finish_date: items.dueDate ? prevWorkday(items.dueDate) : '',
+      items_html: sectionsHtml || '（未勾選項目）',
+      tooth_summary: toothSummaryText(items) || '（未選牙位）',
+      notes_html: (items.notes || '（無）').split('\n').join('<br>'),
       items_summary: sections || '（未勾選項目）',
       notes: items.notes || '（無）',
       submitted_at: new Date(order.ts).toLocaleString('zh-TW'),
