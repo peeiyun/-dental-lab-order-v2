@@ -365,6 +365,10 @@
     padding:7px 10px; border:1px solid var(--line); border-radius:8px; outline:none; color:var(--ink);
   }
   .due-date-input:focus{ border-color:var(--accent); }
+  .due-hint{ font-size:12px; color:var(--muted); line-height:1.7; margin:-6px 0 12px; }
+  .due-hint.active{ background:var(--accent-soft); color:var(--accent-dark); padding:8px 10px; border-radius:4px; }
+  .due-hint.too-early{ background:#FCE4E4; color:var(--danger); }
+  .due-hint-detail{ opacity:.85; }
 
   .actions{
     display:flex; gap:10px; flex-wrap:wrap;
@@ -546,6 +550,13 @@
   .cal-cell.empty{ background:transparent; border:none; }
   .cal-cell.cal-today{ border-color:var(--accent); border-width:2px; }
   .cal-cell.cal-has-orders{ background:#FDF3F1; }
+  .cal-cell.cal-offday{ background:#EFECEB; color:var(--muted); }
+  .cal-gov-tag{ font-size:9px; color:#B04C42; font-weight:700; }
+  .cal-cell.cal-holiday{ background:repeating-linear-gradient(45deg,#F0EDEC,#F0EDEC 4px,#E4DFDE 4px,#E4DFDE 8px); border-style:dashed; }
+  .cal-holiday-tag{ font-size:9px; color:var(--muted); font-weight:700; }
+  body.holiday-mode .cal-cell:not(.empty){ cursor:pointer; outline:1px dashed var(--accent); outline-offset:-2px; }
+  body.holiday-mode .cal-chip{ pointer-events:none; }
+  #btnHolidayMode.on{ background:var(--accent); color:#fff; border-color:var(--accent); }
   .cal-cell.cal-overdue{ background:#FFF3F0; border-color:var(--danger); }
   .cal-daynum{ font-size:11px; color:var(--muted); font-weight:700; margin-bottom:3px; }
   .cal-chip{
@@ -702,6 +713,7 @@
   .ro-extra{ flex-basis:100%; margin-left:22px; font-size:12px; color:var(--muted); }
   .ro-notes{ font-size:13.5px; line-height:1.7; white-space:pre-wrap; }
   .ro-due-date{ font-size:13px; font-weight:700; color:var(--danger); margin-bottom:8px; }
+  .ro-due-sub{ font-weight:600; color:var(--muted); }
   .ro-empty{ color:var(--muted); font-style:italic; }
 
   .tech-note-section{ background:#FAFAF8; }
@@ -865,19 +877,17 @@
   <line x1="40" y1="47" x2="60" y2="47" stroke="#9ED9CA" stroke-width="1.2"/>
   <line x1="36" y1="44" x2="33" y2="40" stroke="#2E8B72" stroke-width="1.4"/>
   <line x1="64" y1="44" x2="67" y2="40" stroke="#2E8B72" stroke-width="1.4"/>
-  <g class="articulator">
-    <rect x="80" y="61" width="5" height="32" rx="2" fill="#3B8FD9" stroke="#1F5E99" stroke-width="1.4"/>
-    <rect x="55" y="61" width="30" height="5" rx="2" fill="#3B8FD9" stroke="#1F5E99" stroke-width="1.4"/>
-    <rect x="55" y="88" width="30" height="5" rx="2" fill="#3B8FD9" stroke="#1F5E99" stroke-width="1.4"/>
-    <circle cx="82.5" cy="59" r="3" fill="#3B8FD9" stroke="#1F5E99" stroke-width="1.4"/>
-    <rect x="56" y="66" width="24" height="5.5" rx="1.5" fill="#F4F1EC" stroke="#B89A78" stroke-width="1"/>
-    <path d="M56.5 71 Q68 69 79.5 71 L79.5 73.8 Q68 72.4 56.5 73.8 Z" fill="#F2C58A" stroke="#C99A5E" stroke-width=".8"/>
-    <rect x="57.6" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="61.0" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="64.4" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="67.8" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="71.2" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="74.6" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="78.0" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/>
-    <rect x="57.6" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="61.0" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="64.4" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="67.8" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="71.2" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="74.6" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="78.0" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/>
-    <path d="M56.5 81 Q68 82.4 79.5 81 L79.5 83.6 Q68 85 56.5 83.6 Z" fill="#F2C58A" stroke="#C99A5E" stroke-width=".8"/>
-    <rect x="56" y="83" width="24" height="5.5" rx="1.5" fill="#F4F1EC" stroke="#B89A78" stroke-width="1"/>
+  <g class="stone-model">
+    <rect x="55" y="88" width="32" height="5.5" rx="1" fill="#3B3B3D" stroke="#222224" stroke-width="1.2"/>
+    <circle cx="61" cy="90.8" r="1.1" fill="#8E9296"/>
+    <circle cx="81" cy="90.8" r="1.1" fill="#8E9296"/>
+    <rect x="62.5" y="83" width="3" height="6" rx="1" fill="#B9BCC0" stroke="#7A7D80" stroke-width="1"/>
+    <rect x="76.5" y="83" width="3" height="6" rx="1" fill="#B9BCC0" stroke="#7A7D80" stroke-width="1"/>
+    <path d="M85.4 72.6 L85.2 74.0 L84.9 75.3 L84.6 76.6 L84.2 77.8 L83.7 79.1 L83.2 80.2 L82.6 81.4 L82.0 82.4 L81.3 83.4 L80.5 84.3 L79.7 85.2 L78.9 86.0 L78.0 86.7 L77.0 87.3 L76.1 87.8 L75.1 88.2 L74.1 88.6 L73.1 88.8 L72.0 89.0 L71.0 89.0 L70.0 89.0 L68.9 88.8 L67.9 88.6 L66.9 88.2 L65.9 87.8 L65.0 87.3 L64.0 86.7 L63.1 86.0 L62.3 85.2 L61.5 84.3 L60.7 83.4 L60.0 82.4 L59.4 81.4 L58.8 80.2 L58.3 79.1 L57.8 77.8 L57.4 76.6 L57.1 75.3 L56.8 74.0 L56.6 72.6" fill="none" stroke="#EFE4C6" stroke-width="10" stroke-linecap="round"/>
+    <path d="M85.4 72.6 L85.2 74.0 L84.9 75.3 L84.6 76.6 L84.2 77.8 L83.7 79.1 L83.2 80.2 L82.6 81.4 L82.0 82.4 L81.3 83.4 L80.5 84.3 L79.7 85.2 L78.9 86.0 L78.0 86.7 L77.0 87.3 L76.1 87.8 L75.1 88.2 L74.1 88.6 L73.1 88.8 L72.0 89.0 L71.0 89.0 L70.0 89.0 L68.9 88.8 L67.9 88.6 L66.9 88.2 L65.9 87.8 L65.0 87.3 L64.0 86.7 L63.1 86.0 L62.3 85.2 L61.5 84.3 L60.7 83.4 L60.0 82.4 L59.4 81.4 L58.8 80.2 L58.3 79.1 L57.8 77.8 L57.4 76.6 L57.1 75.3 L56.8 74.0 L56.6 72.6" fill="none" stroke="#C9B98E" stroke-width="1.3" stroke-linecap="round" opacity=".7"/>
+    <rect x="-1.65" y="-1.80" width="3.3" height="3.6" rx="1" fill="#F7F1DE" stroke="#C6B183" stroke-width=".6" transform="translate(81.1 74.1) rotate(101.3)"/><rect x="-1.65" y="-1.80" width="3.3" height="3.6" rx="1" fill="#F7F1DE" stroke="#C6B183" stroke-width=".6" transform="translate(80.0 77.7) rotate(112.6)"/><rect x="-1.45" y="-2.00" width="2.9" height="4.0" rx="1" fill="#F7F1DE" stroke="#C6B183" stroke-width=".6" transform="translate(78.3 80.7) rotate(125.6)"/><rect x="-1.45" y="-2.00" width="2.9" height="4.0" rx="1" fill="#F7F1DE" stroke="#C6B183" stroke-width=".6" transform="translate(76.2 83.0) rotate(140.9)"/><rect x="-1.45" y="-2.00" width="2.9" height="4.0" rx="1" fill="#F7F1DE" stroke="#C6B183" stroke-width=".6" transform="translate(73.7 84.5) rotate(159.3)"/><rect x="-1.45" y="-2.00" width="2.9" height="4.0" rx="1" fill="#F7F1DE" stroke="#C6B183" stroke-width=".6" transform="translate(71.0 85.0) rotate(180.0)"/><rect x="-1.45" y="-2.00" width="2.9" height="4.0" rx="1" fill="#F7F1DE" stroke="#C6B183" stroke-width=".6" transform="translate(68.3 84.5) rotate(-159.3)"/><rect x="-1.45" y="-2.00" width="2.9" height="4.0" rx="1" fill="#F7F1DE" stroke="#C6B183" stroke-width=".6" transform="translate(65.8 83.0) rotate(-140.9)"/><rect x="-1.45" y="-2.00" width="2.9" height="4.0" rx="1" fill="#F7F1DE" stroke="#C6B183" stroke-width=".6" transform="translate(63.7 80.7) rotate(-125.6)"/><rect x="-1.65" y="-1.80" width="3.3" height="3.6" rx="1" fill="#F7F1DE" stroke="#C6B183" stroke-width=".6" transform="translate(62.0 77.7) rotate(-112.6)"/><rect x="-1.65" y="-1.80" width="3.3" height="3.6" rx="1" fill="#F7F1DE" stroke="#C6B183" stroke-width=".6" transform="translate(60.9 74.1) rotate(-101.3)"/>
   </g>
-  <circle cx="57" cy="84" r="4" fill="#FFE4D8" stroke="#2E8B72" stroke-width="1.8"/>
+  <circle cx="55.5" cy="84" r="4.2" fill="#FFE4D8" stroke="#2E8B72" stroke-width="1.8"/>
   <line x1="30" y1="86" x2="41" y2="70" stroke="#8A7F7D" stroke-width="2.4" stroke-linecap="round"/>
   <circle cx="41.5" cy="69" r="1.8" fill="#8A7F7D"/>
   <circle cx="35" cy="80" r="4" fill="#FFE4D8" stroke="#2E8B72" stroke-width="1.8"/>
@@ -1116,8 +1126,9 @@
       <!-- notes -->
       <div class="section">
         <h2>交待事項</h2>
-        <label class="due-date-label">須完成日期 <span class="req-star">*</span></label>
+        <label class="due-date-label">領取日 <span class="req-star">*</span></label>
         <input type="date" data-key="dueDate" class="due-date-input" />
+        <div class="due-hint" id="dueDateHint"></div>
         <textarea class="notes" data-key="notes" placeholder="請輸入交待事項…"></textarea>
       </div>
 
@@ -1133,6 +1144,19 @@
   <p class="note-shared">送出後會自動存入共用清單，牙技師端會即時看到並收到通知。</p>
 
   <div class="records">
+    <div class="collapsible-block" style="margin:0 0 16px;">
+      <details class="calendar-details" open>
+        <summary>日曆（灰底為週末、國定假日與牙技師休假）</summary>
+        <div class="calendar-toolbar">
+          <button type="button" class="ghost" id="calPrevMonthSender">‹ 上個月</button>
+          <span id="calMonthLabelSender" class="calendar-month-label">—</span>
+          <button type="button" class="ghost" id="calNextMonthSender">下個月 ›</button>
+          <button type="button" class="ghost" id="calTodaySender">回到今天</button>
+        </div>
+        <div class="calendar-grid" id="calendarGridSender"></div>
+      </details>
+    </div>
+
     <h3>近期送出狀態（唯讀）</h3>
     <div id="myRecordsList"><div class="rec-empty">載入中…</div></div>
   </div>
@@ -1164,6 +1188,7 @@
         <span id="calMonthLabel" class="calendar-month-label">—</span>
         <button type="button" class="ghost" id="calNextMonth">下個月 ›</button>
         <button type="button" class="ghost" id="calToday">回到今天</button>
+        <button type="button" class="ghost" id="btnHolidayMode">設定休假日</button>
         <span class="cal-scope-note" id="calScopeNote"></span>
         <label class="sound-toggle cal-unassigned-toggle"><input type="checkbox" id="chkCalUnassigned" checked /> 含未處理（未指派）的單</label>
       </div>
@@ -1196,7 +1221,7 @@
         <option value="ts_desc">送單日期（新到舊）</option>
         <option value="ts_asc">送單日期（舊到新）</option>
         <option value="doctor">醫師（A→Z）</option>
-        <option value="due_date">須完成日期（近→遠）</option>
+        <option value="due_date">須完成日（近→遠）</option>
       </select>
     </div>
     <h3>已送出紀錄</h3>
@@ -1407,11 +1432,14 @@
   }
   function onRoleActivated(role){
     startOrdersListener(); // one shared real-time listener drives both views
+    startHolidayListener();
     if(role === 'tech'){
       initTechIdentity();
       renderTechView(); // draw immediately with whatever the listener already cached
     }else if(role === 'submit'){
       renderMySubmissions(); // draw immediately with whatever the listener already cached
+      refreshDueDateHint();
+      renderAllCalendars();
     }
   }
   document.querySelectorAll('.role-card').forEach(card => {
@@ -1551,7 +1579,7 @@
         <div class="section"><h2>其他技工項目</h2>${bySection('other')}</div>
         <div class="section">${renderToothRO(items)}</div>
         <div class="section"><h2>交待事項</h2>
-          ${items.dueDate ? `<div class="ro-due-date">須完成日期：${esc(items.dueDate)}</div>` : ''}
+          ${items.dueDate ? `<div class="ro-due-date">須完成日：${esc(prevWorkday(items.dueDate))}　<span class="ro-due-sub">（領取日 ${esc(items.dueDate)}）</span></div>` : ''}
           <div class="ro-notes">${items.notes ? esc(items.notes).replace(/\n/g,'<br>') : '<span class="ro-empty">（無）</span>'}</div>
         </div>
         <div class="section tech-note-section">
@@ -1597,7 +1625,7 @@
     }
     if(TOOTH_FIELD_LABELS[key]) return TOOTH_FIELD_LABELS[key];
     if(key === 'notes') return '交待事項';
-    if(key === 'dueDate') return '須完成日期';
+    if(key === 'dueDate') return '須完成日';
     return key;
   }
   function formatFieldVal(v){
@@ -1693,6 +1721,7 @@
         btn.addEventListener('click', () => {
           btn.classList.toggle('active');
           updateToothHidden(key);
+          document.dispatchEvent(new Event('toothchange'));
         });
         quad.appendChild(btn);
       });
@@ -1738,6 +1767,24 @@
     return data;
   }
 
+  // 檢查可領取日是否早於所需工作天數；回傳錯誤訊息或 null
+  function validateDueDate(){
+    const info = earliestDueInfo();
+    if(!info) return null;
+    const input = document.querySelector('[data-key="dueDate"]');
+    if(!input || !input.value) return null;
+    if(input.value < info.earliest){
+      input.classList.add('field-invalid');
+      return `此單需要 ${info.days} 個工作天，最早領取日為 ${info.earliest}（牙技師須完成日 ${info.finish}）。\n\n小於需要的工作天數，如有特別需求，請跟先跟堅雯或小優討論。`;
+    }
+    return null;
+  }
+
+  // 一張單只能勾一個主項目
+  function checkedMainItems(items){
+    return ITEM_DEFS.filter(d => items[d.key]).map(d => d.label);
+  }
+
   function validateRequiredFields(){
     const invalids = [];
     const checks = [
@@ -1769,11 +1816,16 @@
       dueDateEl.classList.remove('field-invalid');
       if(!dueDateEl.value || !dueDateEl.value.trim()){
         dueDateEl.classList.add('field-invalid');
-        invalids.push('須完成日期');
+        invalids.push('領取日');
       }
     }
     return invalids;
   }
+
+  document.getElementById('submitView').addEventListener('change', e => {
+    if(e.target.matches('[data-key], #f_receiveDate')) refreshDueDateHint();
+  });
+  document.addEventListener('toothchange', refreshDueDateHint);
 
   function clearForm(){
     ['f_patient','f_registrar','f_chartNo'].forEach(id => document.getElementById(id).value = '');
@@ -1786,6 +1838,7 @@
     });
     document.querySelectorAll('.tooth-btn.active').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.field-invalid').forEach(el => el.classList.remove('field-invalid'));
+    refreshDueDateHint();
   }
   document.getElementById('btnClear').addEventListener('click', () => {
     if(confirm('確定要清除整份表單嗎？')){
@@ -1807,6 +1860,167 @@
   const BASE_TITLE = document.title;
 
   const ordersCol = () => db.collection('orders');
+  const settingsDoc = () => db.collection('settings').doc('holidays');
+
+  // ---- 工作天數規則（數字＝固定工作天；'byTeeth'＝依顆數計算） ----
+  const TEETH_TIERS = [ {max:2, days:8}, {max:6, days:11}, {max:Infinity, days:15} ];
+  const WORKDAY_RULES = {
+    ct_locator: 'byTeeth',          // CT模板－加定位珠
+    ct_denture: 11,                 // CT模板－活動假牙複製
+    dp_romexis: 'byTeeth',          // 數位規劃－疊 ROMEXIS
+    dp_surg_template: 14,           // 數位規劃－3D列印手術導板
+    clear_retainer: 4,              // 透明維持板（硬 1MM）
+    whitening_tray: 5,              // 美白牙托
+    pour_model: 2,                  // 灌模
+    bite_rim: 3,                    // 咬合蠟堤
+    wax_pattern: 'byTeeth',         // 蠟型
+    thin_vacuum: 2,                 // 薄硬 VACUUM 板
+    print3d_model: 3,               // 3D列印－模型
+    print3d_transplant: 21,         // 3D列印－自體移植牙
+    print3d_jaw: 8,                 // 3D列印－顎骨
+    soft_splint: 3,                 // 軟式咬合板
+    temp_denture: 'byTeeth',        // 臨時假牙
+    zirconia_model: 11              // 氧化鋯處理－有實體模
+  };
+  function teethTierDays(count){
+    if(!count) return TEETH_TIERS[0].days; // 沒選牙位時以最短天數計
+    return (TEETH_TIERS.find(t => count <= t.max) || TEETH_TIERS[TEETH_TIERS.length-1]).days;
+  }
+  function countSelectedTeeth(items){
+    return ['tooth_ur','tooth_ul','tooth_lr','tooth_ll']
+      .reduce((n, k) => n + String(items[k] || '').split(',').filter(Boolean).length, 0);
+  }
+  // 回傳 {days, reasons:[{label, days}]}；days 取所有已勾選項目中的最大值
+  function requiredWorkdays(items){
+    const teeth = countSelectedTeeth(items);
+    const reasons = [];
+    Object.keys(WORKDAY_RULES).forEach(key => {
+      if(!items[key]) return;
+      const rule = WORKDAY_RULES[key];
+      const days = rule === 'byTeeth' ? teethTierDays(teeth) : rule;
+      reasons.push({ label: itemFieldLabel(key), days, byTeeth: rule === 'byTeeth' });
+    });
+    const days = reasons.reduce((m, r) => Math.max(m, r.days), 0);
+    return { days, reasons, teeth };
+  }
+  // 休假日（牙技師可在日曆上設定）
+  let holidaySet = new Set();
+  // 中華民國政府行政機關辦公日曆表：{ '2026-01-01': {off:true, name:'開國紀念日'} }
+  const govCalendar = {};
+  async function loadGovCalendar(year){
+    const cacheKey = 'tw_cal_' + year;
+    const apply = arr => arr.forEach(d => {
+      const iso = `${d.date.slice(0,4)}-${d.date.slice(4,6)}-${d.date.slice(6,8)}`;
+      govCalendar[iso] = { off: !!d.isHoliday, name: d.description || '' };
+    });
+    const cached = localGet(cacheKey);
+    if(cached){
+      try{
+        const box = JSON.parse(cached);
+        if(box && box.at && (Date.now() - box.at) < 30*24*3600*1000 && Array.isArray(box.data)){
+          apply(box.data); return;                 // 30 天內直接用快取
+        }
+      }catch(e){}
+    }
+    // 資料來源：中華民國政府行政機關辦公日曆表（含補班日）。主來源失敗時改用 CDN。
+    const sources = [
+      `https://raw.githubusercontent.com/ruyut/TaiwanCalendar/master/data/${year}.json`,
+      `https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar@master/data/${year}.json`
+    ];
+    for(const url of sources){
+      try{
+        const res = await fetch(url);
+        if(!res.ok) throw new Error(res.status);
+        const arr = await res.json();
+        if(!Array.isArray(arr) || !arr.length) throw new Error('empty');
+        apply(arr);
+        localSet(cacheKey, JSON.stringify({ at: Date.now(), data: arr }));
+        return;
+      }catch(e){
+        console.warn('政府行事曆載入失敗', year, url, e);
+      }
+    }
+    console.warn('政府行事曆全部來源皆失敗，改用一般週末規則', year);
+  }
+  async function initGovCalendar(){
+    const y = new Date().getFullYear();
+    await Promise.all([loadGovCalendar(y), loadGovCalendar(y + 1)]);
+    renderAllCalendars();
+    refreshDueDateHint();
+  }
+  // 是否為休息日（國定假日、週末、牙技師休假）
+  function isOffDay(dateStr){
+    if(holidaySet.has(dateStr)) return true;
+    const gov = govCalendar[dateStr];
+    if(gov) return gov.off;              // 政府行事曆已含補班日（補班六為上班日）
+    const wd = new Date(dateStr + 'T00:00:00').getDay();
+    return wd === 0 || wd === 6;
+  }
+  function isWorkday(dateStr){ return !isOffDay(dateStr); }
+  function addWorkdays(startDateStr, days){
+    if(!days) return startDateStr;
+    const d = new Date(startDateStr + 'T00:00:00');
+    let left = days;
+    let guard = 0;
+    while(left > 0 && guard < 400){          // 當天不算，從隔天開始數
+      d.setDate(d.getDate() + 1);
+      guard++;
+      const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      if(isWorkday(iso)) left--;
+    }
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  // 牙技師的「須完成日」＝送單者「領取日」的前一個工作天
+  function prevWorkday(dateStr){
+    if(!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    let guard = 0;
+    do{
+      d.setDate(d.getDate() - 1);
+      guard++;
+    }while(guard < 60 && !isWorkday(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`));
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  function completionDateOf(r){
+    const due = r && r.items && r.items.dueDate;
+    return due ? prevWorkday(due) : '';
+  }
+
+  function currentFormItems(){
+    const items = {};
+    document.querySelectorAll('#submitView [data-key]').forEach(el => {
+      if(el.tagName === 'DIV') return;
+      items[el.dataset.key] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+    return items;
+  }
+  // 依目前表單內容算出最早可領取日；沒有任何有天數規則的項目時回傳 null
+  function earliestDueInfo(){
+    const items = currentFormItems();
+    const { days, reasons, teeth } = requiredWorkdays(items);
+    if(!days) return null;
+    const start = document.getElementById('f_receiveDate').value || todayISO();
+    const finish = addWorkdays(start, days);          // 牙技師最早可完成日
+    return { days, reasons, teeth, finish, earliest: addWorkdays(start, days + 1), start };
+  }
+  function refreshDueDateHint(){
+    const hint = document.getElementById('dueDateHint');
+    const input = document.querySelector('[data-key="dueDate"]');
+    if(!hint || !input) return;
+    const info = earliestDueInfo();
+    if(!info){
+      hint.textContent = '';
+      hint.className = 'due-hint';
+      input.removeAttribute('min');
+      return;
+    }
+    input.min = info.earliest;
+    const detail = info.reasons.map(r => `${r.label} ${r.days}天${r.byTeeth ? `（${info.teeth || 0} 顆）` : ''}`).join('、');
+    hint.innerHTML = `需要 <b>${info.days}</b> 個工作天（六日與休假日不計，收件日當天不算）。最早領取日：<b>${info.earliest}</b>（牙技師須完成日 ${info.finish}）<br><span class="due-hint-detail">依據：${esc(detail)}</span>`;
+    hint.className = 'due-hint active';
+    const cur = input.value;
+    hint.classList.toggle('too-early', !!cur && cur < info.earliest);
+  }
   async function fsSet(id, data){ await ordersCol().doc(id).set(data); }
   async function fsDelete(id){ await ordersCol().doc(id).delete(); }
 
@@ -1874,7 +2088,7 @@
   }
   function dueDateBadgeHTML(r){
     const due = r.items && r.items.dueDate;
-    return due ? `<span class="badge-duedate">須完成 ${esc(due)}</span>` : '';
+    return due ? `<span class="badge-duedate">須完成 ${esc(prevWorkday(due))}</span>` : '';
   }
 
   function drawRecordsList(){
@@ -2123,7 +2337,8 @@
       '假牙/蠟型相關': sectionSummaryText('right', items),
       '其他技工項目': sectionSummaryText('other', items),
       '牙位': toothSummaryText(items),
-      '須完成日期': items.dueDate || '',
+      '須完成日': items.dueDate ? prevWorkday(items.dueDate) : '',
+      '領取日': items.dueDate || '',
       '交待事項': items.notes || '',
       '送出時間': r.ts ? new Date(r.ts).toLocaleString('zh-TW') : '',
       '完成日期': r.completedDate || '',
@@ -2175,7 +2390,7 @@
     drawRecordsList();
     drawDoneList();
     drawHistoryList();
-    renderCalendar();
+    renderAllCalendars();
     renderQuota();
   }
 
@@ -2226,9 +2441,10 @@
 
   // ---- 日曆 ----
   let calendarViewDate = new Date();
-  function renderCalendar(){
-    const grid = document.getElementById('calendarGrid');
-    const label = document.getElementById('calMonthLabel');
+  function renderCalendar(opts){
+    const o = opts || { grid:'calendarGrid', label:'calMonthLabel', editable:true, scopeNote:'calScopeNote' };
+    const grid = document.getElementById(o.grid);
+    const label = document.getElementById(o.label);
     if(!grid || !label) return;
     const year = calendarViewDate.getFullYear();
     const month = calendarViewDate.getMonth(); // 0-indexed
@@ -2241,15 +2457,19 @@
 
     const dueMap = {};
     const includeUnassigned = !!(document.getElementById('chkCalUnassigned') || {}).checked;
-    const scopeNote = document.getElementById('calScopeNote');
-    if(scopeNote) scopeNote.textContent = currentTechIdentity ? `只顯示「${currentTechIdentity}」負責的單` : '尚未選擇身份，顯示全部單子';
+    const scopeNote = o.scopeNote ? document.getElementById(o.scopeNote) : null;
+    if(scopeNote && !document.body.classList.contains('holiday-mode')){
+      scopeNote.textContent = currentTechIdentity ? `只顯示「${currentTechIdentity}」負責的單` : '尚未選擇身份，顯示全部單子';
+    }
     cachedRecords.filter(r => {
       if(r.deleted || !r.items || !r.items.dueDate) return false;
+      if(!o.editable) return true;                 // 送單者畫面：顯示全部
       if(!currentTechIdentity) return true;
       if(r.assignedTo === currentTechIdentity) return true;
       return includeUnassigned && !r.assignedTo;
     }).forEach(r => {
-      const d = r.items.dueDate;
+      // 牙技師日曆看「須完成日」，送單者日曆看「領取日」
+      const d = o.editable ? prevWorkday(r.items.dueDate) : r.items.dueDate;
       if(!dueMap[d]) dueMap[d] = [];
       dueMap[d].push(r);
     });
@@ -2261,22 +2481,41 @@
       const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
       const orders = dueMap[dateStr] || [];
       const isToday = dateStr === todayStr;
-      const hasOverdue = orders.some(o => o.status !== 'done' && dateStr < todayStr);
+      const hasOverdue = orders.some(x => x.status !== 'done' && dateStr < todayStr);
+      const gov = govCalendar[dateStr];
+      const isLeave = holidaySet.has(dateStr);
+      const off = isOffDay(dateStr);
       let cellClass = 'cal-cell';
+      if(off) cellClass += ' cal-offday';
       if(isToday) cellClass += ' cal-today';
       if(orders.length) cellClass += ' cal-has-orders';
       if(hasOverdue) cellClass += ' cal-overdue';
-      const chips = orders.slice(0,3).map(o =>
-        `<div class="cal-chip${o.status==='done' ? ' cal-chip-done' : ''}${!o.assignedTo ? ' cal-chip-unassigned' : ''}" data-id="${o.id}" title="${esc(o.patient || '')}">${esc(o.patient || '(未填)')}</div>`
+      if(isLeave) cellClass += ' cal-holiday';
+      let tag = '';
+      if(isLeave) tag = '<span class="cal-holiday-tag">休</span>';
+      else if(gov && gov.off && gov.name) tag = `<span class="cal-gov-tag">${esc(gov.name)}</span>`;
+      const chips = orders.slice(0,3).map(x =>
+        `<div class="cal-chip${x.status==='done' ? ' cal-chip-done' : ''}${!x.assignedTo ? ' cal-chip-unassigned' : ''}" data-id="${x.id}" title="${esc(x.patient || '')}">${esc(x.patient || '(未填)')}</div>`
       ).join('');
       const more = orders.length > 3 ? `<div class="cal-more">+${orders.length - 3} 筆</div>` : '';
-      html += `<div class="${cellClass}"><div class="cal-daynum">${day}</div>${chips}${more}</div>`;
+      html += `<div class="${cellClass}" data-date="${dateStr}"><div class="cal-daynum">${day} ${tag}</div>${chips}${more}</div>`;
     }
     html += '</div>';
     grid.innerHTML = html;
-    grid.querySelectorAll('.cal-chip').forEach(chip => {
-      chip.addEventListener('click', () => showCalendarOrderModal(chip.dataset.id));
-    });
+    if(o.editable && document.body.classList.contains('holiday-mode')){
+      grid.querySelectorAll('.cal-cell[data-date]').forEach(cell => {
+        cell.addEventListener('click', () => toggleHoliday(cell.dataset.date));
+      });
+    }
+    if(o.editable){
+      grid.querySelectorAll('.cal-chip').forEach(chip => {
+        chip.addEventListener('click', () => showCalendarOrderModal(chip.dataset.id));
+      });
+    }
+  }
+  function renderAllCalendars(){
+    renderCalendar();
+    renderCalendar({ grid:'calendarGridSender', label:'calMonthLabelSender', editable:false });
   }
   function showCalendarOrderModal(id){
     const rec = cachedRecords.find(x => x.id === id);
@@ -2293,19 +2532,41 @@
   const calPrevMonthEl = document.getElementById('calPrevMonth');
   if(calPrevMonthEl) calPrevMonthEl.addEventListener('click', () => {
     calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1);
-    renderCalendar();
+    renderAllCalendars();
   });
   const calNextMonthEl = document.getElementById('calNextMonth');
   if(calNextMonthEl) calNextMonthEl.addEventListener('click', () => {
     calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
-    renderCalendar();
+    renderAllCalendars();
   });
   const chkCalUnassignedEl = document.getElementById('chkCalUnassigned');
-  if(chkCalUnassignedEl) chkCalUnassignedEl.addEventListener('change', renderCalendar);
+  if(chkCalUnassignedEl) chkCalUnassignedEl.addEventListener('change', () => renderCalendar());
+  const btnHolidayModeEl = document.getElementById('btnHolidayMode');
+  if(btnHolidayModeEl) btnHolidayModeEl.addEventListener('click', () => {
+    const on = document.body.classList.toggle('holiday-mode');
+    btnHolidayModeEl.classList.toggle('on', on);
+    btnHolidayModeEl.textContent = on ? '完成設定' : '設定休假日';
+    const note = document.getElementById('calScopeNote');
+    if(note && on) note.textContent = '點日期即可標記／取消休假日（休假日不計入工作天）';
+    renderAllCalendars();
+  });
+  const navSender = [
+    ['calPrevMonthSender', -1], ['calNextMonthSender', 1], ['calTodaySender', 0]
+  ];
+  navSender.forEach(([id, delta]) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('click', () => {
+      calendarViewDate = delta === 0
+        ? new Date()
+        : new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + delta, 1);
+      renderAllCalendars();
+    });
+  });
   const calTodayEl = document.getElementById('calToday');
   if(calTodayEl) calTodayEl.addEventListener('click', () => {
     calendarViewDate = new Date();
-    renderCalendar();
+    renderAllCalendars();
   });
 
   function loadRecord(id){
@@ -2326,6 +2587,7 @@
       else el.value = v;
     });
     syncToothButtonsFromHidden();
+    refreshDueDateHint();
     window.scrollTo({top:0, behavior:'smooth'});
   }
 
@@ -2455,6 +2717,13 @@
       alert('請填寫以下必填欄位：\n' + invalids.join('、'));
       return;
     }
+    const mains = checkedMainItems(currentFormItems());
+    if(mains.length > 1){
+      alert(`如有多個項目，請分開開單。\n\n目前勾選了 ${mains.length} 個項目：${mains.join('、')}`);
+      return;
+    }
+    const dueErr = validateDueDate();
+    if(dueErr){ alert(dueErr); return; }
     const data = collectForm();
     if(currentEditingId){
       const original = cachedRecords.find(x => x.id === currentEditingId);
@@ -2567,6 +2836,27 @@
   let lastKnownSeenTs = null;
   let ordersListenerStarted = false;
 
+  function startHolidayListener(){
+    settingsDoc().onSnapshot(snap => {
+      const data = snap.exists ? (snap.data() || {}) : {};
+      holidaySet = new Set(Array.isArray(data.dates) ? data.dates : []);
+      renderAllCalendars();
+      refreshDueDateHint();
+    }, err => console.error('休假日讀取失敗', err));
+  }
+  async function toggleHoliday(dateStr){
+    const next = new Set(holidaySet);
+    if(next.has(dateStr)) next.delete(dateStr); else next.add(dateStr);
+    holidaySet = next;                       // 先更新畫面，再寫回資料庫
+    renderAllCalendars();
+    try{
+      await settingsDoc().set({ dates: Array.from(next).sort() });
+    }catch(e){
+      console.error(e);
+      alert('休假日儲存失敗，請確認網路連線');
+    }
+  }
+
   function startOrdersListener(){
     if(ordersListenerStarted) return;
     ordersListenerStarted = true;
@@ -2603,6 +2893,7 @@
   }
 
   initRole();
+  initGovCalendar();
 </script>
 
 </body>
