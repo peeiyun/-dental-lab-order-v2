@@ -2988,6 +2988,7 @@
   });
 
   document.getElementById('btnSubmit').addEventListener('click', async () => {
+    const data = collectForm();
     const invalids = validateRequiredFields();
     if(invalids.length > 0){
       alert('請填寫以下必填欄位：\n' + invalids.join('、'));
@@ -3004,7 +3005,6 @@
     }
     const dueErr = validateDueDate();
     if(dueErr){ alert(dueErr); return; }
-    const data = collectForm();
     if(currentEditingId){
       const original = cachedRecords.find(x => x.id === currentEditingId);
       if(!original){ alert('找不到原始資料，無法儲存修改'); return; }
