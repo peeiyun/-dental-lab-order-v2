@@ -4,16 +4,17 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>內部技工單 — 數位版</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦷</text></svg>" />
 <style>
   :root{
-    --bg:#F5F6F3;
+    --bg:#FAF6F5;
     --surface:#FFFFFF;
-    --ink:#20281F;
-    --muted:#6E786D;
-    --accent:#155E56;
-    --accent-dark:#0E453F;
-    --accent-soft:#E3EFEC;
-    --line:#DCE2DC;
+    --ink:#3A3333;
+    --muted:#8A7F7D;
+    --accent:#D9685C;
+    --accent-dark:#B04C42;
+    --accent-soft:#FCEAE7;
+    --line:#EDE1DF;
     --clay:#C1793A;
     --clay-soft:#F7E9DA;
     --danger:#AD3B3B;
@@ -67,7 +68,7 @@
 
   .modal-overlay{
     position:fixed; inset:0; z-index:10000;
-    background:rgba(20,26,20,0.45);
+    background:rgba(40,28,26,0.45);
     display:flex; align-items:center; justify-content:center;
     padding:20px;
   }
@@ -478,7 +479,7 @@
     vertical-align:middle; background:#FCE4E4; color:var(--danger);
   }
   .rec.assignee-a{ background:#EAF2FE; border-left:4px solid #2E5AA8; }
-  .rec.assignee-b{ background:#FFF4E9; border-left:4px solid #C1793A; }
+  .rec.assignee-b{ background:#E9F6F2; border-left:4px solid #2E8B72; }
   .rec.is-urgent{ border-left:4px solid var(--danger); background:#FFFBFA; }
   .full-ticket .urgent-banner{
     display:flex; align-items:center; gap:8px;
@@ -544,7 +545,7 @@
   }
   .cal-cell.empty{ background:transparent; border:none; }
   .cal-cell.cal-today{ border-color:var(--accent); border-width:2px; }
-  .cal-cell.cal-has-orders{ background:#F4F8F6; }
+  .cal-cell.cal-has-orders{ background:#FDF3F1; }
   .cal-cell.cal-overdue{ background:#FFF3F0; border-color:var(--danger); }
   .cal-daynum{ font-size:11px; color:var(--muted); font-weight:700; margin-bottom:3px; }
   .cal-chip{
@@ -592,7 +593,7 @@
     font-family:inherit; font-size:12.5px; padding:6px 10px;
     border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink);
   }
-  .rec-done{ background:#FAFCFB; }
+  .rec-done{ background:#FCFAF9; }
   .history-toolbar button{ font-size:12.5px; padding:7px 14px; }
   .rec-deleted{ opacity:0.85; background:#FAFAF9; }
   .rec-deleted .restoreBtn{
@@ -629,6 +630,13 @@
     max-width:640px; margin:60px auto; text-align:center;
     background:#fff; border:1px solid var(--line); border-radius:14px; padding:40px 28px;
   }
+  .tooth-fairy{ width:150px; height:150px; margin:-10px auto 6px; display:block; animation:fairyFloat 3.2s ease-in-out infinite; }
+  .tooth-fairy .sparkle{ animation:sparkleBlink 2.4s ease-in-out infinite; transform-origin:center; transform-box:fill-box; }
+  .tooth-fairy .sparkle.s2{ animation-delay:.8s; }
+  .tooth-fairy .sparkle.s3{ animation-delay:1.6s; }
+  @keyframes fairyFloat{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-8px); } }
+  @keyframes sparkleBlink{ 0%,100%{ opacity:.25; transform:scale(.7); } 50%{ opacity:1; transform:scale(1.1); } }
+  @media (prefers-reduced-motion: reduce){ .tooth-fairy, .tooth-fairy .sparkle{ animation:none; } }
   .role-select .kicker{ font-size:12px; letter-spacing:2px; color:var(--muted); margin-bottom:8px; text-transform:uppercase; }
   .role-select h2{ font-size:19px; margin:0 0 6px; }
   .role-select p{ font-size:13px; color:var(--muted); margin:0 0 26px; }
@@ -639,7 +647,9 @@
     cursor:pointer; background:#fff; transition:all .15s ease; text-align:center;
   }
   .role-card:hover{ border-color:var(--accent); background:var(--accent-soft); }
-  .role-card .icon{ font-size:30px; margin-bottom:10px; }
+  .role-card .role-avatar{ width:92px; height:92px; display:block; margin:0 auto 10px; transition:transform .2s ease; }
+  .role-card:hover .role-avatar{ transform:translateY(-4px) scale(1.04); }
+  @media (prefers-reduced-motion: reduce){ .role-card:hover .role-avatar{ transform:none; } }
   .role-card .title{ font-weight:700; font-size:15px; margin-bottom:4px; color:var(--ink); }
   .role-card .desc{ font-size:12px; color:var(--muted); }
 
@@ -733,6 +743,10 @@
     .stub{ background:#fff !important; color:#000 !important; }
     .stub .badge{ border-color:#999; }
   }
+
+  /* ---- 內頁（送單者／牙技師畫面）：俐落直角風格 ---- */
+  #submitView, #submitView *, #techView, #techView *, .modal-box, .modal-box *{ border-radius:3px !important; }
+  #submitView *::before, #techView *::before{ border-radius:2px !important; }
 </style>
 
 <!-- ============================================================
@@ -787,17 +801,87 @@
   </div>
 
   <div class="role-select" id="roleSelect">
+    <svg class="tooth-fairy" viewBox="0 0 160 160" role="img" aria-label="牙齒小精靈">
+      <g class="wings">
+        <ellipse cx="44" cy="64" rx="17" ry="27" transform="rotate(-32 44 64)" fill="#FFF3F1" stroke="#F0A69C" stroke-width="2"/>
+        <ellipse cx="116" cy="64" rx="17" ry="27" transform="rotate(32 116 64)" fill="#FFF3F1" stroke="#F0A69C" stroke-width="2"/>
+        <ellipse cx="46" cy="90" rx="10" ry="15" transform="rotate(-55 46 90)" fill="#FFF3F1" stroke="#F0A69C" stroke-width="2"/>
+        <ellipse cx="114" cy="90" rx="10" ry="15" transform="rotate(55 114 90)" fill="#FFF3F1" stroke="#F0A69C" stroke-width="2"/>
+      </g>
+      <path d="M52 60 C52 38 70 33 80 42 C90 33 108 38 108 60 C108 78 102 88 100 104 C98 121 91 129 88 118 C85 109 84 100 80 100 C76 100 75 109 72 118 C69 129 62 121 60 104 C58 88 52 78 52 60 Z" fill="#FFFFFF" stroke="#D9685C" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M62 48 C64 43 69 41 73 43" fill="none" stroke="#FBD9D4" stroke-width="3" stroke-linecap="round"/>
+      <path d="M71 38 L75.5 30 L80 36 L84.5 30 L89 38 Z" fill="#F6C453" stroke="#E2A93C" stroke-width="1.5" stroke-linejoin="round"/>
+      <ellipse cx="71" cy="65" rx="3.4" ry="4" fill="#3A3333"/>
+      <ellipse cx="89" cy="65" rx="3.4" ry="4" fill="#3A3333"/>
+      <circle cx="72.2" cy="63.6" r="1.2" fill="#fff"/>
+      <circle cx="90.2" cy="63.6" r="1.2" fill="#fff"/>
+      <circle cx="64" cy="74" r="4.5" fill="#F7B3A9" opacity=".75"/>
+      <circle cx="96" cy="74" r="4.5" fill="#F7B3A9" opacity=".75"/>
+      <path d="M74 75 Q80 82 86 75" fill="none" stroke="#B04C42" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M106 80 Q116 74 127 60" fill="none" stroke="#B04C42" stroke-width="3" stroke-linecap="round"/>
+      <path d="M130 44 L133.5 52 L142 52.6 L135.5 58 L137.6 66.3 L130 61.8 L122.4 66.3 L124.5 58 L118 52.6 L126.5 52 Z" fill="#F6C453" stroke="#E2A93C" stroke-width="1.5" stroke-linejoin="round"/>
+      <path class="sparkle s1" d="M30 30 L32 36 L38 38 L32 40 L30 46 L28 40 L22 38 L28 36 Z" fill="#F0A69C"/>
+      <path class="sparkle s2" d="M140 96 L141.5 100.5 L146 102 L141.5 103.5 L140 108 L138.5 103.5 L134 102 L138.5 100.5 Z" fill="#F6C453"/>
+      <path class="sparkle s3" d="M34 116 L35.5 120.5 L40 122 L35.5 123.5 L34 128 L32.5 123.5 L28 122 L32.5 120.5 Z" fill="#F0A69C"/>
+    </svg>
     <div class="kicker">內部技工單 · 數位版</div>
     <h2>請選擇你的身份</h2>
     <p>送單者與牙技師接收畫面已分開，選擇後這台裝置下次會記住你的身份。</p>
     <div class="role-cards">
       <div class="role-card" data-role="submit">
-        <div class="icon">📝</div>
+        <svg class="role-avatar" viewBox="0 0 100 100" role="img" aria-label="送單者">
+  <path d="M26 94 C26 72 37 61 50 61 C63 61 74 72 74 94 Z" fill="#A9D6A0" stroke="#4A8A45" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M43 61 L50 70 L57 61" fill="none" stroke="#4A8A45" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="50" cy="38" r="17" fill="#FFE4D8" stroke="#4A8A45" stroke-width="2.2"/>
+  <path d="M33 38 C32 20 68 20 67 38 C63 29 57 27 52 28 C50 32 44 34 38 33 C36 34 34 36 33 38 Z" fill="#5A4540"/>
+  <circle cx="69" cy="30" r="5.5" fill="#5A4540"/>
+  <ellipse cx="44" cy="40" rx="2.3" ry="2.8" fill="#3A3333"/>
+  <ellipse cx="56" cy="40" rx="2.3" ry="2.8" fill="#3A3333"/>
+  <circle cx="39.5" cy="46" r="3" fill="#F7B3A9" opacity=".8"/>
+  <circle cx="60.5" cy="46" r="3" fill="#F7B3A9" opacity=".8"/>
+  <path d="M45.5 47 Q50 51 54.5 47" fill="none" stroke="#B04C42" stroke-width="2" stroke-linecap="round"/>
+  <rect x="38" y="66" width="26" height="26" rx="3" fill="#FFFFFF" stroke="#4A8A45" stroke-width="2"/>
+  <rect x="45" y="63" width="12" height="6" rx="2" fill="#F6C453" stroke="#E2A93C" stroke-width="1.2"/>
+  <path d="M42 75 L44.5 77.5 L48 73" fill="none" stroke="#D9685C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="51" y1="75.5" x2="60" y2="75.5" stroke="#D9C9C6" stroke-width="2" stroke-linecap="round"/>
+  <path d="M42 84 L44.5 86.5 L48 82" fill="none" stroke="#D9685C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="51" y1="84.5" x2="60" y2="84.5" stroke="#D9C9C6" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="37" cy="80" r="4" fill="#FFE4D8" stroke="#4A8A45" stroke-width="1.8"/>
+  <circle cx="65" cy="80" r="4" fill="#FFE4D8" stroke="#4A8A45" stroke-width="1.8"/>
+</svg>
         <div class="title">我是送單者</div>
         <div class="desc">填寫並送出技工單</div>
       </div>
       <div class="role-card" data-role="tech">
-        <div class="icon">🛠️</div>
+        <svg class="role-avatar" viewBox="0 0 100 100" role="img" aria-label="牙技師">
+  <path d="M26 94 C26 72 37 61 50 61 C63 61 74 72 74 94 Z" fill="#FFFFFF" stroke="#2E8B72" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M42 61 L50 74 L58 61" fill="none" stroke="#2E8B72" stroke-width="2" stroke-linejoin="round"/>
+  <line x1="50" y1="74" x2="50" y2="94" stroke="#2E8B72" stroke-width="1.6"/>
+  <circle cx="50" cy="39" r="17" fill="#FFE4D8" stroke="#2E8B72" stroke-width="2.2"/>
+  <path d="M32 36 C32 18 68 18 68 36 C64 33 36 33 32 36 Z" fill="#9ED9CA" stroke="#2E8B72" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M41 40 Q44 37.5 47 40" fill="none" stroke="#3A3333" stroke-width="2" stroke-linecap="round"/>
+  <path d="M53 40 Q56 37.5 59 40" fill="none" stroke="#3A3333" stroke-width="2" stroke-linecap="round"/>
+  <path d="M36 44 Q50 41 64 44 L63 50 Q50 58 37 50 Z" fill="#DDF2EF" stroke="#2E8B72" stroke-width="1.8" stroke-linejoin="round"/>
+  <line x1="40" y1="47" x2="60" y2="47" stroke="#9ED9CA" stroke-width="1.2"/>
+  <line x1="36" y1="44" x2="33" y2="40" stroke="#2E8B72" stroke-width="1.4"/>
+  <line x1="64" y1="44" x2="67" y2="40" stroke="#2E8B72" stroke-width="1.4"/>
+  <g class="articulator">
+    <rect x="80" y="61" width="5" height="32" rx="2" fill="#3B8FD9" stroke="#1F5E99" stroke-width="1.4"/>
+    <rect x="55" y="61" width="30" height="5" rx="2" fill="#3B8FD9" stroke="#1F5E99" stroke-width="1.4"/>
+    <rect x="55" y="88" width="30" height="5" rx="2" fill="#3B8FD9" stroke="#1F5E99" stroke-width="1.4"/>
+    <circle cx="82.5" cy="59" r="3" fill="#3B8FD9" stroke="#1F5E99" stroke-width="1.4"/>
+    <rect x="56" y="66" width="24" height="5.5" rx="1.5" fill="#F4F1EC" stroke="#B89A78" stroke-width="1"/>
+    <path d="M56.5 71 Q68 69 79.5 71 L79.5 73.8 Q68 72.4 56.5 73.8 Z" fill="#F2C58A" stroke="#C99A5E" stroke-width=".8"/>
+    <rect x="57.6" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="61.0" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="64.4" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="67.8" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="71.2" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="74.6" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="78.0" y="73.2" width="3" height="4" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/>
+    <rect x="57.6" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="61.0" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="64.4" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="67.8" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="71.2" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="74.6" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/><rect x="78.0" y="77.6" width="3" height="3.6" rx="1.2" fill="#FFFFFF" stroke="#B89A78" stroke-width=".7"/>
+    <path d="M56.5 81 Q68 82.4 79.5 81 L79.5 83.6 Q68 85 56.5 83.6 Z" fill="#F2C58A" stroke="#C99A5E" stroke-width=".8"/>
+    <rect x="56" y="83" width="24" height="5.5" rx="1.5" fill="#F4F1EC" stroke="#B89A78" stroke-width="1"/>
+  </g>
+  <circle cx="57" cy="84" r="4" fill="#FFE4D8" stroke="#2E8B72" stroke-width="1.8"/>
+  <line x1="30" y1="86" x2="41" y2="70" stroke="#8A7F7D" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="41.5" cy="69" r="1.8" fill="#8A7F7D"/>
+  <circle cx="35" cy="80" r="4" fill="#FFE4D8" stroke="#2E8B72" stroke-width="1.8"/>
+</svg>
         <div class="title">我是牙技師</div>
         <div class="desc">接收通知、查看與處理技工單</div>
       </div>
@@ -806,7 +890,7 @@
 
   <div class="view" id="submitView">
   <div class="view-topbar">
-    <span class="role-tag">📝 送單者畫面</span>
+    <span class="role-tag">送單者畫面</span>
     <button class="switch-role" id="switchRoleFromSubmit">切換身份</button>
   </div>
   <div class="sheet" id="sheet">
@@ -821,7 +905,7 @@
     <div class="body-pad">
 
       <div id="editModeBanner" class="edit-mode-banner" style="display:none;">
-        ✏️ 正在編輯已送出的單子 <button type="button" class="ghost" id="btnCancelEdit">取消編輯</button>
+        正在編輯已送出的單子 <button type="button" class="ghost" id="btnCancelEdit">取消編輯</button>
       </div>
 
       <div class="grid-header">
@@ -1057,7 +1141,7 @@
 
   <div class="view" id="techView">
   <div class="view-topbar">
-    <span class="role-tag">🛠️ 牙技師接收畫面</span>
+    <span class="role-tag">牙技師接收畫面</span>
     <button class="switch-role" id="switchRoleFromTech">切換身份</button>
   </div>
 
@@ -1074,7 +1158,7 @@
 
   <div class="records collapsible-block">
     <details class="calendar-details" open>
-      <summary>📅 日曆</summary>
+      <summary>日曆</summary>
       <div class="calendar-toolbar">
         <button type="button" class="ghost" id="calPrevMonth">‹ 上個月</button>
         <span id="calMonthLabel" class="calendar-month-label">—</span>
@@ -1099,7 +1183,7 @@
 
   <div class="records">
     <div class="notif-bar">
-      <label class="sound-toggle my-orders-toggle"><input type="checkbox" id="chkMyOrders" /> 👤 只看我的單 <span class="count" id="myOrdersCount">0</span></label>
+      <label class="sound-toggle my-orders-toggle"><input type="checkbox" id="chkMyOrders" /> 只看我的單 <span class="count" id="myOrdersCount">0</span></label>
     </div>
     <div class="filter-tabs">
       <button class="filter-tab active" data-filter="all">全部 <span class="count">0</span></button>
@@ -1121,14 +1205,14 @@
 
   <div class="records collapsible-block">
     <details class="done-details">
-      <summary>✅ 已完成 <span class="count" id="doneCount">0</span></summary>
+      <summary>已完成 <span class="count" id="doneCount">0</span></summary>
       <div class="history-toolbar">
         <select id="doneMonthSelect" class="done-sort-select"></select>
         <select id="doneSortSelect" class="done-sort-select">
           <option value="desc">完成日期（新→舊）</option>
           <option value="asc">完成日期（舊→新）</option>
         </select>
-        <button class="ghost" id="btnExportDone">📊 匯出這個月份 Excel</button>
+        <button class="ghost" id="btnExportDone">匯出這個月份 Excel</button>
       </div>
       <div id="doneList"><div class="rec-empty">載入中…</div></div>
     </details>
@@ -1136,16 +1220,16 @@
 
   <div class="records collapsible-block">
     <details class="history-details">
-      <summary>🗑 歷史紀錄（已刪除） <span class="count" id="historyCount">0</span></summary>
+      <summary>歷史紀錄（已刪除） <span class="count" id="historyCount">0</span></summary>
       <p class="mini-note">從清單刪除的單子會先移到這裡，可以「還原」回一般清單，或「永久刪除」徹底移除（無法復原）。</p>
-      <div class="history-toolbar"><button class="ghost" id="btnExportHistory">📊 匯出 Excel</button></div>
+      <div class="history-toolbar"><button class="ghost" id="btnExportHistory">匯出 Excel</button></div>
       <div id="historyList"><div class="rec-empty">載入中…</div></div>
     </details>
   </div>
 
   <div class="records collapsible-block">
     <details class="quota-details">
-      <summary>📊 額度監控 <span class="count" id="quotaPctSummary">—</span></summary>
+      <summary>額度監控 <span class="count" id="quotaPctSummary">—</span></summary>
       <div class="quota-body">
         <div class="quota-row"><span>儲存空間（估算）</span><b id="quotaStorageText">—</b></div>
         <div class="quota-bar"><div class="quota-bar-fill" id="quotaBarFill"></div></div>
@@ -1422,7 +1506,7 @@
     }
     let noteHtml = '';
     if(checked && def.note && items[def.note]){
-      noteHtml = `<div class="ro-extra">📌 ${esc(items[def.note])}</div>`;
+      noteHtml = `<div class="ro-extra">備註：${esc(items[def.note])}</div>`;
     }
     return `<div class="ro-item ${checked ? 'is-checked' : ''}">
         <span class="ro-box">${checked ? '☑' : '☐'}</span>
@@ -1457,7 +1541,7 @@
     const items = r.items || {};
     const bySection = s => ITEM_DEFS.filter(d => d.section === s).map(d => renderItemRO(d, items)).join('');
     return `<div class="full-ticket">
-        <div class="assignee-banner">👤 目前負責人：<b>${r.assignedTo ? esc(r.assignedTo) : '未處理'}</b></div>
+        <div class="assignee-banner">目前負責人：<b>${r.assignedTo ? esc(r.assignedTo) : '未處理'}</b></div>
         ${renderHeaderRO(r)}
         <div class="section"><h2>數位 / 模板</h2>${bySection('digital')}</div>
         <div class="two-col">
@@ -1467,7 +1551,7 @@
         <div class="section"><h2>其他技工項目</h2>${bySection('other')}</div>
         <div class="section">${renderToothRO(items)}</div>
         <div class="section"><h2>交待事項</h2>
-          ${items.dueDate ? `<div class="ro-due-date">📅 須完成日期：${esc(items.dueDate)}</div>` : ''}
+          ${items.dueDate ? `<div class="ro-due-date">須完成日期：${esc(items.dueDate)}</div>` : ''}
           <div class="ro-notes">${items.notes ? esc(items.notes).replace(/\n/g,'<br>') : '<span class="ro-empty">（無）</span>'}</div>
         </div>
         <div class="section tech-note-section">
@@ -1493,7 +1577,7 @@
   function buildAssignLogHTML(r){
     if(!Array.isArray(r.assignLog) || r.assignLog.length === 0) return '';
     const rows = r.assignLog.slice().reverse().map(entry =>
-      `<div class="edit-log-row"><div class="edit-log-head">👤 <b>${esc(entry.by || '未知')}</b> 於 ${entry.ts ? new Date(entry.ts).toLocaleString('zh-TW') : '-'} 將負責人從「${esc(entry.from)}」改為「${esc(entry.to)}」</div></div>`
+      `<div class="edit-log-row"><div class="edit-log-head"><b>${esc(entry.by || '未知')}</b> 於 ${entry.ts ? new Date(entry.ts).toLocaleString('zh-TW') : '-'} 將負責人從「${esc(entry.from)}」改為「${esc(entry.to)}」</div></div>`
     ).join('');
     return `<div class="section edit-log-section"><h2>轉單紀錄</h2>${rows}</div>`;
   }
@@ -1546,7 +1630,7 @@
       const changesHtml = (entry.changes && entry.changes.length)
         ? `<ul class="edit-log-changes">${entry.changes.map(c => `<li>${esc(c)}</li>`).join('')}</ul>`
         : '<div class="edit-log-nochange">（未偵測到欄位變動）</div>';
-      return `<div class="edit-log-row"><div class="edit-log-head">✏️ <b>${esc(entry.editor || '未填寫')}</b> 修改於 ${entry.ts ? new Date(entry.ts).toLocaleString('zh-TW') : '-'}</div>${changesHtml}</div>`;
+      return `<div class="edit-log-row"><div class="edit-log-head"><b>${esc(entry.editor || '未填寫')}</b> 修改於 ${entry.ts ? new Date(entry.ts).toLocaleString('zh-TW') : '-'}</div>${changesHtml}</div>`;
     }).join('');
     return `<div class="section edit-log-section"><h2>修改紀錄</h2>${rows}</div>`;
   }
@@ -1775,7 +1859,7 @@
 
   function assigneeBadgeHTML(r){
     return r.assignedTo
-      ? `<span class="badge-assignee">👤 ${esc(r.assignedTo)}</span>`
+      ? `<span class="badge-assignee">${esc(r.assignedTo)}</span>`
       : `<span class="badge-assignee unassigned">未處理</span>`;
   }
   function assigneeSelectHTML(r){
@@ -1790,7 +1874,7 @@
   }
   function dueDateBadgeHTML(r){
     const due = r.items && r.items.dueDate;
-    return due ? `<span class="badge-duedate">📅 須完成 ${esc(due)}</span>` : '';
+    return due ? `<span class="badge-duedate">須完成 ${esc(due)}</span>` : '';
   }
 
   function drawRecordsList(){
@@ -1834,7 +1918,7 @@
             <option value="in_progress" ${status==='in_progress'?'selected':''}>處理中</option>
             <option value="done" ${status==='done'?'selected':''}>已完成</option>
           </select>
-          <button data-id="${r.id}" class="editBtnTech">✏️ 編輯</button>
+          <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
         </div>
         <details class="rec-details" data-id="${r.id}">
@@ -1906,7 +1990,7 @@
           <div class="sub">刪除於 ${r.deletedAt ? new Date(r.deletedAt).toLocaleString('zh-TW') : '-'} ・ 原送出於 ${new Date(r.ts).toLocaleString('zh-TW')}</div>
         </div>
         <div class="rec-actions">
-          <button data-id="${r.id}" class="restoreBtn">↩ 還原</button>
+          <button data-id="${r.id}" class="restoreBtn">還原</button>
           <button data-id="${r.id}" class="danger-ghost permDelBtn">永久刪除</button>
         </div>
         <details class="rec-details" data-id="${r.id}">
@@ -1974,7 +2058,7 @@
             <option value="in_progress">處理中</option>
             <option value="done" selected>已完成</option>
           </select>
-          <button data-id="${r.id}" class="editBtnTech">✏️ 編輯</button>
+          <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
         </div>
         <details class="rec-details" data-id="${r.id}">
@@ -2128,7 +2212,7 @@
     if(warn){
       if(pct >= 90){
         warn.className = 'quota-warning danger';
-        warn.textContent = `⚠️ 資料庫儲存空間已使用約 ${pctText}，即將達到免費上限，請盡快匯出並永久刪除舊的歷史紀錄，或升級 Firebase 方案。`;
+        warn.textContent = `注意：資料庫儲存空間已使用約 ${pctText}，即將達到免費上限，請盡快匯出並永久刪除舊的歷史紀錄，或升級 Firebase 方案。`;
         warn.style.display = 'block';
       }else if(pct >= 70){
         warn.className = 'quota-warning warn';
@@ -2315,7 +2399,7 @@
           <div class="sub">${esc(subLineText(r))}</div>
         </div>
         <div class="rec-actions">
-          <button data-id="${r.id}" class="editBtn">✏️ 編輯</button>
+          <button data-id="${r.id}" class="editBtn">編輯</button>
         </div>`;
       listEl.appendChild(div);
     });
@@ -2470,7 +2554,7 @@
 
   function updateTitleAlert(){
     if(unseenCount > 0 && document.hidden){
-      document.title = `🔴(${unseenCount}) 新技工單 - ${BASE_TITLE}`;
+      document.title = `(${unseenCount}) 新技工單 - ${BASE_TITLE}`;
     }else{
       document.title = BASE_TITLE;
     }
