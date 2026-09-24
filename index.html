@@ -649,6 +649,9 @@
   }
   .quota-warning.warn{ background:#FFF6E0; color:#8A5A1E; border:1px solid #E8C77A; }
   .quota-warning.danger{ background:#FCE4E4; color:var(--danger); border:1px solid var(--danger); }
+  .modal-dp-bar{ background:#F5F8FD; border:1px solid #D8E4F3; border-radius:4px; padding:10px 12px; margin-bottom:12px; }
+  .modal-dp-bar .dp-flow-bar{ margin-top:0; }
+  .tab-panel{ margin-top:10px; }
   .modal-box-wide{ max-width:640px; max-height:85vh; overflow-y:auto; }
   .modal-box-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
   .modal-box-header h3{ margin:0; font-size:16px; }
@@ -1274,8 +1277,10 @@
       <button class="filter-tab active" data-filter="all">全部 <span class="count">0</span></button>
       <button class="filter-tab" data-filter="pending">待處理 <span class="count">0</span></button>
       <button class="filter-tab" data-filter="in_progress">處理中 <span class="count">0</span></button>
+      <button class="filter-tab" data-filter="dp">數位規劃 <span class="count">0</span></button>
+      <button class="filter-tab" data-filter="done">已完成 <span class="count">0</span></button>
     </div>
-    <div class="sort-bar">
+    <div class="sort-bar" id="sortBar">
       <label for="sortSelect">排序方式</label>
       <select id="sortSelect">
         <option value="ts_desc">送單日期（新到舊）</option>
@@ -1284,26 +1289,25 @@
         <option value="due_date">須完成日（近→遠）</option>
       </select>
     </div>
-    <h3>已送出紀錄</h3>
-    <div id="recordsList"><div class="rec-empty">載入中…</div></div>
+    <div id="recordsSection">
+      <h3>已送出紀錄</h3>
+      <div id="recordsList"><div class="rec-empty">載入中…</div></div>
+    </div>
   </div>
 
-  <div class="records collapsible-block">
-    <details class="dp-details" open>
-      <summary>數位規劃 <span class="count" id="dpCount">0</span></summary>
-      <p class="mini-note">數位規劃的單子集中在這裡追蹤進度。先選擇情形，再點選目前完成到哪個階段；標示「時間」的階段要填日期。點到「結單」會自動把狀態改成已完成。</p>
-      <div class="dp-filter-bar">
-        <label for="dpStageFilter">只看階段</label>
-        <select id="dpStageFilter"><option value="all">全部（依階段分組）</option></select>
-      </div>
-      <div id="dpList"><div class="rec-empty">載入中…</div></div>
-    </details>
+  <div class="records tab-panel" id="dpBlock" style="display:none;">
+    <p class="mini-note">數位規劃的單子集中在這裡追蹤進度。先選擇情形，再點選目前完成到哪個階段；標示「時間」的階段要填日期。要結案請在「技工處理紀錄」填完成日期。</p>
+    <div class="dp-filter-bar">
+      <label for="dpStageFilter">只看階段</label>
+      <select id="dpStageFilter"><option value="all">全部（依階段分組）</option></select>
+    </div>
+    <div id="dpList"><div class="rec-empty">載入中…</div></div>
+    <span id="dpCount" style="display:none;">0</span>
   </div>
 
-  <div class="records collapsible-block">
-    <details class="done-details">
-      <summary>已完成 <span class="count" id="doneCount">0</span></summary>
-      <div class="history-toolbar">
+  <div class="records tab-panel" id="doneBlock" style="display:none;">
+    <span id="doneCount" style="display:none;">0</span>
+    <div class="history-toolbar">
         <select id="doneMonthSelect" class="done-sort-select"></select>
         <select id="doneSortSelect" class="done-sort-select">
           <option value="desc">完成日期（新→舊）</option>
@@ -1311,8 +1315,7 @@
         </select>
         <button class="ghost" id="btnExportDone">匯出這個月份 Excel</button>
       </div>
-      <div id="doneList"><div class="rec-empty">載入中…</div></div>
-    </details>
+    <div id="doneList"><div class="rec-empty">載入中…</div></div>
   </div>
 
   <div class="records collapsible-block">
@@ -2125,15 +2128,28 @@
 
   function sortByTsDesc(recs){ return recs.slice().sort((a,b) => (b.ts||0) - (a.ts||0)); }
 
+  function applyTabVisibility(){
+    const isDp = currentFilter === 'dp';
+    const isDone = currentFilter === 'done';
+    const set = (id, show) => { const el = document.getElementById(id); if(el) el.style.display = show ? '' : 'none'; };
+    set('recordsSection', !isDp && !isDone);
+    set('sortBar', !isDp && !isDone);
+    set('dpBlock', isDp);
+    set('doneBlock', isDone);
+  }
+
   function renderFilterCounts(){
     const active = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r));
     const counts = { all: active.length, pending:0, in_progress:0 };
     active.forEach(r => { const s = r.status||'pending'; if(counts[s]!==undefined) counts[s]++; });
+    counts.dp = cachedRecords.filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done').length;
+    counts.done = cachedRecords.filter(r => !r.deleted && r.status === 'done').length;
     document.querySelectorAll('.filter-tab').forEach(tab => {
       const key = tab.dataset.filter;
       tab.querySelector('.count').textContent = counts[key] ?? 0;
       tab.classList.toggle('active', currentFilter === key);
     });
+    applyTabVisibility();
     const myOrdersCountEl = document.getElementById('myOrdersCount');
     if(myOrdersCountEl) myOrdersCountEl.textContent = active.filter(r => r.assignedTo === currentTechIdentity && currentTechIdentity).length;
     const historyCount = cachedRecords.filter(r => r.deleted).length;
@@ -2298,6 +2314,45 @@
   };
   // 依進度分組時的排列順序
   const DP_STAGE_ORDER = ['wax','waxdone','ct','plan','appt','confirm2','guide','print','fit'];
+  // 數位規劃流程列（清單與日曆彈窗共用）
+  function dpFlowBarHTML(r){
+    const flow = dpFlowOf(r);
+    const steps = flow ? DP_FLOWS[flow].steps : [];
+    const curIdx = steps.findIndex(st => st.k === r.dpStage);
+    const times = r.dpTimes || {};
+    const stepsHtml = steps.map((st, i) => {
+      const cls = i === curIdx ? 'current' : (curIdx > -1 && i < curIdx ? 'done' : '');
+      const dateInput = st.date
+        ? `<input type="date" class="dpTime" data-id="${r.id}" data-step="${st.k}" value="${esc(times[st.k] || '')}" onclick="event.stopPropagation()" />`
+        : '';
+      const noNext = st.noNext
+        ? `<label class="dp-nonext" onclick="event.stopPropagation()"><input type="checkbox" class="dpNoNext" data-id="${r.id}" ${r.dpNoNextAppt ? 'checked' : ''} /> 沒約下次時間</label>`
+        : '';
+      return `<div class="dp-step ${cls}" data-id="${r.id}" data-step="${st.k}">
+          <span><span class="dp-step-no">${i+1}.</span> ${esc(st.t)}</span>${dateInput}${noNext}
+        </div>`;
+    }).join('');
+    return `<div class="dp-flow-bar">
+        <span>情形</span>
+        <select class="dpFlowSel" data-id="${r.id}">
+          <option value="" ${!flow?'selected':''}>請選擇</option>
+          ${Object.keys(DP_FLOWS).map(k => `<option value="${k}" ${flow===k?'selected':''}>${DP_FLOWS[k].label}</option>`).join('')}
+        </select>
+        ${flow ? '<span>目前階段：點選下方步驟</span>' : ''}
+      </div>
+      ${flow ? `<div class="dp-steps">${stepsHtml}</div>` : ''}`;
+  }
+  function bindDpHandlers(root){
+    root.querySelectorAll('.dpFlowSel').forEach(sel => sel.addEventListener('change', () => setDpFlow(sel.dataset.id, sel.value)));
+    root.querySelectorAll('.dp-step').forEach(el => el.addEventListener('click', () => setDpStage(el.dataset.id, el.dataset.step)));
+    root.querySelectorAll('.dpNoNext').forEach(cb => cb.addEventListener('change', () => setDpNoNext(cb.dataset.id, cb.checked)));
+    root.querySelectorAll('.dpTime').forEach(inp => inp.addEventListener('change', () => {
+      const rec = cachedRecords.find(x => x.id === inp.dataset.id);
+      const flow = rec && dpFlowOf(rec);
+      const step = flow ? DP_FLOWS[flow].steps.find(x => x.k === inp.dataset.step) : null;
+      setDpTime(inp.dataset.id, inp.dataset.step, inp.value, step);
+    }));
+  }
   function dpStageLabel(r){
     const flow = dpFlowOf(r);
     if(!flow) return '';
@@ -2408,18 +2463,6 @@
       const steps = flow ? DP_FLOWS[flow].steps : [];
       const curIdx = steps.findIndex(st => st.k === r.dpStage);
       const times = r.dpTimes || {};
-      const stepsHtml = steps.map((st, i) => {
-        const cls = i === curIdx ? 'current' : (curIdx > -1 && i < curIdx ? 'done' : '');
-        const dateInput = st.date
-          ? `<input type="date" class="dpTime" data-id="${r.id}" data-step="${st.k}" value="${esc(times[st.k] || '')}" onclick="event.stopPropagation()" />`
-          : '';
-        const noNext = st.noNext
-          ? `<label class="dp-nonext" onclick="event.stopPropagation()"><input type="checkbox" class="dpNoNext" data-id="${r.id}" ${r.dpNoNextAppt ? 'checked' : ''} /> 沒約下次時間</label>`
-          : '';
-        return `<div class="dp-step ${cls}" data-id="${r.id}" data-step="${st.k}">
-            <span><span class="dp-step-no">${i+1}.</span> ${esc(st.t)}</span>${dateInput}${noNext}
-          </div>`;
-      }).join('');
       const ex = explainDateOf(r);
       const div = document.createElement('div');
       div.className = 'rec ' + assigneeColorClass(r);
@@ -2435,15 +2478,7 @@
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
         </div>
-        <div class="dp-flow-bar">
-          <span>情形</span>
-          <select class="dpFlowSel" data-id="${r.id}">
-            <option value="" ${!flow?'selected':''}>請選擇</option>
-            ${Object.keys(DP_FLOWS).map(k => `<option value="${k}" ${flow===k?'selected':''}>${DP_FLOWS[k].label}</option>`).join('')}
-          </select>
-          ${flow ? '<span>目前階段：點選下方步驟</span>' : ''}
-        </div>
-        ${flow ? `<div class="dp-steps">${stepsHtml}</div>` : ''}
+        ${dpFlowBarHTML(r)}
         <details class="rec-details" data-id="${r.id}">
           <summary>查看完整單子</summary>
           <div class="summary-body">${buildFullOrderHTML(r)}</div>
@@ -2451,15 +2486,7 @@
       if(openIds.has(r.id)) div.querySelector('.rec-details').open = true;
       listEl.appendChild(div);
     });
-    listEl.querySelectorAll('.dpFlowSel').forEach(sel => sel.addEventListener('change', () => setDpFlow(sel.dataset.id, sel.value)));
-    listEl.querySelectorAll('.dp-step').forEach(el => el.addEventListener('click', () => setDpStage(el.dataset.id, el.dataset.step)));
-    listEl.querySelectorAll('.dpNoNext').forEach(cb => cb.addEventListener('change', () => setDpNoNext(cb.dataset.id, cb.checked)));
-    listEl.querySelectorAll('.dpTime').forEach(inp => inp.addEventListener('change', () => {
-      const rec = cachedRecords.find(x => x.id === inp.dataset.id);
-      const flow = rec && dpFlowOf(rec);
-      const step = flow ? DP_FLOWS[flow].steps.find(x => x.k === inp.dataset.step) : null;
-      setDpTime(inp.dataset.id, inp.dataset.step, inp.value, step);
-    }));
+    bindDpHandlers(listEl);
     listEl.querySelectorAll('.assignSel').forEach(sel => sel.addEventListener('change', () => setAssignee(sel.dataset.id, sel.value)));
     listEl.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
     listEl.querySelectorAll('.editBtnTech').forEach(b => b.addEventListener('click', () => startEditRecordFromTech(b.dataset.id)));
@@ -2842,8 +2869,12 @@
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
     const body = document.getElementById('calOrderModalBody');
-    body.innerHTML = buildFullOrderHTML(rec);
+    const dpBar = isDigitalPlan(rec)
+      ? `<div class="modal-dp-bar">${dpFlowBarHTML(rec)}</div>`
+      : '';
+    body.innerHTML = dpBar + buildFullOrderHTML(rec);
     body.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
+    bindDpHandlers(body);
     document.getElementById('calOrderModal').style.display = 'flex';
   }
   const calOrderModalCloseEl = document.getElementById('calOrderModalClose');
