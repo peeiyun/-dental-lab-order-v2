@@ -449,6 +449,14 @@
   .rec[draggable="true"]{ cursor:grab; }
   .rec.dragging{ opacity:0.4; }
 
+  .tech-search-bar{ display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .tech-search-bar input{
+    flex:1; min-width:180px; font-family:inherit; font-size:13px; padding:8px 10px;
+    border:1px solid var(--line); border-radius:4px; background:#fff; color:var(--ink); outline:none;
+  }
+  .tech-search-bar input:focus{ border-color:var(--accent); }
+  .tech-search-bar button{ font-size:12.5px; padding:7px 12px; }
+  .tech-search-note{ font-size:12px; color:var(--accent-dark); font-weight:600; }
   .filter-tabs{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
   .filter-tab{
     font-size:12.5px; padding:7px 13px; border-radius:999px;
@@ -538,6 +546,7 @@
   .cal-unassigned-toggle{ margin-left:auto; }
   .cal-chip.cal-chip-unassigned{ background:#F1F1EF; color:var(--muted); }
   .cal-chip.cal-chip-appt{ background:#E4ECF7; color:#2E5AA8; font-weight:700; }
+  .cal-chip.cal-chip-dp{ background:#EDE7F6; color:#5B3E9B; }
   .calendar-month-label{ font-size:14px; font-weight:700; color:var(--ink); min-width:90px; text-align:center; }
   .cal-weekdays{
     display:grid; grid-template-columns:repeat(7,1fr); gap:4px;
@@ -1255,6 +1264,11 @@
   <div class="records">
     <div class="notif-bar">
       <label class="sound-toggle my-orders-toggle"><input type="checkbox" id="chkMyOrders" /> 只看我的單 <span class="count" id="myOrdersCount">0</span></label>
+    </div>
+    <div class="tech-search-bar">
+      <input type="search" id="techSearch" placeholder="搜尋病歷號或患者姓名…" autocomplete="off" />
+      <button type="button" class="ghost" id="techSearchClear">清除</button>
+      <span class="tech-search-note" id="techSearchNote"></span>
     </div>
     <div class="filter-tabs">
       <button class="filter-tab active" data-filter="all">全部 <span class="count">0</span></button>
@@ -2179,7 +2193,7 @@
   function drawRecordsList(){
     const listEl = document.getElementById('recordsList');
     const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
-    const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r));
+    const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r) && matchesSearch(r));
     let filtered = currentFilter === 'all' ? nonDeleted : nonDeleted.filter(r => (r.status||'pending') === currentFilter);
     if(myOrdersOnly) filtered = filtered.filter(r => r.assignedTo === currentTechIdentity);
     const isDraggableTab = currentFilter === 'pending' || currentFilter === 'in_progress';
@@ -2284,6 +2298,12 @@
   };
   // 依進度分組時的排列順序
   const DP_STAGE_ORDER = ['wax','waxdone','ct','plan','appt','confirm2','guide','print','fit'];
+  function dpStageLabel(r){
+    const flow = dpFlowOf(r);
+    if(!flow) return '';
+    const st = DP_FLOWS[flow].steps.find(x => x.k === r.dpStage);
+    return st ? st.t : '';
+  }
   function dpStepOf(r){
     const flow = dpFlowOf(r);
     if(!flow) return null;
@@ -2327,13 +2347,20 @@
     rec.dpTimes = Object.assign({}, rec.dpTimes || {}, { [stepKey]: value });
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
+  let techSearch = '';
+  function matchesSearch(r){
+    if(!techSearch) return true;
+    const q = techSearch.toLowerCase();
+    return String(r.chartNo || '').toLowerCase().includes(q)
+        || String(r.patient || '').toLowerCase().includes(q);
+  }
   let dpStageFilter = 'all';
   function drawDigitalPlanList(){
     const listEl = document.getElementById('dpList');
     if(!listEl) return;
     const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
     const list = cachedRecords
-      .filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done')
+      .filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done' && matchesSearch(r))
       .sort((a,b) => (b.ts||0) - (a.ts||0));
     const cnt = document.getElementById('dpCount');
     if(cnt) cnt.textContent = list.length;
@@ -2439,6 +2466,21 @@
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
   }
 
+  const techSearchEl = document.getElementById('techSearch');
+  if(techSearchEl) techSearchEl.addEventListener('input', e => {
+    techSearch = e.target.value.trim();
+    const note = document.getElementById('techSearchNote');
+    if(note) note.textContent = techSearch ? `搜尋中：「${techSearch}」` : '';
+    renderTechView();
+  });
+  const techSearchClearEl = document.getElementById('techSearchClear');
+  if(techSearchClearEl) techSearchClearEl.addEventListener('click', () => {
+    techSearch = '';
+    if(techSearchEl) techSearchEl.value = '';
+    const note = document.getElementById('techSearchNote');
+    if(note) note.textContent = '';
+    renderTechView();
+  });
   const dpStageFilterEl = document.getElementById('dpStageFilter');
   if(dpStageFilterEl) dpStageFilterEl.addEventListener('change', e => { dpStageFilter = e.target.value; drawDigitalPlanList(); });
 
@@ -2446,7 +2488,7 @@
     const listEl = document.getElementById('historyList');
     if(!listEl) return;
     const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
-    const deleted = cachedRecords.filter(r => r.deleted).sort((a,b) => (b.deletedAt||0) - (a.deletedAt||0));
+    const deleted = cachedRecords.filter(r => r.deleted && matchesSearch(r)).sort((a,b) => (b.deletedAt||0) - (a.deletedAt||0));
     if(deleted.length === 0){ listEl.innerHTML = '<div class="rec-empty">歷史紀錄目前是空的</div>'; return; }
     listEl.innerHTML = '';
     deleted.slice(0,60).forEach(r => {
@@ -2482,7 +2524,7 @@
   }
   function allDoneRecords(){ return cachedRecords.filter(r => !r.deleted && r.status === 'done'); }
   function doneRecordsForMonth(month){
-    return allDoneRecords().filter(r => doneMonthKey(r) === month).sort((a,b) => {
+    return allDoneRecords().filter(r => doneMonthKey(r) === month && matchesSearch(r)).sort((a,b) => {
       const da = a.completedDate || '';
       const db = b.completedDate || '';
       if(!da && !db) return (b.ts||0) - (a.ts||0);
@@ -2768,11 +2810,14 @@
       if(isLeave) tag = '<span class="cal-holiday-tag">休</span>';
       else if(gov && gov.off && gov.name && !isMakeupHoliday(dateStr)) tag = `<span class="cal-gov-tag">${esc(gov.name)}</span>`;
       const apptChips = appts.slice(0,2).map(a =>
-        `<div class="cal-chip cal-chip-appt" data-id="${a.r.id}" title="${esc(a.label)}：${esc(a.r.patient || '')}">約 ${esc(a.r.patient || '(未填)')}</div>`
+        `<div class="cal-chip cal-chip-appt" data-id="${a.r.id}" title="${esc(a.label)}：${esc(a.r.patient || '')}">約 ${esc(a.r.patient || '(未填)')}${a.label ? '·' + esc(a.label) : ''}</div>`
       ).join('');
-      const chips = apptChips + orders.slice(0,3).map(x =>
-        `<div class="cal-chip${x.status==='done' ? ' cal-chip-done' : ''}${!x.assignedTo ? ' cal-chip-unassigned' : ''}" data-id="${x.id}" title="${esc(x.patient || '')}">${esc(x.patient || '(未填)')}</div>`
-      ).join('');
+      const chips = apptChips + orders.slice(0,3).map(x => {
+        const stage = isDigitalPlan(x) ? dpStageLabel(x) : '';
+        const name = esc(x.patient || '(未填)');
+        const text = stage ? `${name}·${esc(stage)}` : name;
+        return `<div class="cal-chip${x.status==='done' ? ' cal-chip-done' : ''}${!x.assignedTo ? ' cal-chip-unassigned' : ''}${stage ? ' cal-chip-dp' : ''}" data-id="${x.id}" title="${esc(x.patient || '')}${stage ? '：' + esc(stage) : ''}">${text}</div>`;
+      }).join('');
       const more = orders.length > 3 ? `<div class="cal-more">+${orders.length - 3} 筆</div>` : '';
       html += `<div class="${cellClass}" data-date="${dateStr}"><div class="cal-daynum">${day} ${tag}</div>${chips}${more}</div>`;
     }
