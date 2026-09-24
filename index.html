@@ -2757,6 +2757,7 @@
       const gov = govCalendar[dateStr];
       const isLeave = holidaySet.has(dateStr);
       const off = isOffDay(dateStr);
+      const appts = apptMap[dateStr] || [];
       let cellClass = 'cal-cell';
       if(off) cellClass += ' cal-offday';
       if(isToday) cellClass += ' cal-today';
@@ -2766,7 +2767,6 @@
       let tag = '';
       if(isLeave) tag = '<span class="cal-holiday-tag">休</span>';
       else if(gov && gov.off && gov.name && !isMakeupHoliday(dateStr)) tag = `<span class="cal-gov-tag">${esc(gov.name)}</span>`;
-      const appts = apptMap[dateStr] || [];
       const apptChips = appts.slice(0,2).map(a =>
         `<div class="cal-chip cal-chip-appt" data-id="${a.r.id}" title="${esc(a.label)}：${esc(a.r.patient || '')}">約 ${esc(a.r.patient || '(未填)')}</div>`
       ).join('');
