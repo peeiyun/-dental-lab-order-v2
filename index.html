@@ -649,6 +649,20 @@
   }
   .quota-warning.warn{ background:#FFF6E0; color:#8A5A1E; border:1px solid #E8C77A; }
   .quota-warning.danger{ background:#FCE4E4; color:var(--danger); border:1px solid var(--danger); }
+  .line-msg-to{ font-size:13px; color:var(--accent-dark); font-weight:700; margin-bottom:8px; }
+  .line-msg-code{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; font-size:12.5px; color:var(--muted); }
+  .line-msg-code input{
+    font-family:inherit; font-size:13.5px; padding:6px 10px; width:120px;
+    border:1px solid var(--line); border-radius:4px; outline:none; color:var(--ink);
+  }
+  .line-msg-code input:focus{ border-color:var(--accent); }
+  .line-msg-hint{ font-size:11.5px; }
+  .line-msg-text{
+    width:100%; box-sizing:border-box; font-family:inherit; font-size:14px; line-height:1.7;
+    padding:10px 12px; border:1px solid var(--line); border-radius:4px; outline:none; resize:vertical;
+  }
+  .line-msg-text:focus{ border-color:var(--accent); }
+  .lineBtn{ padding:6px 12px; font-size:12.5px; }
   .modal-dp-bar{ background:#F5F8FD; border:1px solid #D8E4F3; border-radius:4px; padding:10px 12px; margin-bottom:12px; }
   .modal-dp-bar .dp-flow-bar{ margin-top:0; }
   .tab-panel{ margin-top:10px; }
@@ -860,6 +874,21 @@
     serviceId:  "service_oigirww",     // Email Services → Service ID
     templateId: "template_uw9dro9"     // Email Templates → Template ID
   };
+  // ============================================================
+  // LINE 通知設定（透過 Google Apps Script 轉接，金鑰不會放在網頁）
+  // 兩個值都填好之前，LINE 通知會自動略過，不影響其他功能。
+  // ============================================================
+  const LINE_CONFIG = {
+    relayUrl: "https://script.google.com/macros/s/AKfycbzG-zS23LkDr-fy9eDpJhXcfXNSnFgkWomEHwxLDSLocyAx-XWZR7Yj5ZyTXTdNgUxX/exec",   // Apps Script 部署後的網址
+    secret:   "cych-lab"     // 與 Apps Script 內的 APP_SECRET 相同
+  };
+  // 哪些時機要發 LINE
+  const LINE_NOTIFY_ON = {
+    waxdone: true,           // 數位規劃：標記「已設計好蠟型」
+    finished: true,          // 單子完成（狀態改為已完成）
+    newOrder: false          // 送單者新開單（預設關閉，避免吃掉每月額度）
+  };
+
   // 新單通知的收件人
   const NEW_ORDER_RECIPIENTS = [
     { name:'堅雯', email:'14652@cych.org.tw' },
@@ -868,6 +897,25 @@
 </script>
 </head>
 <body class="role-none">
+
+  <div class="modal-overlay" id="lineMsgModal" style="display:none;">
+    <div class="modal-box modal-box-wide">
+      <div class="modal-box-header">
+        <h3>發 LINE 給醫師</h3>
+        <button type="button" class="ghost" id="lineMsgCancel">取消</button>
+      </div>
+      <div class="line-msg-to" id="lineMsgTo"></div>
+      <div class="line-msg-code">
+        <label for="lineMsgCode">收件者員編</label>
+        <input type="text" id="lineMsgCode" placeholder="例如 07314" autocomplete="off" />
+        <span class="line-msg-hint">名單外的醫師或助理，請填對方的員編（需先加官方帳號並綁定）</span>
+      </div>
+      <textarea id="lineMsgText" class="line-msg-text" rows="8"></textarea>
+      <div class="modal-actions">
+        <button type="button" class="primary" id="lineMsgSend">送出訊息</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="completeDateModal" style="display:none;">
     <div class="modal-box">
@@ -2287,6 +2335,7 @@
             <option value="done" ${status==='done'?'selected':''}>已完成</option>
           </select>
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
+          <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
         </div>
         <details class="rec-details" data-id="${r.id}">
@@ -2302,6 +2351,7 @@
     listEl.querySelectorAll('.statusSel').forEach(s => s.addEventListener('change', () => setStatus(s.dataset.id, s.value)));
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
     listEl.querySelectorAll('.editBtnTech').forEach(b => b.addEventListener('click', () => startEditRecordFromTech(b.dataset.id)));
+    listEl.querySelectorAll('.lineBtn').forEach(b => b.addEventListener('click', () => openLineDoctorModal(b.dataset.id)));
   }
 
   function enableDragReorder(listEl){
@@ -2431,6 +2481,12 @@
     }
     rec.dpStage = turningOff ? '' : stepKey;                // 再點一次可取消
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
+    if(!turningOff && stepKey === 'waxdone' && LINE_NOTIFY_ON.waxdone){
+      sendLineMessage(`【模型設計好了】\n${lineOrderLines(rec)}${rec.dpNoNextAppt ? '\n※ 沒約下次時間' : ''}`);
+    }
+    if(!turningOff && stepKey === 'done' && LINE_NOTIFY_ON.finished){
+      sendLineMessage(`【技工單完成】\n${lineOrderLines(rec)}\n完成日期：${rec.completedDate || '-'}`);
+    }
   }
   async function setDpNoNext(id, checked){
     const rec = cachedRecords.find(x => x.id === id);
@@ -2522,6 +2578,7 @@
         <div class="rec-actions">
           ${assigneeSelectHTML(r)}
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
+          <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
         </div>
         ${dpFlowBarHTML(r)}
@@ -2536,6 +2593,7 @@
     listEl.querySelectorAll('.assignSel').forEach(sel => sel.addEventListener('change', () => setAssignee(sel.dataset.id, sel.value)));
     listEl.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
     listEl.querySelectorAll('.editBtnTech').forEach(b => b.addEventListener('click', () => startEditRecordFromTech(b.dataset.id)));
+    listEl.querySelectorAll('.lineBtn').forEach(b => b.addEventListener('click', () => openLineDoctorModal(b.dataset.id)));
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
   }
 
@@ -2664,6 +2722,7 @@
             <option value="done" selected>已完成</option>
           </select>
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
+          <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
         </div>
         <details class="rec-details" data-id="${r.id}">
@@ -2678,6 +2737,7 @@
     listEl.querySelectorAll('.statusSel').forEach(s => s.addEventListener('change', () => setStatus(s.dataset.id, s.value)));
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
     listEl.querySelectorAll('.editBtnTech').forEach(b => b.addEventListener('click', () => startEditRecordFromTech(b.dataset.id)));
+    listEl.querySelectorAll('.lineBtn').forEach(b => b.addEventListener('click', () => openLineDoctorModal(b.dataset.id)));
   }
   const doneMonthSelectEl = document.getElementById('doneMonthSelect');
   if(doneMonthSelectEl) doneMonthSelectEl.addEventListener('change', e => { doneMonth = e.target.value || null; drawDoneList(); });
@@ -3059,6 +3119,9 @@
     }
     rec.status = status;
     try{ await fsSet(id, rec); }catch(e){ alert('更新狀態失敗'); }
+    if(status === 'done' && LINE_NOTIFY_ON.finished){
+      sendLineMessage(`【技工單完成】\n${lineOrderLines(rec)}\n完成日期：${rec.completedDate || '-'}`);
+    }
   }
 
   async function setAssignee(id, name){
@@ -3185,6 +3248,7 @@
     try{
       await fsSet(data.id, data);
       localSet(LAST_SEEN_KEY, String(data.ts)); // the person submitting doesn't need a notification for their own order
+      if(LINE_NOTIFY_ON.newOrder) sendLineMessage(`【新技工單】\n${lineOrderLines(data)}`);
       let mailNote = '';
       try{
         const result = await sendNewOrderEmail(data);
@@ -3200,6 +3264,102 @@
       alert('儲存時發生錯誤，請確認網路連線與 Firebase 設定是否正確');
     }
   });
+
+  // ---- LINE 通知 ----
+  function lineConfigured(){ return !!LINE_CONFIG.relayUrl; }
+  async function sendLineMessage(text){
+    if(!lineConfigured()){ console.warn('LINE 尚未設定，略過推播'); return 'skipped'; }
+    try{
+      // 用 text/plain 送出，避免瀏覽器的跨網域預檢擋下 Apps Script
+      const res = await fetch(LINE_CONFIG.relayUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ secret: LINE_CONFIG.secret, text })
+      });
+      const out = await res.json().catch(() => ({}));
+      if(out && out.ok === false) console.warn('LINE 推播失敗', out);
+      return out && out.ok ? 'sent' : 'failed';
+    }catch(e){
+      console.warn('LINE 推播失敗', e);
+      return 'failed';
+    }
+  }
+  function doctorCodeOf(name){
+    if(!name) return '';
+    for(const g of DOCTOR_GROUPS){
+      const hit = g.doctors.find(d => d.name === name);
+      if(hit) return hit.code;
+    }
+    return '';
+  }
+  // 開啟訊息視窗，讓牙技師確認／修改後再送給該單的醫師
+  function openLineDoctorModal(id){
+    const r = cachedRecords.find(x => x.id === id);
+    if(!r) return;
+    if(!lineConfigured()){ alert('LINE 尚未設定完成，請先完成 Apps Script 設定。'); return; }
+    const code = doctorCodeOf(r.doctor);
+    const modal = document.getElementById('lineMsgModal');
+    const toEl = document.getElementById('lineMsgTo');
+    const codeEl = document.getElementById('lineMsgCode');
+    const textEl = document.getElementById('lineMsgText');
+    const sendBtn = document.getElementById('lineMsgSend');
+    const cancelBtn = document.getElementById('lineMsgCancel');
+    codeEl.value = code || '';
+    toEl.textContent = code
+      ? `收件者：${r.doctor}（${code}）`
+      : `這張單的醫師「${r.doctor || '未填'}」不在名單中，請在下方填寫收件者員編`;
+    textEl.value = `${r.patient || '(未填患者)'}（病歷號 ${r.chartNo || '-'}）的技工單已完成，可以領取了。\n`
+      + (r.items && r.items.dueDate ? `領取日：${r.items.dueDate}\n` : '')
+      + `技工：${r.assignedTo || currentTechIdentity || '-'}`;
+    modal.style.display = 'flex';
+    setTimeout(() => textEl.focus(), 30);
+    function cleanup(){
+      modal.style.display = 'none';
+      sendBtn.removeEventListener('click', onSend);
+      cancelBtn.removeEventListener('click', onCancel);
+    }
+    function onCancel(){ cleanup(); }
+    async function onSend(){
+      const text = textEl.value.trim();
+      const sendCode = codeEl.value.trim().toUpperCase();
+      if(!sendCode){ alert('請填寫收件者員編'); codeEl.focus(); return; }
+      if(!text){ alert('訊息不能空白'); return; }
+      sendBtn.disabled = true;
+      sendBtn.textContent = '傳送中…';
+      const result = await sendLineToDoctor(sendCode, text);
+      sendBtn.disabled = false;
+      sendBtn.textContent = '送出訊息';
+      if(result && result.ok){ cleanup(); alert(`已發送 LINE（${sendCode}）。`); }
+      else if(result && result.error === 'not registered'){ alert(`員編 ${sendCode} 尚未加入官方帳號或尚未完成綁定，無法發送。`); }
+      else{ alert('發送失敗，請稍後再試。'); }
+    }
+    sendBtn.addEventListener('click', onSend);
+    cancelBtn.addEventListener('click', onCancel);
+  }
+  async function sendLineToDoctor(doctorCode, text){
+    if(!lineConfigured()) return { ok:false, error:'not configured' };
+    try{
+      const res = await fetch(LINE_CONFIG.relayUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ secret: LINE_CONFIG.secret, doctorCode, text })
+      });
+      return await res.json().catch(() => ({ ok:false }));
+    }catch(e){
+      console.warn('LINE 發送失敗', e);
+      return { ok:false, error:String(e) };
+    }
+  }
+
+  function lineOrderLines(r){
+    const items = r.items || {};
+    return [
+      `患者：${r.patient || '(未填)'}（病歷號 ${r.chartNo || '-'}）`,
+      `醫師：${r.doctor || '-'}`,
+      items.dueDate ? `須完成日：${prevWorkday(items.dueDate)}（領取日 ${items.dueDate}）` : '',
+      `負責人：${r.assignedTo || '未處理'}`
+    ].filter(Boolean).join('\n');
+  }
 
   // ---- 新單 email 通知 (EmailJS) ----
   function emailConfigured(){
