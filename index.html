@@ -662,7 +662,10 @@
   .modal-box-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
   .modal-box-header h3{ margin:0; font-size:16px; }
   .modal-box-header button{ font-size:12.5px; padding:6px 14px; }
-  .history-toolbar{ display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:10px; }
+  .history-toolbar{ display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .hist-select-all{ font-size:12.5px; color:var(--muted); display:flex; align-items:center; gap:6px; cursor:pointer; margin-right:auto; }
+  .hist-select-all input{ accent-color:var(--danger); }
+  .histChk{ accent-color:var(--danger); margin-right:8px; vertical-align:middle; }
   .history-toolbar button{ font-size:12.5px; padding:7px 14px; }
   .done-sort-select{
     font-family:inherit; font-size:12.5px; padding:6px 10px;
@@ -1340,7 +1343,11 @@
     <details class="history-details">
       <summary>歷史紀錄（已刪除） <span class="count" id="historyCount">0</span></summary>
       <p class="mini-note">從清單刪除的單子會先移到這裡，可以「還原」回一般清單，或「永久刪除」徹底移除（無法復原）。</p>
-      <div class="history-toolbar"><button class="ghost" id="btnExportHistory">匯出 Excel</button></div>
+      <div class="history-toolbar">
+        <label class="hist-select-all"><input type="checkbox" id="histSelectAll" /> 全選</label>
+        <button class="ghost danger-ghost" id="btnDeleteSelected">永久刪除選取</button>
+        <button class="ghost" id="btnExportHistory">匯出 Excel</button>
+      </div>
       <div id="historyList"><div class="rec-empty">載入中…</div></div>
     </details>
   </div>
@@ -2345,7 +2352,7 @@
             {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'done',t:'已完成',finish:true}]}
   };
   // 依進度分組時的排列順序
-  const DP_STAGE_ORDER = ['wax','waxdone','ct','plan','appt','confirm2','guide','print','fit','done'];
+  const DP_STAGE_ORDER = ['nonext','wax','waxdone','ct','plan','appt','confirm2','guide','print','fit','done'];
   // 數位規劃流程列（清單與日曆彈窗共用）
   function dpFlowBarHTML(r){
     const flow = dpFlowOf(r);
@@ -2461,6 +2468,7 @@
     // 階段篩選選單（保留目前選擇）
     const filterSel = document.getElementById('dpStageFilter');
     const stageLabel = k => {
+      if(k === 'nonext') return '沒約下次時間';
       for(const f of Object.values(DP_FLOWS)){
         const st = f.steps.find(x => x.k === k);
         if(st) return st.t;
@@ -2468,8 +2476,8 @@
       return k;
     };
     if(filterSel){
-      const present = DP_STAGE_ORDER.filter(k => list.some(r => r.dpStage === k));
-      const want = ['all'].concat(present).concat(list.some(r => !r.dpStage || !dpFlowOf(r)) ? ['none'] : []);
+      const present = DP_STAGE_ORDER.filter(k => list.some(r => (r.dpNoNextAppt ? 'nonext' : r.dpStage) === k));
+      const want = ['all'].concat(present).concat(list.some(r => !r.dpNoNextAppt && (!r.dpStage || !dpFlowOf(r))) ? ['none'] : []);
       const cur = want.includes(dpStageFilter) ? dpStageFilter : 'all';
       dpStageFilter = cur;
       filterSel.innerHTML = want.map(k =>
@@ -2477,7 +2485,8 @@
     }
     if(list.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有進行中的數位規劃</div>'; return; }
     listEl.innerHTML = '';
-    const groupOf = r => (dpFlowOf(r) && r.dpStage) ? r.dpStage : 'none';
+    // 勾了「沒約下次時間」的單子獨立成一類
+    const groupOf = r => r.dpNoNextAppt ? 'nonext' : ((dpFlowOf(r) && r.dpStage) ? r.dpStage : 'none');
     const visible = dpStageFilter === 'all' ? list : list.filter(r => groupOf(r) === dpStageFilter);
     if(visible.length === 0){ listEl.innerHTML = '<div class="rec-empty">這個階段目前沒有單子</div>'; return; }
     const order = DP_STAGE_ORDER.concat(['none']);
@@ -2562,6 +2571,7 @@
       const div = document.createElement('div');
       div.className = 'rec rec-deleted';
       div.innerHTML = `<div class="meta">
+          <input type="checkbox" class="histChk" data-id="${r.id}" />
           <span class="status-badge ${STATUS_CLASS[status]}">${STATUS_LABEL[status]}</span>
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
           <div class="sub">刪除於 ${r.deletedAt ? new Date(r.deletedAt).toLocaleString('zh-TW') : '-'} ・ 原送出於 ${new Date(r.ts).toLocaleString('zh-TW')}</div>
@@ -2577,9 +2587,29 @@
       if(openIds.has(r.id)) div.querySelector('.rec-details').open = true;
       listEl.appendChild(div);
     });
+    const selectAll = document.getElementById('histSelectAll');
+    if(selectAll) selectAll.checked = false;
     listEl.querySelectorAll('.restoreBtn').forEach(b => b.addEventListener('click', () => restoreRecord(b.dataset.id)));
     listEl.querySelectorAll('.permDelBtn').forEach(b => b.addEventListener('click', () => permanentlyDeleteRecord(b.dataset.id)));
   }
+
+  const histSelectAllEl = document.getElementById('histSelectAll');
+  if(histSelectAllEl) histSelectAllEl.addEventListener('change', e => {
+    document.querySelectorAll('#historyList .histChk').forEach(cb => { cb.checked = e.target.checked; });
+  });
+  const btnDeleteSelectedEl = document.getElementById('btnDeleteSelected');
+  if(btnDeleteSelectedEl) btnDeleteSelectedEl.addEventListener('click', async () => {
+    const ids = Array.from(document.querySelectorAll('#historyList .histChk:checked')).map(cb => cb.dataset.id);
+    if(ids.length === 0){ alert('請先勾選要刪除的紀錄。'); return; }
+    if(!confirm(`確定要永久刪除勾選的 ${ids.length} 筆紀錄嗎？\n此動作無法復原，資料會從資料庫完全移除。`)) return;
+    try{
+      await Promise.all(ids.map(id => fsDelete(id)));
+      alert(`已永久刪除 ${ids.length} 筆紀錄。`);
+    }catch(e){
+      console.error(e);
+      alert('刪除過程發生錯誤，部分紀錄可能沒有刪除成功，請重新整理後確認。');
+    }
+  });
 
   let doneSortOrder = 'desc'; // by completedDate
   let doneMonth = null;       // 'YYYY-MM' currently shown
