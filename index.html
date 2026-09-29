@@ -267,6 +267,11 @@
   .plan-extra input:focus{ border-color:var(--clay); }
   .plan-extra .date-in{ width:52px; text-align:center; }
   .plan-extra .dr-in{ width:110px; }
+  .plan-extra .dp-date{
+    border:1px solid var(--line); border-radius:4px; padding:4px 6px;
+    font-family:inherit; font-size:12.5px; color:var(--ink); background:#fff;
+  }
+  .plan-extra .dp-date[readonly]{ background:#F3EEEC; color:var(--muted); }
 
   .plan-deadline-notes{
     margin:8px 0 0 24px;
@@ -602,6 +607,10 @@
   .dp-nonext{ font-size:11px; display:flex; align-items:center; gap:4px; cursor:pointer; }
   .dp-nonext input{ accent-color:#2E5AA8; }
   .dp-step.current .dp-nonext{ color:#fff; }
+  .badge-rush{
+    display:inline-block; font-size:11px; font-weight:700; padding:2px 9px;
+    border-radius:999px; margin-right:8px; vertical-align:middle; background:#FCE4E4; color:var(--danger);
+  }
   .badge-nonext{
     display:inline-block; font-size:11px; font-weight:700; padding:2px 9px;
     border-radius:999px; margin-right:8px; vertical-align:middle; background:#F1F1EF; color:var(--muted);
@@ -627,6 +636,33 @@
   }
   .dp-step.current input[type=date]{ border-color:#fff; }
   .dp-warn{ font-size:12px; color:var(--danger); margin-top:6px; }
+  .stats-details{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .stats-details summary{
+    cursor:pointer; font-weight:700; font-size:13px; color:var(--muted);
+    letter-spacing:.5px; list-style:none; display:flex; align-items:center; gap:6px;
+  }
+  .stats-details summary::-webkit-details-marker{ display:none; }
+  .stats-details[open] summary{ margin-bottom:10px; }
+  .stats-toolbar{ display:flex; align-items:center; gap:8px; margin-bottom:12px; font-size:12.5px; color:var(--muted); }
+  .stats-toolbar select{
+    font-family:inherit; font-size:12.5px; padding:6px 10px;
+    border:1px solid var(--line); border-radius:4px; background:#fff; color:var(--ink);
+  }
+  .stat-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:16px; }
+  .stat-card{ background:#fff; border:1px solid var(--line); border-radius:4px; padding:12px 14px; }
+  .stat-card .label{ font-size:12px; color:var(--muted); }
+  .stat-card .value{ font-size:26px; font-weight:700; color:var(--accent-dark); line-height:1.3; }
+  .stat-card .sub{ font-size:11.5px; color:var(--muted); }
+  .stat-card.rush .value{ color:var(--danger); }
+  .stat-section{ background:#fff; border:1px solid var(--line); border-radius:4px; padding:14px 16px; margin-bottom:12px; }
+  .stat-section h4{ margin:0 0 10px; font-size:13px; color:var(--accent-dark); letter-spacing:.5px; }
+  .stat-row{ display:flex; align-items:center; gap:10px; font-size:13px; padding:5px 0; }
+  .stat-row .name{ width:120px; flex:none; color:var(--ink); }
+  .stat-row .bar{ flex:1; height:12px; background:#F0ECEA; border-radius:2px; overflow:hidden; }
+  .stat-row .bar span{ display:block; height:100%; background:var(--accent); }
+  .stat-row.rush .bar span{ background:var(--danger); }
+  .stat-row .num{ width:80px; text-align:right; color:var(--muted); font-size:12.5px; flex:none; }
+  .stat-empty{ font-size:13px; color:var(--muted); }
   .quota-details{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
   .quota-details summary{
     cursor:pointer; font-weight:700; font-size:13px; color:var(--muted);
@@ -851,7 +887,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyBywUmwcJ4Ry4V-glqtWz_XqWoqPfEFlxI",
@@ -864,16 +899,6 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
-  // ============================================================
-  // EmailJS 設定：送單後自動寄信通知。
-  // 請把下面三個值換成你在 EmailJS 申請到的代碼（申請步驟見教學文件）。
-  // 三個值都填好之前，寄信功能會自動略過，不影響送單。
-  // ============================================================
-  const EMAILJS_CONFIG = {
-    publicKey:  "W9H1qq8DlfIxignab",   // Account → General → Public Key
-    serviceId:  "service_oigirww",     // Email Services → Service ID
-    templateId: "template_uw9dro9"     // Email Templates → Template ID
-  };
   // ============================================================
   // LINE 通知設定（透過 Google Apps Script 轉接，金鑰不會放在網頁）
   // 兩個值都填好之前，LINE 通知會自動略過，不影響其他功能。
@@ -1054,7 +1079,6 @@
           <select id="f_doctor"></select>
           <input id="f_doctorOther" type="text" placeholder="請輸入醫師姓名" class="doctor-other-input" style="display:none;" />
         </div>
-        <div class="cell"><label>約診日 <span class="req-star">*</span></label><input id="f_apptDate" type="date" /></div>
         <div class="cell"><label>病歷號碼 <span class="req-star">*</span></label><input id="f_chartNo" type="text" placeholder="病歷號碼" /></div>
       </div>
 
@@ -1089,11 +1113,9 @@
 
           <div class="plan-extra">
             <span>約解釋</span>
-            <input class="date-in" type="text" placeholder="月" data-key="dp_explain_m" maxlength="2" />/
-            <input class="date-in" type="text" placeholder="日" data-key="dp_explain_d" maxlength="2" />
+            <input type="date" class="dp-date" data-key="dp_explain_date" />
             <span>約手術</span>
-            <input class="date-in" type="text" placeholder="月" data-key="dp_surgery_m" maxlength="2" />/
-            <input class="date-in" type="text" placeholder="日" data-key="dp_surgery_d" maxlength="2" />
+            <input type="date" class="dp-date" data-key="dp_appt_surgery_date" />
             <span>搭配 DR.</span>
             <input class="dr-in" type="text" data-key="dp_with_dr" placeholder="醫師姓名" />
           </div>
@@ -1253,7 +1275,7 @@
       <!-- notes -->
       <div class="section">
         <h2>交待事項</h2>
-        <label class="due-date-label">領取日 <span class="req-star">*</span></label>
+        <label class="due-date-label">完成日 <span class="req-star">*</span></label>
         <input type="date" data-key="dueDate" class="due-date-input" />
         <div class="due-hint" id="dueDateHint"></div>
         <textarea class="notes" data-key="notes" placeholder="請輸入交待事項…"></textarea>
@@ -1355,7 +1377,7 @@
         <option value="ts_desc">送單日期（新到舊）</option>
         <option value="ts_asc">送單日期（舊到新）</option>
         <option value="doctor">醫師（A→Z）</option>
-        <option value="due_date">須完成日（近→遠）</option>
+        <option value="due_date">完成日（近→遠）</option>
       </select>
     </div>
     <div id="recordsSection">
@@ -1397,6 +1419,22 @@
         <button class="ghost" id="btnExportHistory">匯出 Excel</button>
       </div>
       <div id="historyList"><div class="rec-empty">載入中…</div></div>
+    </details>
+  </div>
+
+  <div class="records collapsible-block">
+    <details class="stats-details" open>
+      <summary>統計</summary>
+      <div class="stats-toolbar">
+        <label for="statsRange">統計範圍</label>
+        <select id="statsRange">
+          <option value="30">最近 30 天</option>
+          <option value="90">最近 90 天</option>
+          <option value="month">本月</option>
+          <option value="all">全部</option>
+        </select>
+      </div>
+      <div id="statsBody"></div>
     </details>
   </div>
 
@@ -1636,7 +1674,7 @@
     { key:'digital_plan', label:'數位規劃', section:'digital', subs:[
       {key:'dp_implant', label:'植牙'}, {key:'dp_apic', label:'根尖切除'}, {key:'dp_other', label:'其他', text:'dp_other_text'},
       {key:'dp_romexis', label:'疊 ROMEXIS'}, {key:'dp_surg_template', label:'3D 列印手術導板'}, {key:'dp_vacuum', label:'VACUUM 式導板'}
-    ], extra:['dp_explain_m','dp_explain_d','dp_surgery_m','dp_surgery_d','dp_with_dr'], note:'dp_deadline_notes' },
+    ], extra:['dp_explain_date','dp_appt_surgery_date','dp_with_dr'], note:'dp_deadline_notes' },
     { key:'clear_retainer', label:'透明維持板（硬 1MM）', section:'left' },
     { key:'whitening_tray', label:'美白牙托', section:'left' },
     { key:'pour_model', label:'灌模', section:'left', subs:[{key:'pour_boxing', label:'要 BOXING'}] },
@@ -1697,10 +1735,10 @@
     const subsHtml = activeSubs.length ? `<div class="ro-subs">${activeSubs.map(t => `<span class="ro-chip">${t}</span>`).join('')}</div>` : '';
     let extraHtml = '';
     if(checked && def.extra){
-      const [em,ed,sm,sd,dr] = def.extra.map(k => items[k] || '');
+      const [ex, ap, dr] = def.extra.map(k => items[k] || '');
       const parts = [];
-      if(em || ed) parts.push(`約解釋 ${em||'-'}/${ed||'-'}`);
-      if(sm || sd) parts.push(`約手術 ${sm||'-'}/${sd||'-'}`);
+      if(ex) parts.push(`約解釋 ${esc(ex)}`);
+      if(ap) parts.push(`約手術 ${esc(ap)}`);
       if(dr) parts.push(`搭配 DR. ${esc(dr)}`);
       if(parts.length) extraHtml = `<div class="ro-extra">${parts.join('、')}</div>`;
     }
@@ -1751,7 +1789,7 @@
         <div class="section"><h2>其他技工項目</h2>${bySection('other')}</div>
         <div class="section">${renderToothRO(items)}</div>
         <div class="section"><h2>交待事項</h2>
-          ${items.dueDate ? `<div class="ro-due-date">須完成日：${esc(prevWorkday(items.dueDate))}　<span class="ro-due-sub">（領取日 ${esc(items.dueDate)}）</span></div>` : ''}
+          ${items.dueDate ? `<div class="ro-due-date">完成日：${esc(items.dueDate)}</div>` : ''}
           <div class="ro-notes">${items.notes ? esc(items.notes).replace(/\n/g,'<br>') : '<span class="ro-empty">（無）</span>'}</div>
         </div>
         <div class="section tech-note-section">
@@ -1792,7 +1830,7 @@
     }
     if(TOOTH_FIELD_LABELS[key]) return TOOTH_FIELD_LABELS[key];
     if(key === 'notes') return '交待事項';
-    if(key === 'dueDate') return '須完成日';
+    if(key === 'dueDate') return '完成日';
     return key;
   }
   function formatFieldVal(v){
@@ -1919,7 +1957,6 @@
       receiveDate: document.getElementById('f_receiveDate').value,
       registrar: document.getElementById('f_registrar').value,
       doctor: getDoctorValue(),
-      apptDate: document.getElementById('f_apptDate').value,
       chartNo: document.getElementById('f_chartNo').value,
       items: {} };
     document.querySelectorAll('[data-key]').forEach(el => {
@@ -1930,17 +1967,23 @@
     return data;
   }
 
-  // 檢查可領取日是否早於所需工作天數；回傳錯誤訊息或 null
-  function validateDueDate(){
+  // 檢查完成日是否早於所需工作天數；回傳 {rush:true, shortDays} 或 null；使用者取消則回 'cancel'
+  function checkRushOrder(){
     const info = earliestDueInfo();
     if(!info) return null;
     const input = document.querySelector('[data-key="dueDate"]');
     if(!input || !input.value) return null;
-    if(input.value < info.earliest){
-      input.classList.add('field-invalid');
-      return `此單需要 ${info.days} 個工作天，最早領取日為 ${info.earliest}（牙技師須完成日 ${info.finish}）。\n\n小於需要的工作天數，如有特別需求，請跟先跟堅雯或小優討論。`;
-    }
-    return null;
+    if(input.value >= info.earliest) return null;
+    // 少了幾個工作天
+    let shortDays = 0;
+    let cur = input.value;
+    while(cur < info.earliest && shortDays < 90){ cur = addWorkdays(cur, 1); shortDays++; }
+    const ok = confirm(
+      `此單需要 ${info.days} 個工作天，最早完成日為 ${info.earliest}，目前填的是 ${input.value}（少 ${shortDays} 個工作天）。\n\n`
+      + '小於需要的工作天數，如有特別需求，請跟先跟堅雯或小優討論。\n\n'
+      + '仍要以「急件」送出嗎？（會記錄於統計）');
+    if(!ok){ input.classList.add('field-invalid'); return 'cancel'; }
+    return { rush:true, shortDays, requiredDays: info.days, earliest: info.earliest };
   }
 
   function isDigitalPlan(r){ return !!(r.items && r.items.digital_plan); }
@@ -1971,7 +2014,6 @@
       { el: document.getElementById('f_patient'), label:'患者' },
       { el: document.getElementById('f_receiveDate'), label:'收件日' },
       { el: document.getElementById('f_registrar'), label:'登記者' },
-      { el: document.getElementById('f_apptDate'), label:'約診日' },
       { el: document.getElementById('f_chartNo'), label:'病歷號碼' }
     ];
     checks.forEach(c => {
@@ -1994,9 +2036,11 @@
     const dueDateEl = document.querySelector('[data-key="dueDate"]');
     if(dueDateEl){
       dueDateEl.classList.remove('field-invalid');
-      if(!dueDateEl.value || !dueDateEl.value.trim()){
+      const apptSurgeryEl = document.querySelector('[data-key="dp_appt_surgery_date"]');
+      const surgeryFilled = !!(apptSurgeryEl && apptSurgeryEl.value);
+      if(!surgeryFilled && (!dueDateEl.value || !dueDateEl.value.trim())){
         dueDateEl.classList.add('field-invalid');
-        invalids.push('領取日');
+        invalids.push('完成日');
       }
     }
     return invalids;
@@ -2014,7 +2058,6 @@
     ['f_patient','f_registrar','f_chartNo'].forEach(id => document.getElementById(id).value = '');
     setDoctorField('');
     document.getElementById('f_receiveDate').value = todayISO();
-    document.getElementById('f_apptDate').value = '';
     document.querySelectorAll('[data-key]').forEach(el => {
       if(el.type === 'checkbox') el.checked = false;
       else if(el.tagName !== 'DIV') el.value = '';
@@ -2051,7 +2094,7 @@
     ct_locator: 'byTeeth',          // CT模板－加定位珠
     ct_denture: 11,                 // CT模板－活動假牙複製
     dp_romexis: 'byTeeth',          // 數位規劃－疊 ROMEXIS
-    dp_surg_template: 14,           // 數位規劃－3D列印手術導板
+    dp_surg_template: { base: 14, plusTeeth: true },  // 3D列印手術導板：14 天 ＋ 疊ROMEXIS 的顆數天數
     clear_retainer: 4,              // 透明維持板（硬 1MM）
     whitening_tray: 5,              // 美白牙托
     pour_model: 2,                  // 灌模
@@ -2080,8 +2123,16 @@
     Object.keys(WORKDAY_RULES).forEach(key => {
       if(!items[key]) return;
       const rule = WORKDAY_RULES[key];
-      const days = rule === 'byTeeth' ? teethTierDays(teeth) : rule;
-      reasons.push({ label: itemFieldLabel(key), days, byTeeth: rule === 'byTeeth' });
+      let days, byTeeth = false, note = '';
+      if(rule === 'byTeeth'){
+        days = teethTierDays(teeth); byTeeth = true;
+      }else if(rule && typeof rule === 'object' && rule.plusTeeth){
+        days = rule.base + teethTierDays(teeth); byTeeth = true;
+        note = `${rule.base}＋${teethTierDays(teeth)}`;
+      }else{
+        days = rule;
+      }
+      reasons.push({ label: itemFieldLabel(key), days, byTeeth, note });
     });
     const days = reasons.reduce((m, r) => Math.max(m, r.days), 0);
     return { days, reasons, teeth };
@@ -2159,7 +2210,6 @@
     }
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
-  // 牙技師的「須完成日」＝送單者「領取日」的前一個工作天
   function prevWorkday(dateStr){
     if(!dateStr) return '';
     const d = new Date(dateStr + 'T00:00:00');
@@ -2189,9 +2239,10 @@
     const { days, reasons, teeth } = requiredWorkdays(items);
     if(!days) return null;
     const start = document.getElementById('f_receiveDate').value || todayISO();
-    const finish = addWorkdays(start, days);          // 牙技師最早可完成日
-    return { days, reasons, teeth, finish, earliest: addWorkdays(start, days + 1), start };
+    const earliest = addWorkdays(start, days);
+    return { days, reasons, teeth, earliest, start };
   }
+
   function refreshDueDateHint(){
     const hint = document.getElementById('dueDateHint');
     const input = document.querySelector('[data-key="dueDate"]');
@@ -2204,8 +2255,9 @@
       return;
     }
     input.min = info.earliest;
-    const detail = info.reasons.map(r => `${r.label} ${r.days}天${r.byTeeth ? `（${info.teeth || 0} 顆）` : ''}`).join('、');
-    hint.innerHTML = `需要 <b>${info.days}</b> 個工作天（六日與休假日不計，收件日當天不算）。最早領取日：<b>${info.earliest}</b>（牙技師須完成日 ${info.finish}）<br><span class="due-hint-detail">依據：${esc(detail)}</span>`;
+    const detail = info.reasons.map(r =>
+      `${r.label} ${r.days}天${r.note ? `（${r.note}）` : ''}${r.byTeeth ? `（${info.teeth || 0} 顆）` : ''}`).join('、');
+    hint.innerHTML = `需要 <b>${info.days}</b> 個工作天（六日與休假日不計，收件日當天不算）。最早完成日：<b>${info.earliest}</b><br><span class="due-hint-detail">依據：${esc(detail)}</span>`;
     hint.className = 'due-hint active';
     const cur = input.value;
     hint.classList.toggle('too-early', !!cur && cur < info.earliest);
@@ -2218,9 +2270,10 @@
   function applyTabVisibility(){
     const isDp = currentFilter === 'dp';
     const isDone = currentFilter === 'done';
+    const other = isDp || isDone;
     const set = (id, show) => { const el = document.getElementById(id); if(el) el.style.display = show ? '' : 'none'; };
-    set('recordsSection', !isDp && !isDone);
-    set('sortBar', !isDp && !isDone);
+    set('recordsSection', !other);
+    set('sortBar', !other);
     set('dpBlock', isDp);
     set('doneBlock', isDone);
   }
@@ -2290,7 +2343,7 @@
   }
   function dueDateBadgeHTML(r){
     const due = r.items && r.items.dueDate;
-    return due ? `<span class="badge-duedate">須完成 ${esc(prevWorkday(due))}</span>` : '';
+    return due ? `<span class="badge-duedate">完成 ${esc(due)}</span>` : '';
   }
 
   function drawRecordsList(){
@@ -2456,11 +2509,7 @@
   function dpFlowOf(r){ return DP_FLOWS[r.dpFlow] ? r.dpFlow : ''; }
   // 約解釋日期（數位規劃的 月/日 欄位）轉成 YYYY-MM-DD，用來檢查「和醫師確認」是否早於約解釋
   function explainDateOf(r){
-    const m = (r.items && r.items.dp_explain_m || '').trim();
-    const d = (r.items && r.items.dp_explain_d || '').trim();
-    if(!m || !d) return '';
-    const year = (r.items.dueDate || todayISO()).slice(0,4);
-    return `${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    return (r.items && r.items.dp_explain_date) || '';
   }
   async function setDpFlow(id, flow){
     const rec = cachedRecords.find(x => x.id === id);
@@ -2569,6 +2618,7 @@
       const div = document.createElement('div');
       div.className = 'rec ' + assigneeColorClass(r);
       div.innerHTML = `<div class="meta">
+          ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
           ${r.dpNoNextAppt ? '<span class="badge-nonext">沒約下次時間</span>' : ''}
           ${dueDateBadgeHTML(r)}
           ${assigneeBadgeHTML(r)}
@@ -2708,6 +2758,7 @@
       const div = document.createElement('div');
       div.className = 'rec rec-done ' + assigneeColorClass(r);
       div.innerHTML = `<div class="meta">
+          ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
           ${dueDateBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS.done}">已完成</span>
           ${assigneeBadgeHTML(r)}
@@ -2754,10 +2805,10 @@
         .map(s => s.text && items[s.text] ? `${s.label}:${items[s.text]}` : s.label);
       let extra = '';
       if(def.extra){
-        const [em,ed,sm,sd,dr] = def.extra.map(k => items[k] || '');
+        const [ex, ap, dr] = def.extra.map(k => items[k] || '');
         const bits = [];
-        if(em || ed) bits.push(`約解釋${em||'-'}/${ed||'-'}`);
-        if(sm || sd) bits.push(`約手術${sm||'-'}/${sd||'-'}`);
+        if(ex) bits.push(`約解釋${ex}`);
+        if(ap) bits.push(`約手術${ap}`);
         if(dr) bits.push(`搭配DR.${dr}`);
         if(bits.length) extra = `(${bits.join('、')})`;
       }
@@ -2791,8 +2842,7 @@
       '假牙/蠟型相關': sectionSummaryText('right', items),
       '其他技工項目': sectionSummaryText('other', items),
       '牙位': toothSummaryText(items),
-      '須完成日': items.dueDate ? prevWorkday(items.dueDate) : '',
-      '領取日': items.dueDate || '',
+      '完成日': items.dueDate || '',
       '交待事項': items.notes || '',
       '送出時間': r.ts ? new Date(r.ts).toLocaleString('zh-TW') : '',
       '完成日期': r.completedDate || '',
@@ -2839,12 +2889,80 @@
   const btnExportDoneEl = document.getElementById('btnExportDone');
   if(btnExportDoneEl) btnExportDoneEl.addEventListener('click', exportDoneToExcel);
 
+  // ---- 統計 ----
+  let statsRange = '30';
+  function statsRecords(){
+    const now = new Date();
+    let from = 0;
+    if(statsRange === 'month') from = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    else if(statsRange !== 'all') from = now.getTime() - parseInt(statsRange, 10) * 86400000;
+    return cachedRecords.filter(r => (r.ts || 0) >= from);   // 含已刪除，統計才完整
+  }
+  function barRows(map, total, cls){
+    const entries = Object.entries(map).sort((a,b) => b[1] - a[1]).slice(0, 8);
+    if(!entries.length) return '<div class="stat-empty">此區間沒有資料</div>';
+    const max = entries[0][1] || 1;
+    return entries.map(([k, v]) =>
+      `<div class="stat-row ${cls || ''}"><span class="name">${esc(k)}</span>
+        <span class="bar"><span style="width:${(v/max*100).toFixed(1)}%"></span></span>
+        <span class="num">${v} 件${total ? `（${(v/total*100).toFixed(0)}%）` : ''}</span></div>`).join('');
+  }
+  function renderStats(){
+    const box = document.getElementById('statsBody');
+    if(!box) return;
+    const list = statsRecords();
+    const active = list.filter(r => !r.deleted);
+    const done = active.filter(r => r.status === 'done');
+    const rushList = active.filter(r => r.rush);
+
+    // 平均完成天數（送出 → 完成日期）
+    const spans = done.filter(r => r.completedDate && r.ts)
+      .map(r => Math.round((new Date(r.completedDate + 'T00:00:00').getTime() - r.ts) / 86400000))
+      .filter(n => n >= 0);
+    const avgDays = spans.length ? (spans.reduce((a,b) => a+b, 0) / spans.length).toFixed(1) : '—';
+
+    // 準時率：完成日期 <= 表定完成日
+    const withDue = done.filter(r => r.completedDate && r.items && r.items.dueDate);
+    const onTime = withDue.filter(r => r.completedDate <= r.items.dueDate).length;
+    const onTimeRate = withDue.length ? Math.round(onTime / withDue.length * 100) + '%' : '—';
+
+    // 各種分組
+    const byRushDoctor = {}, byDoctor = {}, byTech = {}, byItem = {}, byRegistrar = {};
+    rushList.forEach(r => { const k = r.doctor || '(未填醫師)'; byRushDoctor[k] = (byRushDoctor[k]||0) + 1; });
+    active.forEach(r => {
+      byDoctor[r.doctor || '(未填醫師)'] = (byDoctor[r.doctor || '(未填醫師)']||0) + 1;
+      byTech[r.assignedTo || '未處理'] = (byTech[r.assignedTo || '未處理']||0) + 1;
+      byRegistrar[r.registrar || '(未填)'] = (byRegistrar[r.registrar || '(未填)']||0) + 1;
+      ITEM_DEFS.forEach(d => { if(r.items && r.items[d.key]) byItem[d.label] = (byItem[d.label]||0) + 1; });
+    });
+
+    const pending = active.filter(r => r.status !== 'done' && !isDigitalPlan(r)).length;
+    const dp = active.filter(r => isDigitalPlan(r) && r.status !== 'done').length;
+
+    box.innerHTML = `
+      <div class="stat-cards">
+        <div class="stat-card"><div class="label">送單總數</div><div class="value">${active.length}</div><div class="sub">已刪除 ${list.length - active.length} 件</div></div>
+        <div class="stat-card"><div class="label">已完成</div><div class="value">${done.length}</div><div class="sub">進行中 ${pending} ・數位規劃 ${dp}</div></div>
+        <div class="stat-card rush"><div class="label">急件</div><div class="value">${rushList.length}</div><div class="sub">佔 ${active.length ? Math.round(rushList.length/active.length*100) : 0}%</div></div>
+        <div class="stat-card"><div class="label">平均完成天數</div><div class="value">${avgDays}</div><div class="sub">送出到完成</div></div>
+        <div class="stat-card"><div class="label">準時率</div><div class="value">${onTimeRate}</div><div class="sub">${onTime}/${withDue.length} 件如期完成</div></div>
+      </div>
+      <div class="stat-section"><h4>急件次數（依醫師）</h4>${barRows(byRushDoctor, rushList.length, 'rush')}</div>
+      <div class="stat-section"><h4>送單量（依醫師）</h4>${barRows(byDoctor, active.length)}</div>
+      <div class="stat-section"><h4>處理量（依牙技師）</h4>${barRows(byTech, active.length)}</div>
+      <div class="stat-section"><h4>項目分布</h4>${barRows(byItem, active.length)}</div>
+      <div class="stat-section"><h4>送單量（依登記者）</h4>${barRows(byRegistrar, active.length)}</div>`;
+  }
+  const statsRangeEl = document.getElementById('statsRange');
+  if(statsRangeEl) statsRangeEl.addEventListener('change', e => { statsRange = e.target.value; renderStats(); });
+
   function renderTechView(){
     renderFilterCounts();
     drawRecordsList();
     drawDigitalPlanList();
     drawDoneList();
     drawHistoryList();
+    renderStats();
     renderAllCalendars();
     renderQuota();
   }
@@ -2923,8 +3041,7 @@
       if(r.assignedTo === currentTechIdentity) return true;
       return includeUnassigned && !r.assignedTo;
     }).forEach(r => {
-      // 牙技師日曆看「須完成日」，送單者日曆看「領取日」
-      const d = o.editable ? prevWorkday(r.items.dueDate) : r.items.dueDate;
+      const d = r.items.dueDate;
       if(!dueMap[d]) dueMap[d] = [];
       dueMap[d].push(r);
     });
@@ -2933,14 +3050,22 @@
     const apptMap = {};
     if(o.editable){
       cachedRecords.forEach(r => {
-        if(r.deleted || !isDigitalPlan(r) || !r.dpTimes) return;
+        if(r.deleted || !isDigitalPlan(r)) return;
         const flow = dpFlowOf(r);
-        if(!flow) return;
-        DP_FLOWS[flow].steps.filter(st => st.date).forEach(st => {
-          const dt = r.dpTimes[st.k];
+        if(flow && r.dpTimes){
+          DP_FLOWS[flow].steps.filter(st => st.date).forEach(st => {
+            const dt = r.dpTimes[st.k];
+            if(!dt) return;
+            if(!apptMap[dt]) apptMap[dt] = [];
+            apptMap[dt].push({ r, label: st.t });
+          });
+        }
+        // 送單時填的約解釋／約手術／手術日也標上日曆
+        [['dp_explain_date','約解釋'], ['dp_appt_surgery_date','約手術']].forEach(([k, label]) => {
+          const dt = r.items && r.items[k];
           if(!dt) return;
           if(!apptMap[dt]) apptMap[dt] = [];
-          apptMap[dt].push({ r, label: st.t });
+          apptMap[dt].push({ r, label });
         });
       });
     }
@@ -3059,7 +3184,6 @@
     document.getElementById('f_receiveDate').value = r.receiveDate || '';
     document.getElementById('f_registrar').value = r.registrar || '';
     setDoctorField(r.doctor || '');
-    document.getElementById('f_apptDate').value = r.apptDate || '';
     document.getElementById('f_chartNo').value = r.chartNo || '';
     document.querySelectorAll('[data-key]').forEach(el => {
       if(el.tagName === 'DIV') return;
@@ -3217,8 +3341,14 @@
       alert(`如有多個項目，請分開開單。\n\n目前勾選了 ${mains.length} 個項目：${mains.join('、')}`);
       return;
     }
-    const dueErr = validateDueDate();
-    if(dueErr){ alert(dueErr); return; }
+    const rush = checkRushOrder();
+    if(rush === 'cancel') return;
+    if(rush){
+      data.rush = true;
+      data.rushShortDays = rush.shortDays;
+      data.rushRequiredDays = rush.requiredDays;
+      data.rushEarliest = rush.earliest;
+    }
     if(currentEditingId){
       const original = cachedRecords.find(x => x.id === currentEditingId);
       if(!original){ alert('找不到原始資料，無法儲存修改'); return; }
@@ -3249,15 +3379,7 @@
       await fsSet(data.id, data);
       localSet(LAST_SEEN_KEY, String(data.ts)); // the person submitting doesn't need a notification for their own order
       if(LINE_NOTIFY_ON.newOrder) sendLineMessage(`【新技工單】\n${lineOrderLines(data)}`);
-      let mailNote = '';
-      try{
-        const result = await sendNewOrderEmail(data);
-        if(result === 'sent') mailNote = '\n已寄出通知信給牙技師。';
-      }catch(mailErr){
-        console.error('EmailJS error', mailErr);
-        mailNote = '\n（單子已儲存，但通知信寄送失敗，請口頭告知牙技師。）';
-      }
-      alert('已送出並儲存！牙技師端會即時看到這張單。' + mailNote);
+      alert('已送出並儲存！牙技師端會即時看到這張單。');
       clearForm(); // ready for the next order
     }catch(e){
       console.error(e);
@@ -3309,7 +3431,7 @@
       ? `收件者：${r.doctor}（${code}）`
       : `這張單的醫師「${r.doctor || '未填'}」不在名單中，請在下方填寫收件者員編`;
     textEl.value = `${r.patient || '(未填患者)'}（病歷號 ${r.chartNo || '-'}）的技工單已完成，可以領取了。\n`
-      + (r.items && r.items.dueDate ? `領取日：${r.items.dueDate}\n` : '')
+      + (r.items && r.items.dueDate ? `完成日：${r.items.dueDate}\n` : '')
       + `技工：${r.assignedTo || currentTechIdentity || '-'}`;
     modal.style.display = 'flex';
     setTimeout(() => textEl.focus(), 30);
@@ -3356,47 +3478,11 @@
     return [
       `患者：${r.patient || '(未填)'}（病歷號 ${r.chartNo || '-'}）`,
       `醫師：${r.doctor || '-'}`,
-      items.dueDate ? `須完成日：${prevWorkday(items.dueDate)}（領取日 ${items.dueDate}）` : '',
+      items.dueDate ? `完成日：${items.dueDate}` : '',
       `負責人：${r.assignedTo || '未處理'}`
     ].filter(Boolean).join('\n');
   }
 
-  // ---- 新單 email 通知 (EmailJS) ----
-  function emailConfigured(){
-    return typeof emailjs !== 'undefined' && EMAILJS_CONFIG.publicKey && EMAILJS_CONFIG.serviceId && EMAILJS_CONFIG.templateId;
-  }
-  async function sendNewOrderEmail(order){
-    if(!emailConfigured()){ console.warn('EmailJS 尚未設定，略過寄信'); return 'skipped'; }
-    const items = order.items || {};
-    const sections = [
-      ['數位/模板', sectionSummaryText('digital', items)],
-      ['模型/咬合相關', sectionSummaryText('left', items)],
-      ['假牙/蠟型相關', sectionSummaryText('right', items)],
-      ['其他技工項目', sectionSummaryText('other', items)]
-    ].filter(([, v]) => v).map(([k, v]) => `${k}：${v}`).join('\n');   // 牙位另外一列，不併入項目
-    const pageUrl = location.origin + location.pathname + '?role=tech';
-    const sectionsHtml = sections.split('\n').join('<br>');
-    const params = {
-      to_email: NEW_ORDER_RECIPIENTS.map(r => r.email).join(','),
-      patient: order.patient || '',
-      chart_no: order.chartNo || '',
-      doctor: order.doctor || '',
-      registrar: order.registrar || '',
-      receive_date: order.receiveDate || '',
-      appt_date: order.apptDate || '',
-      due_date: items.dueDate || '',
-      finish_date: items.dueDate ? prevWorkday(items.dueDate) : '',
-      items_html: sectionsHtml || '（未勾選項目）',
-      tooth_summary: toothSummaryText(items) || '（未選牙位）',
-      notes_html: (items.notes || '（無）').split('\n').join('<br>'),
-      items_summary: sections || '（未勾選項目）',
-      notes: items.notes || '（無）',
-      submitted_at: new Date(order.ts).toLocaleString('zh-TW'),
-      page_url: pageUrl
-    };
-    await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, params, { publicKey: EMAILJS_CONFIG.publicKey });
-    return 'sent';
-  }
 
   // ---- notification: works only while this page is open in the technician's browser ----
   const LAST_SEEN_KEY = 'tech_last_seen_ts';
