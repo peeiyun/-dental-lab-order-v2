@@ -1509,21 +1509,33 @@
 
   // ---- doctor list (grouped dropdown) ----
   const DOCTOR_GROUPS = [
-    { label:'主治醫師', doctors:[
-      {name:'周庭暵', code:'07314'}, {name:'黃薰玉', code:'07114'}, {name:'黃秋碧', code:'07111'},
-      {name:'劉育嘉', code:'07204'}, {name:'林敬偉', code:'07522'}, {name:'林佩玉', code:'07183'},
-      {name:'蔡佳君', code:'07462'}, {name:'蔡凰慈', code:'07356'}, {name:'張琬婷', code:'07170'},
-      {name:'楊惠敏', code:'07172'}, {name:'鄭嘉瑢', code:'07567'}, {name:'孫櫻珊', code:'07270'},
-      {name:'翁子甯', code:'07317'}, {name:'黃奕帛', code:'07318'}, {name:'蔡祐年', code:'07634'},
-      {name:'龔俊綺', code:'07697'}, {name:'董俊良', code:'04899'}, {name:'林煥章', code:'02191'},
-      {name:'林蔚庭', code:'07313'}
+    { label:'01 牙髓病科', doctors:[
+      {name:'黃薰玉', code:'07114'}, {name:'林佩玉', code:'07183'}, {name:'翁子甯', code:'07317'},
+      {name:'龔俊綺', code:'07697'}, {name:'黃秋碧', code:'07111'}, {name:'廖方圓', code:'07829'},
+      {name:'江典容', code:'07799'}, {name:'陳炯宏', code:'07913'}
     ]},
-    { label:'總醫師', doctors:[
-      {name:'廖方圓', code:'07829'}, {name:'陳怡璇', code:'07802'}, {name:'郭芳妤', code:'07887'}
+    { label:'02 牙周病科', doctors:[
+      {name:'鄭嘉瑢', code:'07567'}, {name:'蔡祐年', code:'07634'}, {name:'楊惠敏', code:'07172'},
+      {name:'蔡凰慈', code:'07356'}, {name:'林敬偉', code:'07522'}, {name:'陳怡璇', code:'07802'},
+      {name:'高聖硯', code:'A08330'}
     ]},
-    { label:'住院醫師', doctors:[
-      {name:'江典容', code:'07799'}, {name:'顏愉家', code:'07834'}, {name:'陳炯宏', code:'07913'},
-      {name:'高聖硯', code:'A08330'}, {name:'趙子彤', code:'7877'}, {name:'林喜韻', code:'7895'}
+    { label:'03 贗復補綴牙科', doctors:[
+      {name:'周庭暵', code:'07314'}, {name:'張琬婷', code:'07170'}, {name:'許綺真', code:''},
+      {name:'戴晸昆', code:''}, {name:'郭芳妤', code:'07887'}, {name:'顏愉家', code:'07834'},
+      {name:'趙子彤', code:'07877'}
+    ]},
+    { label:'04 齒顎矯正科', doctors:[
+      {name:'黃奕帛', code:'07318'}, {name:'孫櫻珊', code:'07270'}, {name:'蔡佳君', code:'07462'}
+    ]},
+    { label:'05 口腔顎面外科', doctors:[
+      {name:'林煥章', code:'02191'}, {name:'董俊良', code:'04899'}, {name:'林蔚庭', code:'07313'},
+      {name:'陳靜容', code:''}, {name:'林立綺', code:''}, {name:'林書輔', code:''}
+    ]},
+    { label:'06 特殊需求者口腔醫學科', doctors:[
+      {name:'劉育嘉', code:'07204'}
+    ]},
+    { label:'07 家庭牙科', doctors:[
+      {name:'林喜韻', code:'07895'}
     ]}
   ];
   function populateDoctorSelect(){
@@ -1531,7 +1543,9 @@
     let html = '<option value="">請選擇醫師</option>';
     DOCTOR_GROUPS.forEach(g => {
       html += `<optgroup label="${g.label}">`;
-      g.doctors.forEach(d => { html += `<option value="${d.name}">${d.name}（${d.code}）</option>`; });
+      g.doctors.forEach(d => {
+        html += `<option value="${d.name}">${d.name}${d.code ? `（${d.code}）` : ''}</option>`;
+      });
       html += '</optgroup>';
     });
     html += '<option value="__other__">其他（自行填寫）</option>';
