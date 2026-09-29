@@ -652,6 +652,12 @@
   .modal-dp-bar{ background:#F5F8FD; border:1px solid #D8E4F3; border-radius:4px; padding:10px 12px; margin-bottom:12px; }
   .modal-dp-bar .dp-flow-bar{ margin-top:0; }
   .tab-panel{ margin-top:10px; }
+  #dpBlock{
+    background:#EEF3FB; border:1px solid #D8E4F3; border-radius:4px;
+    padding:14px 16px; max-width:900px; margin-left:auto; margin-right:auto;
+  }
+  #dpBlock .mini-note{ margin-top:0; }
+  #dpBlock .rec{ border-color:#D8E4F3; }
   .modal-box-wide{ max-width:640px; max-height:85vh; overflow-y:auto; }
   .modal-box-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
   .modal-box-header h3{ margin:0; font-size:16px; }
@@ -2654,7 +2660,10 @@
       '登記者': r.registrar || '',
       '收件日': r.receiveDate || '',
       '約診日': r.apptDate || '',
-      '負責人': r.assignedTo || '未處理',
+      '目前負責人': r.assignedTo || '未處理',
+      '轉單紀錄': (Array.isArray(r.assignLog) ? r.assignLog : [])
+        .map(e => `${e.ts ? new Date(e.ts).toLocaleString('zh-TW') : ''} ${e.from || ''}→${e.to || ''}（操作者 ${e.by || '未知'}）`)
+        .join('；'),
       '狀態': STATUS_LABEL[r.status] || r.status || '',
       '數位/模板': sectionSummaryText('digital', items),
       '模型/咬合相關': sectionSummaryText('left', items),
