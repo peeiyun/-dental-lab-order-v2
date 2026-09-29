@@ -711,6 +711,7 @@
   .modal-box-wide{ max-width:640px; max-height:85vh; overflow-y:auto; }
   .modal-box-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
   .modal-box-header h3{ margin:0; font-size:16px; }
+  .modal-head-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .modal-box-header button{ font-size:12.5px; padding:6px 14px; }
   .history-toolbar{ display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
   .hist-select-all{ font-size:12.5px; color:var(--muted); display:flex; align-items:center; gap:6px; cursor:pointer; margin-right:auto; }
@@ -1349,7 +1350,12 @@
     <div class="modal-box modal-box-wide">
       <div class="modal-box-header">
         <h3>單子內容</h3>
-        <button type="button" class="ghost" id="calOrderModalClose">關閉</button>
+        <span class="modal-head-actions">
+          <select id="calOrderStatus" class="statusSel"></select>
+          <select id="calOrderAssign" class="assignSel"></select>
+          <button type="button" class="ghost" id="calOrderEdit">編輯單子內容</button>
+          <button type="button" class="ghost" id="calOrderModalClose">關閉</button>
+        </span>
       </div>
       <div id="calOrderModalBody"></div>
     </div>
@@ -3134,9 +3140,11 @@
     renderCalendar();
     renderCalendar({ grid:'calendarGridSender', label:'calMonthLabelSender', editable:false });
   }
+  let calModalOrderId = null;
   function showCalendarOrderModal(id){
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
+    calModalOrderId = id;
     const body = document.getElementById('calOrderModalBody');
     const dpBar = isDigitalPlan(rec)
       ? `<div class="modal-dp-bar">${dpFlowBarHTML(rec)}</div>`
@@ -3144,8 +3152,25 @@
     body.innerHTML = dpBar + buildFullOrderHTML(rec);
     body.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
     bindDpHandlers(body);
+    // 標題列：狀態與負責人可直接改
+    const st = rec.status || 'pending';
+    const stSel = document.getElementById('calOrderStatus');
+    stSel.innerHTML = [['pending','待處理'], ['in_progress','處理中'], ['done','已完成']]
+      .map(([v, t]) => `<option value="${v}" ${st===v?'selected':''}>${t}</option>`).join('');
+    stSel.onchange = () => setStatus(id, stSel.value);
+    const asSel = document.getElementById('calOrderAssign');
+    const av = rec.assignedTo || '';
+    asSel.innerHTML = ['<option value="">未處理</option>']
+      .concat(TECH_NAMES.map(n => `<option value="${n}" ${av===n?'selected':''}>${n}</option>`)).join('');
+    asSel.onchange = () => setAssignee(id, asSel.value);
     document.getElementById('calOrderModal').style.display = 'flex';
   }
+  const calOrderEditEl = document.getElementById('calOrderEdit');
+  if(calOrderEditEl) calOrderEditEl.addEventListener('click', () => {
+    if(!calModalOrderId) return;
+    document.getElementById('calOrderModal').style.display = 'none';
+    startEditRecordFromTech(calModalOrderId);   // 切到表單畫面做完整編輯
+  });
   const calOrderModalCloseEl = document.getElementById('calOrderModalClose');
   if(calOrderModalCloseEl) calOrderModalCloseEl.addEventListener('click', () => {
     document.getElementById('calOrderModal').style.display = 'none';
