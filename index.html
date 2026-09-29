@@ -2352,7 +2352,7 @@
             {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'done',t:'已完成',finish:true}]}
   };
   // 依進度分組時的排列順序
-  const DP_STAGE_ORDER = ['nonext','wax','waxdone','ct','plan','appt','confirm2','guide','print','fit','done'];
+  const DP_STAGE_ORDER = ['wax','waxdone','ct','plan','appt','confirm2','guide','print','fit','done'];
   // 數位規劃流程列（清單與日曆彈窗共用）
   function dpFlowBarHTML(r){
     const flow = dpFlowOf(r);
@@ -2468,7 +2468,6 @@
     // 階段篩選選單（保留目前選擇）
     const filterSel = document.getElementById('dpStageFilter');
     const stageLabel = k => {
-      if(k === 'nonext') return '沒約下次時間';
       for(const f of Object.values(DP_FLOWS)){
         const st = f.steps.find(x => x.k === k);
         if(st) return st.t;
@@ -2476,8 +2475,8 @@
       return k;
     };
     if(filterSel){
-      const present = DP_STAGE_ORDER.filter(k => list.some(r => (r.dpNoNextAppt ? 'nonext' : r.dpStage) === k));
-      const want = ['all'].concat(present).concat(list.some(r => !r.dpNoNextAppt && (!r.dpStage || !dpFlowOf(r))) ? ['none'] : []);
+      const present = DP_STAGE_ORDER.filter(k => list.some(r => r.dpStage === k));
+      const want = ['all'].concat(present).concat(list.some(r => !r.dpStage || !dpFlowOf(r)) ? ['none'] : []);
       const cur = want.includes(dpStageFilter) ? dpStageFilter : 'all';
       dpStageFilter = cur;
       filterSel.innerHTML = want.map(k =>
@@ -2485,8 +2484,7 @@
     }
     if(list.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有進行中的數位規劃</div>'; return; }
     listEl.innerHTML = '';
-    // 勾了「沒約下次時間」的單子獨立成一類
-    const groupOf = r => r.dpNoNextAppt ? 'nonext' : ((dpFlowOf(r) && r.dpStage) ? r.dpStage : 'none');
+    const groupOf = r => (dpFlowOf(r) && r.dpStage) ? r.dpStage : 'none';
     const visible = dpStageFilter === 'all' ? list : list.filter(r => groupOf(r) === dpStageFilter);
     if(visible.length === 0){ listEl.innerHTML = '<div class="rec-empty">這個階段目前沒有單子</div>'; return; }
     const order = DP_STAGE_ORDER.concat(['none']);
