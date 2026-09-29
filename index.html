@@ -792,6 +792,7 @@
   .tech-note-grid{ display:grid; grid-template-columns:150px 1fr; gap:14px; align-items:start; }
   @media (max-width:640px){ .tech-note-grid{ grid-template-columns:1fr; } }
   .ro-field-label{ display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:5px; }
+  .ro-completed{ font-size:13px; font-weight:700; color:var(--accent-dark); margin-bottom:10px; }
   .techCompDate{
     width:100%; font-family:inherit; font-size:13px; padding:7px 9px;
     border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink);
@@ -864,6 +865,17 @@
 </script>
 </head>
 <body class="role-none">
+
+  <div class="modal-overlay" id="completeDateModal" style="display:none;">
+    <div class="modal-box">
+      <h3>請選擇完成日期</h3>
+      <input type="date" id="completeDateInput" />
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="completeDateCancel">取消</button>
+        <button type="button" class="primary" id="completeDateConfirm">確定</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="editorNameModal" style="display:none;">
     <div class="modal-box">
@@ -1354,6 +1366,30 @@
 
   // ---- custom "who made this edit" input (replaces window.prompt, which is unreliable
   //      inside standalone/home-screen web-app mode on some phones) ----
+  function askCompletionDate(defaultVal){
+    return new Promise(resolve => {
+      const modal = document.getElementById('completeDateModal');
+      const input = document.getElementById('completeDateInput');
+      const okBtn = document.getElementById('completeDateConfirm');
+      const cancelBtn = document.getElementById('completeDateCancel');
+      input.value = defaultVal || todayISO();
+      modal.style.display = 'flex';
+      setTimeout(() => input.focus(), 30);
+      function cleanup(){
+        modal.style.display = 'none';
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        input.removeEventListener('keydown', onKey);
+      }
+      function onOk(){ const v = input.value; cleanup(); resolve(v || null); }
+      function onCancel(){ cleanup(); resolve(null); }
+      function onKey(e){ if(e.key === 'Enter') onOk(); else if(e.key === 'Escape') onCancel(); }
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      input.addEventListener('keydown', onKey);
+    });
+  }
+
   function askEditorName(){
     return new Promise(resolve => {
       const modal = document.getElementById('editorNameModal');
@@ -1665,15 +1701,10 @@
         </div>
         <div class="section tech-note-section">
           <h2>技工處理紀錄</h2>
-          <div class="tech-note-grid">
-            <div>
-              <label class="ro-field-label">完成日期</label>
-              <input type="date" class="techCompDate" data-id="${r.id}" value="${esc(r.completedDate || '')}" />
-            </div>
-            <div>
-              <label class="ro-field-label">技工備註</label>
-              <textarea class="techNote" data-id="${r.id}" placeholder="填寫處理備註…">${esc(r.techNote || '')}</textarea>
-            </div>
+          ${r.completedDate ? `<div class="ro-completed">完成日期：${esc(r.completedDate)}</div>` : ''}
+          <div>
+            <label class="ro-field-label">技工備註</label>
+            <textarea class="techNote" data-id="${r.id}" placeholder="填寫處理備註…">${esc(r.techNote || '')}</textarea>
           </div>
           <div class="tech-note-actions">
             <button type="button" class="techSaveBtn" data-id="${r.id}">確定</button>
@@ -1758,13 +1789,8 @@
     const btn = document.querySelector(`.techSaveBtn[data-id="${id}"]`);
     if(!btn) return;
     const container = btn.closest('.tech-note-section');
-    const dateInput = container ? container.querySelector('.techCompDate') : null;
     const noteInput = container ? container.querySelector('.techNote') : null;
-    const patch = {
-      completedDate: dateInput ? dateInput.value : '',
-      techNote: noteInput ? noteInput.value : ''
-    };
-    if(patch.completedDate) patch.status = 'done';   // 有填完成日期就自動歸入已完成
+    const patch = { techNote: noteInput ? noteInput.value : '' };
     btn.disabled = true;
     try{
       await updateTechFields(id, patch);
@@ -2312,14 +2338,14 @@
   const DP_FLOWS = {
     I:   { label:'I. 已有CT板', steps:[
             {k:'ct',t:'已有CT板'},{k:'plan',t:'植牙規劃'},{k:'appt',t:'和醫師約時間',date:true},
-            {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'}]},
+            {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'done',t:'已完成',finish:true}]},
     II:  { label:'II. 需蠟型設計', steps:[
             {k:'wax',t:'待設計蠟型'},{k:'waxdone',t:'已設計好蠟型',noNext:true},
             {k:'plan',t:'植牙規劃'},{k:'confirm2',t:'和醫師確認',date:true,beforeExplain:true},
-            {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'}]}
+            {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'done',t:'已完成',finish:true}]}
   };
   // 依進度分組時的排列順序
-  const DP_STAGE_ORDER = ['wax','waxdone','ct','plan','appt','confirm2','guide','print','fit'];
+  const DP_STAGE_ORDER = ['wax','waxdone','ct','plan','appt','confirm2','guide','print','fit','done'];
   // 數位規劃流程列（清單與日曆彈窗共用）
   function dpFlowBarHTML(r){
     const flow = dpFlowOf(r);
@@ -2389,7 +2415,14 @@
   async function setDpStage(id, stepKey){
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
-    rec.dpStage = rec.dpStage === stepKey ? '' : stepKey;   // 再點一次可取消
+    const turningOff = rec.dpStage === stepKey;
+    if(!turningOff && stepKey === 'done'){                  // 點「已完成」先問完成日期
+      const d = await askCompletionDate(rec.completedDate);
+      if(!d) return;
+      rec.completedDate = d;
+      rec.status = 'done';
+    }
+    rec.dpStage = turningOff ? '' : stepKey;                // 再點一次可取消
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
   async function setDpNoNext(id, checked){
@@ -2991,6 +3024,11 @@
   async function setStatus(id, status){
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
+    if(status === 'done'){                       // 選「已完成」時先問完成日期
+      const d = await askCompletionDate(rec.completedDate);
+      if(!d){ renderTechView(); return; }        // 取消就還原下拉選單
+      rec.completedDate = d;
+    }
     rec.status = status;
     try{ await fsSet(id, rec); }catch(e){ alert('更新狀態失敗'); }
   }
