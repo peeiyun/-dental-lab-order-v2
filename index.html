@@ -547,6 +547,12 @@
     display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;
   }
   .calendar-toolbar button{ font-size:12.5px; padding:6px 12px; }
+  .cal-ctl{
+    font-family:inherit; font-size:12.5px; padding:6px 10px;
+    border:1px solid var(--line); border-radius:4px; background:#fff; color:var(--ink);
+  }
+  .cal-days.week-view{ grid-template-columns:repeat(7,1fr); }
+  .cal-days.week-view .cal-cell{ min-height:190px; }
   .cal-scope-note{ font-size:12px; color:#2E5AA8; font-weight:600; }
   .cal-unassigned-toggle{ margin-left:auto; }
   .cal-chip.cal-chip-unassigned{ background:#F1F1EF; color:var(--muted); }
@@ -1334,11 +1340,16 @@
     <details class="calendar-details" open>
       <summary>日曆</summary>
       <div class="calendar-toolbar">
-        <button type="button" class="ghost" id="calPrevMonth">‹ 上個月</button>
+        <button type="button" class="ghost" id="calPrevMonth">‹ 上一頁</button>
         <span id="calMonthLabel" class="calendar-month-label">—</span>
-        <button type="button" class="ghost" id="calNextMonth">下個月 ›</button>
+        <button type="button" class="ghost" id="calNextMonth">下一頁 ›</button>
         <button type="button" class="ghost" id="calToday">回到今天</button>
         <button type="button" class="ghost" id="btnHolidayMode">設定休假日</button>
+        <select id="calViewMode" class="cal-ctl">
+          <option value="month">月檢視</option>
+          <option value="week">週檢視</option>
+        </select>
+        <select id="calDoctorFilter" class="cal-ctl"><option value="">全部醫師</option></select>
         <span class="cal-scope-note" id="calScopeNote"></span>
         <label class="sound-toggle cal-unassigned-toggle"><input type="checkbox" id="chkCalUnassigned" checked /> 含未處理（未指派）的單</label>
       </div>
@@ -2278,10 +2289,8 @@
     if(!info){
       hint.textContent = '';
       hint.className = 'due-hint';
-      input.removeAttribute('min');
       return;
     }
-    input.min = info.earliest;
     const detail = info.reasons.map(r =>
       `${r.label} ${r.days}天${r.note ? `（${r.note}）` : ''}${r.byTeeth ? `（${info.teeth || 0} 顆）` : ''}`).join('、');
     hint.innerHTML = `需要 <b>${info.days}</b> 個工作天（六日與休假日不計，收件日當天不算）。最早完成日：<b>${info.earliest}</b><br><span class="due-hint-detail">依據：${esc(detail)}</span>`;
@@ -3047,19 +3056,48 @@
 
   // ---- 日曆 ----
   let calendarViewDate = new Date();
+  let calViewMode = 'month';
+  let calDoctorFilter = '';
+  function refreshCalDoctorOptions(){
+    const sel = document.getElementById('calDoctorFilter');
+    if(!sel) return;
+    const names = Array.from(new Set(cachedRecords.filter(r => !r.deleted && r.doctor).map(r => r.doctor))).sort();
+    const cur = names.includes(calDoctorFilter) ? calDoctorFilter : '';
+    calDoctorFilter = cur;
+    const want = ['<option value="">全部醫師</option>']
+      .concat(names.map(n => `<option value="${esc(n)}" ${n===cur?'selected':''}>${esc(n)}</option>`)).join('');
+    if(sel.innerHTML !== want) sel.innerHTML = want;
+  }
   function renderCalendar(opts){
     const o = opts || { grid:'calendarGrid', label:'calMonthLabel', editable:true, scopeNote:'calScopeNote' };
     const grid = document.getElementById(o.grid);
     const label = document.getElementById(o.label);
     if(!grid || !label) return;
-    const year = calendarViewDate.getFullYear();
-    const month = calendarViewDate.getMonth(); // 0-indexed
-    label.textContent = `${year}年${month + 1}月`;
-
-    const firstDay = new Date(year, month, 1);
-    const startWeekday = firstDay.getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
     const todayStr = todayISO();
+    const isWeek = o.editable && calViewMode === 'week';
+    const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+    // 這次要顯示哪些日期
+    let dayList = [], leading = 0;
+    if(isWeek){
+      const st = new Date(calendarViewDate);
+      st.setDate(st.getDate() - st.getDay());             // 從週日開始
+      for(let i = 0; i < 7; i++){
+        const d = new Date(st); d.setDate(st.getDate() + i);
+        dayList.push(iso(d));
+      }
+      const en = new Date(st); en.setDate(st.getDate() + 6);
+      label.textContent = `${st.getMonth()+1}/${st.getDate()} - ${en.getMonth()+1}/${en.getDate()}`;
+    }else{
+      const year = calendarViewDate.getFullYear();
+      const month = calendarViewDate.getMonth();
+      label.textContent = `${year}年${month + 1}月`;
+      leading = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for(let day = 1; day <= daysInMonth; day++){
+        dayList.push(`${year}-${String(month + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`);
+      }
+    }
 
     const dueMap = {};
     const includeUnassigned = !!(document.getElementById('chkCalUnassigned') || {}).checked;
@@ -3067,8 +3105,11 @@
     if(scopeNote && !document.body.classList.contains('holiday-mode')){
       scopeNote.textContent = currentTechIdentity ? `只顯示「${currentTechIdentity}」負責的單` : '尚未選擇身份，顯示全部單子';
     }
+    const passDoctor = r => !o.editable || !calDoctorFilter || r.doctor === calDoctorFilter;
+    if(o.editable) refreshCalDoctorOptions();
     cachedRecords.filter(r => {
       if(r.deleted || !r.items || !r.items.dueDate) return false;
+      if(!passDoctor(r)) return false;
       if(!o.editable) return true;                 // 送單者畫面：顯示全部
       if(!currentTechIdentity) return true;
       if(r.assignedTo === currentTechIdentity) return true;
@@ -3083,7 +3124,7 @@
     const apptMap = {};
     if(o.editable){
       cachedRecords.forEach(r => {
-        if(r.deleted || !isDigitalPlan(r)) return;
+        if(r.deleted || !isDigitalPlan(r) || !passDoctor(r)) return;
         const flow = dpFlowOf(r);
         if(flow && r.dpTimes){
           DP_FLOWS[flow].steps.filter(st => st.date).forEach(st => {
@@ -3104,10 +3145,10 @@
     }
 
     let html = '<div class="cal-weekdays">' + ['日','一','二','三','四','五','六'].map(w => `<div>${w}</div>`).join('') + '</div>';
-    html += '<div class="cal-days">';
-    for(let i = 0; i < startWeekday; i++) html += '<div class="cal-cell empty"></div>';
-    for(let day = 1; day <= daysInMonth; day++){
-      const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    html += `<div class="cal-days${isWeek ? ' week-view' : ''}">`;
+    for(let i = 0; i < leading; i++) html += '<div class="cal-cell empty"></div>';
+    for(const dateStr of dayList){
+      const day = parseInt(dateStr.slice(8), 10);
       const orders = dueMap[dateStr] || [];
       const isToday = dateStr === todayStr;
       const hasOverdue = orders.some(x => x.status !== 'done' && dateStr < todayStr);
@@ -3124,16 +3165,17 @@
       let tag = '';
       if(isLeave) tag = '<span class="cal-holiday-tag">休</span>';
       else if(gov && gov.off && gov.name && !isMakeupHoliday(dateStr)) tag = `<span class="cal-gov-tag">${esc(gov.name)}</span>`;
-      const apptChips = appts.slice(0,2).map(a =>
+      const maxChip = isWeek ? 8 : 3;
+      const apptChips = appts.slice(0, isWeek ? 6 : 2).map(a =>
         `<div class="cal-chip cal-chip-appt" data-id="${a.r.id}" title="${esc(a.label)}：${esc(a.r.patient || '')}">約 ${esc(a.r.patient || '(未填)')}${a.label ? '·' + esc(a.label) : ''}</div>`
       ).join('');
-      const chips = apptChips + orders.slice(0,3).map(x => {
+      const chips = apptChips + orders.slice(0, maxChip).map(x => {
         const stage = isDigitalPlan(x) ? dpStageLabel(x) : '';
         const name = esc(x.patient || '(未填)');
         const text = stage ? `${name}·${esc(stage)}` : name;
         return `<div class="cal-chip${x.status==='done' ? ' cal-chip-done' : ''}${!x.assignedTo ? ' cal-chip-unassigned' : ''}${stage ? ' cal-chip-dp' : ''}" data-id="${x.id}" title="${esc(x.patient || '')}${stage ? '：' + esc(stage) : ''}">${text}</div>`;
       }).join('');
-      const more = orders.length > 3 ? `<div class="cal-more">+${orders.length - 3} 筆</div>` : '';
+      const more = orders.length > maxChip ? `<div class="cal-more">+${orders.length - maxChip} 筆</div>` : '';
       html += `<div class="${cellClass}" data-date="${dateStr}"><div class="cal-daynum">${day} ${tag}</div>${chips}${more}</div>`;
     }
     html += '</div>';
@@ -3190,16 +3232,28 @@
   });
   const calPrevMonthEl = document.getElementById('calPrevMonth');
   if(calPrevMonthEl) calPrevMonthEl.addEventListener('click', () => {
-    calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1);
+    if(calViewMode === 'week'){
+      const d = new Date(calendarViewDate); d.setDate(d.getDate() - 7); calendarViewDate = d;
+    }else{
+      calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1);
+    }
     renderAllCalendars();
   });
   const calNextMonthEl = document.getElementById('calNextMonth');
   if(calNextMonthEl) calNextMonthEl.addEventListener('click', () => {
-    calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
+    if(calViewMode === 'week'){
+      const d = new Date(calendarViewDate); d.setDate(d.getDate() + 7); calendarViewDate = d;
+    }else{
+      calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
+    }
     renderAllCalendars();
   });
   const chkCalUnassignedEl = document.getElementById('chkCalUnassigned');
   if(chkCalUnassignedEl) chkCalUnassignedEl.addEventListener('change', () => renderCalendar());
+  const calViewModeEl = document.getElementById('calViewMode');
+  if(calViewModeEl) calViewModeEl.addEventListener('change', e => { calViewMode = e.target.value; renderAllCalendars(); });
+  const calDoctorFilterEl = document.getElementById('calDoctorFilter');
+  if(calDoctorFilterEl) calDoctorFilterEl.addEventListener('change', e => { calDoctorFilter = e.target.value; renderAllCalendars(); });
   const btnHolidayModeEl = document.getElementById('btnHolidayMode');
   if(btnHolidayModeEl) btnHolidayModeEl.addEventListener('click', () => {
     const on = document.body.classList.toggle('holiday-mode');
@@ -3484,9 +3538,9 @@
     toEl.textContent = code
       ? `收件者：${r.doctor}（${code}）`
       : `這張單的醫師「${r.doctor || '未填'}」不在名單中，請在下方填寫收件者員編`;
-    textEl.value = `${r.patient || '(未填患者)'}（病歷號 ${r.chartNo || '-'}）的技工單已完成，可以領取了。\n`
-      + (r.items && r.items.dueDate ? `完成日：${r.items.dueDate}\n` : '')
-      + `技工：${r.assignedTo || currentTechIdentity || '-'}`;
+    const madeItems = checkedMainItems(r.items || {}).join('、') || '技工單';
+    textEl.value = `${r.patient || '(未填患者)'}（病歷號 ${r.chartNo || '-'}）的${madeItems}已完成，可以領取了。\n`
+      + `技師：${r.assignedTo || currentTechIdentity || '-'}`;
     modal.style.display = 'flex';
     setTimeout(() => textEl.focus(), 30);
     function cleanup(){
