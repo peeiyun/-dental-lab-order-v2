@@ -2689,11 +2689,33 @@
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
   }
 
+  // 搜尋後若目前分頁沒有結果，自動跳到有結果的分頁
+  function autoJumpForSearch(){
+    if(!techSearch) return '';
+    const hit = {
+      all: cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r) && matchesSearch(r)).length,
+      pending: cachedRecords.filter(r => !r.deleted && (r.status||'pending') === 'pending' && !isDigitalPlan(r) && matchesSearch(r)).length,
+      in_progress: cachedRecords.filter(r => !r.deleted && r.status === 'in_progress' && !isDigitalPlan(r) && matchesSearch(r)).length,
+      dp: cachedRecords.filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done' && matchesSearch(r)).length,
+      done: cachedRecords.filter(r => !r.deleted && r.status === 'done' && matchesSearch(r)).length
+    };
+    const inHistory = cachedRecords.filter(r => r.deleted && matchesSearch(r)).length;
+    if(hit[currentFilter]) return '';                     // 現在這頁就有，不用跳
+    const jumpTo = ['all','dp','done'].find(k => hit[k]);
+    if(jumpTo){
+      currentFilter = jumpTo;
+      const label = { all:'全部', dp:'數位規劃', done:'已完成' }[jumpTo];
+      return `（已跳到「${label}」分頁）`;
+    }
+    if(inHistory) return `（僅在歷史紀錄中找到 ${inHistory} 筆）`;
+    return '（找不到符合的單子）';
+  }
   const techSearchEl = document.getElementById('techSearch');
   if(techSearchEl) techSearchEl.addEventListener('input', e => {
     techSearch = e.target.value.trim();
+    const extra = autoJumpForSearch();
     const note = document.getElementById('techSearchNote');
-    if(note) note.textContent = techSearch ? `搜尋中：「${techSearch}」` : '';
+    if(note) note.textContent = techSearch ? `搜尋中：「${techSearch}」${extra}` : '';
     renderTechView();
   });
   const techSearchClearEl = document.getElementById('techSearchClear');
@@ -2858,12 +2880,11 @@
     });
     return parts.join('；');
   }
+  // Excel 用：牙位只列數字
   function toothSummaryText(items){
-    const parts = [];
-    [['tooth_ur','右上'], ['tooth_ul','左上'], ['tooth_lr','右下'], ['tooth_ll','左下']].forEach(([k,label]) => {
-      if(items[k]) parts.push(`${label}:${items[k]}`);
-    });
-    return parts.join('；');
+    return ['tooth_ur','tooth_ul','tooth_lr','tooth_ll']
+      .flatMap(k => String(items[k] || '').split(',').map(x => x.trim()).filter(Boolean))
+      .join(',');
   }
   function buildExcelRow(r){
     const items = r.items || {};
@@ -2873,7 +2894,6 @@
       '醫師': r.doctor || '',
       '登記者': r.registrar || '',
       '收件日': r.receiveDate || '',
-      '約診日': r.apptDate || '',
       '目前負責人': r.assignedTo || '未處理',
       '轉單紀錄': (Array.isArray(r.assignLog) ? r.assignLog : [])
         .map(e => `${e.ts ? new Date(e.ts).toLocaleString('zh-TW') : ''} ${e.from || ''}→${e.to || ''}（操作者 ${e.by || '未知'}${e.stage ? '，階段 ' + e.stage : ''}）`)
@@ -2884,7 +2904,7 @@
       '假牙/蠟型相關': sectionSummaryText('right', items),
       '其他技工項目': sectionSummaryText('other', items),
       '牙位': toothSummaryText(items),
-      '完成日': items.dueDate || '',
+      '須完成日': items.dueDate || '',
       '交待事項': items.notes || '',
       '送出時間': r.ts ? new Date(r.ts).toLocaleString('zh-TW') : '',
       '完成日期': r.completedDate || '',
