@@ -1830,7 +1830,7 @@
   function buildAssignLogHTML(r){
     if(!Array.isArray(r.assignLog) || r.assignLog.length === 0) return '';
     const rows = r.assignLog.slice().reverse().map(entry =>
-      `<div class="edit-log-row"><div class="edit-log-head"><b>${esc(entry.by || '未知')}</b> 於 ${entry.ts ? new Date(entry.ts).toLocaleString('zh-TW') : '-'} 將負責人從「${esc(entry.from)}」改為「${esc(entry.to)}」</div></div>`
+      `<div class="edit-log-row"><div class="edit-log-head"><b>${esc(entry.by || '未知')}</b> 於 ${entry.ts ? new Date(entry.ts).toLocaleString('zh-TW') : '-'} 將負責人從「${esc(entry.from)}」改為「${esc(entry.to)}」${entry.stage ? `（當時階段：${esc(entry.stage)}）` : ''}</div></div>`
     ).join('');
     return `<div class="section edit-log-section"><h2>轉單紀錄</h2>${rows}</div>`;
   }
@@ -1972,12 +1972,20 @@
   document.getElementById('dateBadge').textContent = todayISO();
   document.getElementById('f_receiveDate').value = todayISO();
 
+  // 病歷號：純數字且不足 8 碼時前面補 0
+  function normalizeChartNo(v){
+    const t = String(v || '').trim();
+    return (/^\d{1,8}$/.test(t)) ? t.padStart(8, '0') : t;
+  }
+  const chartNoEl = document.getElementById('f_chartNo');
+  if(chartNoEl) chartNoEl.addEventListener('blur', () => { chartNoEl.value = normalizeChartNo(chartNoEl.value); });
+
   function collectForm(){
     const data = { patient: document.getElementById('f_patient').value,
       receiveDate: document.getElementById('f_receiveDate').value,
       registrar: document.getElementById('f_registrar').value,
       doctor: getDoctorValue(),
-      chartNo: document.getElementById('f_chartNo').value,
+      chartNo: normalizeChartNo(document.getElementById('f_chartNo').value),
       items: {} };
     document.querySelectorAll('[data-key]').forEach(el => {
       if(el.tagName === 'DIV') return;
@@ -1998,11 +2006,10 @@
     let shortDays = 0;
     let cur = input.value;
     while(cur < info.earliest && shortDays < 90){ cur = addWorkdays(cur, 1); shortDays++; }
-    const ok = confirm(
-      `此單需要 ${info.days} 個工作天，最早完成日為 ${info.earliest}，目前填的是 ${input.value}（少 ${shortDays} 個工作天）。\n\n`
-      + '小於需要的工作天數，如有特別需求，請跟先跟堅雯或小優討論。\n\n'
-      + '仍要以「急件」送出嗎？（會記錄於統計）');
-    if(!ok){ input.classList.add('field-invalid'); return 'cancel'; }
+    alert(
+      `提醒：此單需要 ${info.days} 個工作天，最早完成日為 ${info.earliest}，目前填的是 ${input.value}（少 ${shortDays} 個工作天）。\n\n`
+      + '小於工作天，請跟技師聯絡。\n\n'
+      + '此單仍會送出，並標記為急件。');
     return { rush:true, shortDays, requiredDays: info.days, earliest: info.earliest };
   }
 
@@ -2470,12 +2477,13 @@
             {k:'ct',t:'已有CT板'},{k:'plan',t:'植牙規劃'},{k:'appt',t:'和醫師約時間',date:true},
             {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'done',t:'已完成',finish:true}]},
     II:  { label:'II. 需蠟型設計', steps:[
-            {k:'wax',t:'待設計蠟型'},{k:'waxdone',t:'已設計好蠟型',noNext:true},
-            {k:'plan',t:'植牙規劃'},{k:'confirm2',t:'和醫師確認',date:true,beforeExplain:true},
+            {k:'wax',t:'待設計蠟型'},{k:'waxdone',t:'已設計好蠟型'},
+            {k:'discuss',t:'與醫師討論蠟型設計',date:true,noNext:true},
+            {k:'plan',t:'植牙規劃'},{k:'confirm2',t:'和醫師確認植牙規劃',date:true,beforeExplain:true},
             {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'done',t:'已完成',finish:true}]}
   };
   // 依進度分組時的排列順序
-  const DP_STAGE_ORDER = ['wax','waxdone','ct','plan','appt','confirm2','guide','print','fit','done'];
+  const DP_STAGE_ORDER = ['wax','waxdone','discuss','ct','plan','appt','confirm2','guide','print','fit','done'];
   // 數位規劃流程列（清單與日曆彈窗共用）
   function dpFlowBarHTML(r){
     const flow = dpFlowOf(r);
@@ -2488,7 +2496,7 @@
         ? `<input type="date" class="dpTime" data-id="${r.id}" data-step="${st.k}" value="${esc(times[st.k] || '')}" onclick="event.stopPropagation()" />`
         : '';
       const noNext = st.noNext
-        ? `<label class="dp-nonext" onclick="event.stopPropagation()"><input type="checkbox" class="dpNoNext" data-id="${r.id}" ${r.dpNoNextAppt ? 'checked' : ''} /> 沒約下次時間</label>`
+        ? `<label class="dp-nonext" onclick="event.stopPropagation()"><input type="checkbox" class="dpNoNext" data-id="${r.id}" ${r.dpNoNextAppt ? 'checked' : ''} /> 未約討論</label>`
         : '';
       return `<div class="dp-step ${cls}" data-id="${r.id}" data-step="${st.k}">
           <span><span class="dp-step-no">${i+1}.</span> ${esc(st.t)}</span>${dateInput}${noNext}
@@ -2593,6 +2601,7 @@
     // 階段篩選選單（保留目前選擇）
     const filterSel = document.getElementById('dpStageFilter');
     const stageLabel = k => {
+      if(k === 'nonext') return '已設計好蠟型・未約討論';
       for(const f of Object.values(DP_FLOWS)){
         const st = f.steps.find(x => x.k === k);
         if(st) return st.t;
@@ -2601,7 +2610,9 @@
     };
     if(filterSel){
       const present = DP_STAGE_ORDER.filter(k => list.some(r => r.dpStage === k));
-      const want = ['all'].concat(present).concat(list.some(r => !r.dpStage || !dpFlowOf(r)) ? ['none'] : []);
+      const want = ['all'].concat(present)
+        .concat(list.some(r => r.dpNoNextAppt) ? ['nonext'] : [])
+        .concat(list.some(r => !r.dpStage || !dpFlowOf(r)) ? ['none'] : []);
       const cur = want.includes(dpStageFilter) ? dpStageFilter : 'all';
       dpStageFilter = cur;
       filterSel.innerHTML = want.map(k =>
@@ -2610,7 +2621,9 @@
     if(list.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有進行中的數位規劃</div>'; return; }
     listEl.innerHTML = '';
     const groupOf = r => (dpFlowOf(r) && r.dpStage) ? r.dpStage : 'none';
-    const visible = dpStageFilter === 'all' ? list : list.filter(r => groupOf(r) === dpStageFilter);
+    const visible = dpStageFilter === 'all' ? list
+      : dpStageFilter === 'nonext' ? list.filter(r => r.dpNoNextAppt)
+      : list.filter(r => groupOf(r) === dpStageFilter);
     if(visible.length === 0){ listEl.innerHTML = '<div class="rec-empty">這個階段目前沒有單子</div>'; return; }
     const order = DP_STAGE_ORDER.concat(['none']);
     const sorted = visible.slice().sort((a,b) => {
@@ -2639,7 +2652,7 @@
       div.className = 'rec ' + assigneeColorClass(r);
       div.innerHTML = `<div class="meta">
           ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
-          ${r.dpNoNextAppt ? '<span class="badge-nonext">沒約下次時間</span>' : ''}
+          ${r.dpNoNextAppt ? '<span class="badge-nonext">未約討論</span>' : ''}
           ${dueDateBadgeHTML(r)}
           ${assigneeBadgeHTML(r)}
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'} ・ 醫師 ${r.doctor || '-'}
@@ -2854,7 +2867,7 @@
       '約診日': r.apptDate || '',
       '目前負責人': r.assignedTo || '未處理',
       '轉單紀錄': (Array.isArray(r.assignLog) ? r.assignLog : [])
-        .map(e => `${e.ts ? new Date(e.ts).toLocaleString('zh-TW') : ''} ${e.from || ''}→${e.to || ''}（操作者 ${e.by || '未知'}）`)
+        .map(e => `${e.ts ? new Date(e.ts).toLocaleString('zh-TW') : ''} ${e.from || ''}→${e.to || ''}（操作者 ${e.by || '未知'}${e.stage ? '，階段 ' + e.stage : ''}）`)
         .join('；'),
       '狀態': STATUS_LABEL[r.status] || r.status || '',
       '數位/模板': sectionSummaryText('digital', items),
@@ -3295,7 +3308,10 @@
     if(from === to) return;
     rec.assignedTo = name || null;
     rec.assignLog = Array.isArray(rec.assignLog) ? rec.assignLog.slice() : [];
-    rec.assignLog.push({ from, to, by: currentTechIdentity || '未選擇身份', ts: Date.now() });
+    const stage = isDigitalPlan(rec)
+      ? (dpStageLabel(rec) || '數位規劃・尚未選階段')
+      : (STATUS_LABEL[rec.status || 'pending'] || '');
+    rec.assignLog.push({ from, to, by: currentTechIdentity || '未選擇身份', ts: Date.now(), stage });
     try{ await fsSet(id, rec); }catch(e){ alert('指派失敗'); }
   }
 
@@ -3381,7 +3397,6 @@
       return;
     }
     const rush = checkRushOrder();
-    if(rush === 'cancel') return;
     if(rush){
       data.rush = true;
       data.rushShortDays = rush.shortDays;
