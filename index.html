@@ -765,6 +765,31 @@
   }
   .line-msg-text:focus{ border-color:var(--accent); }
   .lineBtn{ padding:6px 12px; font-size:12.5px; }
+  .handoff-info{ font-size:13px; color:var(--ink); background:#F5F8FD; border:1px solid #D8E4F3; border-radius:4px; padding:8px 10px; margin-bottom:12px; line-height:1.7; }
+  .handoff-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; }
+  .handoff-row label{ width:110px; flex:none; color:var(--muted); font-weight:600; }
+  .handoff-row select{ flex:1; font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--line); border-radius:4px; background:#fff; }
+  .handoff-row-col{ flex-direction:column; align-items:stretch; }
+  .handoff-row-col label{ width:auto; }
+  .handoff-row textarea{ font-family:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; resize:vertical; outline:none; }
+  .handoff-banner{
+    max-width:900px; margin:0 auto 12px; padding:10px 14px; border-radius:4px;
+    background:#FFF4D6; border:1px solid #E8C77A; color:#7A5410; font-size:13px; font-weight:600;
+  }
+  .badge-handoff{ display:inline-block; font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; background:#FFE8A8; color:#7A5410; }
+  .badge-handoff.waiting{ background:#EEE9E7; color:var(--muted); }
+  .badge-handoff.overdue{ background:#FCE4E4; color:var(--danger); }
+  .dp-step-log{ font-size:10.5px; color:#2E8B72; font-weight:600; }
+  .dp-step.current .dp-step-log{ color:#D7F2EA; }
+  .dp-handoff-actions{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .dp-handoff-actions button{ font-size:12px; padding:6px 12px; }
+  .btn-accept{ background:#E0A63A !important; border-color:#E0A63A !important; color:#fff !important; }
+  .dp-timeline{ font-size:12.5px; line-height:1.8; }
+  .dp-timeline-row{ display:flex; gap:10px; border-bottom:1px dashed #EEE7E5; padding:3px 0; }
+  .dp-timeline-row:last-child{ border-bottom:none; }
+  .dp-timeline-row .t{ color:var(--muted); width:110px; flex:none; }
+  .dp-timeline-row .who{ font-weight:700; color:var(--accent-dark); width:44px; flex:none; }
+  .dp-timeline-row .note{ display:block; color:var(--muted); font-size:11.5px; }
   .modal-dp-bar{ background:#F5F8FD; border:1px solid #D8E4F3; border-radius:4px; padding:10px 12px; margin-bottom:12px; }
   .modal-dp-bar .dp-flow-bar{ margin-top:0; }
   .tab-panel{ margin-top:10px; }
@@ -989,6 +1014,31 @@
 </script>
 </head>
 <body class="role-none">
+
+  <div class="modal-overlay" id="handoffModal" style="display:none;">
+    <div class="modal-box modal-box-wide">
+      <div class="modal-box-header">
+        <h3>完成並交接</h3>
+        <button type="button" class="ghost" id="handoffCancel">取消</button>
+      </div>
+      <div class="handoff-info" id="handoffInfo"></div>
+      <div class="handoff-row">
+        <label for="handoffNextStep">交接後的下一步</label>
+        <select id="handoffNextStep"></select>
+      </div>
+      <div class="handoff-row">
+        <label for="handoffTo">交給</label>
+        <select id="handoffTo"></select>
+      </div>
+      <div class="handoff-row handoff-row-col">
+        <label for="handoffNote">交接備註（選填）</label>
+        <textarea id="handoffNote" rows="3" placeholder="例如：蠟型檔已存到共用資料夾、醫師要求咬合低一點"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="primary" id="handoffConfirm">確認交接</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="lineMsgModal" style="display:none;">
     <div class="modal-box modal-box-wide">
@@ -1358,6 +1408,7 @@
     <button type="button" class="ghost" id="btnChangeIdentity" style="display:none;">切換身份</button>
   </div>
 
+  <div class="handoff-banner" id="handoffBanner" style="display:none;"></div>
   <div class="quota-warning" id="quotaWarning" style="display:none;"></div>
 
   <div class="records collapsible-block">
@@ -1858,6 +1909,7 @@
             <button type="button" class="techSaveBtn" data-id="${r.id}">確定</button>
           </div>
         </div>
+        ${dpTimelineHTML(r)}
         ${buildAssignLogHTML(r)}
         ${buildEditLogHTML(r)}
       </div>`;
@@ -2532,10 +2584,18 @@
       const noNext = st.noNext
         ? `<label class="dp-nonext" onclick="event.stopPropagation()"><input type="checkbox" class="dpNoNext" data-id="${r.id}" ${r.dpNoNextAppt ? 'checked' : ''} /> 未約討論</label>`
         : '';
+      const log = (r.dpStepLog || {})[st.k];
+      const logHtml = log ? `<span class="dp-step-log">✓ ${esc(log.by)} ${nowLabel(log.ts)}</span>` : '';
       return `<div class="dp-step ${cls}" data-id="${r.id}" data-step="${st.k}">
-          <span><span class="dp-step-no">${i+1}.</span> ${esc(st.t)}</span>${dateInput}${noNext}
+          <span><span class="dp-step-no">${i+1}.</span> ${esc(st.t)}</span>${logHtml}${dateInput}${noNext}
         </div>`;
     }).join('');
+    const hs = handoffState(r);
+    const handoffBtns = flow ? `<div class="dp-handoff-actions">
+        ${hs && hs.to === currentTechIdentity ? `<button type="button" class="primary btn-accept dpAcceptBtn" data-id="${r.id}">確認接手</button>` : ''}
+        <button type="button" class="ghost dpHandoffBtn" data-id="${r.id}">完成並交接</button>
+        ${hs ? `<span class="badge-handoff ${hs.to === currentTechIdentity ? '' : (hs.overdue ? 'overdue' : 'waiting')}">${hs.to === currentTechIdentity ? `${esc(hs.from)} 交接給你，待接手` : `等待 ${esc(hs.to)} 接手`}${hs.note ? `・${esc(hs.note)}` : ''}</span>` : ''}
+      </div>` : '';
     return `<div class="dp-flow-bar">
         <span>情形</span>
         <select class="dpFlowSel" data-id="${r.id}">
@@ -2544,12 +2604,15 @@
         </select>
         ${flow ? '<span>目前階段：點選下方步驟</span>' : ''}
       </div>
-      ${flow ? `<div class="dp-steps">${stepsHtml}</div>` : ''}`;
+      ${flow ? `<div class="dp-steps">${stepsHtml}</div>` : ''}
+      ${handoffBtns}`;
   }
   function bindDpHandlers(root){
     root.querySelectorAll('.dpFlowSel').forEach(sel => sel.addEventListener('change', () => setDpFlow(sel.dataset.id, sel.value)));
     root.querySelectorAll('.dp-step').forEach(el => el.addEventListener('click', () => setDpStage(el.dataset.id, el.dataset.step)));
     root.querySelectorAll('.dpNoNext').forEach(cb => cb.addEventListener('change', () => setDpNoNext(cb.dataset.id, cb.checked)));
+    root.querySelectorAll('.dpHandoffBtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openHandoffModal(b.dataset.id); }));
+    root.querySelectorAll('.dpAcceptBtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); acceptHandoff(b.dataset.id); }));
     root.querySelectorAll('.dpTime').forEach(inp => inp.addEventListener('change', () => {
       const rec = cachedRecords.find(x => x.id === inp.dataset.id);
       const flow = rec && dpFlowOf(rec);
@@ -2593,6 +2656,10 @@
       doneMonth = d.slice(0, 7);
     }
     rec.dpStage = turningOff ? '' : stepKey;                // 再點一次可取消
+    if(!turningOff){
+      rec.dpStepLog = Object.assign({}, rec.dpStepLog || {}, { [stepKey]: { by: currentTechIdentity || '未選擇身份', ts: Date.now() } });
+      pushTimeline(rec, { type:'step', step: stepKey, label: stepLabelOf(rec, stepKey) });
+    }
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
     if(!turningOff && stepKey === 'waxdone' && LINE_NOTIFY_ON.waxdone){
       sendLineMessage(`【模型設計好了】\n${lineOrderLines(rec)}${rec.dpNoNextAppt ? '\n※ 沒約下次時間' : ''}`);
@@ -2601,6 +2668,113 @@
       sendLineMessage(`【技工單完成】\n${lineOrderLines(rec)}\n完成日期：${rec.completedDate || '-'}`);
     }
   }
+  // ---- 步驟紀錄與交接 ----
+  function nowLabel(ts){
+    const d = new Date(ts);
+    return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+  function stepLabelOf(r, k){
+    const f = dpFlowOf(r);
+    const st = f ? DP_FLOWS[f].steps.find(x => x.k === k) : null;
+    return st ? st.t : k;
+  }
+  function pushTimeline(rec, evt){
+    rec.dpTimeline = Array.isArray(rec.dpTimeline) ? rec.dpTimeline.slice() : [];
+    rec.dpTimeline.push(Object.assign({ by: currentTechIdentity || '未選擇身份', ts: Date.now() }, evt));
+  }
+  function handoffState(r){
+    const h = r.handoffPending;
+    if(!h) return null;
+    const hours = (Date.now() - (h.ts || 0)) / 3600000;
+    return { to: h.to, from: h.from, note: h.note, ts: h.ts, overdue: hours >= 24 };
+  }
+  function openHandoffModal(id){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    if(!currentTechIdentity){ alert('請先在上方選擇你的身份，才能交接。'); return; }
+    const flow = dpFlowOf(rec);
+    if(!flow){ alert('請先選擇情形（I 或 II）。'); return; }
+    const steps = DP_FLOWS[flow].steps;
+    const curIdx = steps.findIndex(st => st.k === rec.dpStage);
+    const modal = document.getElementById('handoffModal');
+    document.getElementById('handoffInfo').innerHTML =
+      `<b>${esc(rec.patient || '(未填患者)')}</b>（病歷號 ${esc(rec.chartNo || '-')}）<br>`
+      + `目前步驟：<b>${curIdx > -1 ? esc(steps[curIdx].t) : '未設定'}</b>　→ 標記為「${esc(currentTechIdentity)} 已完成」`;
+    const nextSel = document.getElementById('handoffNextStep');
+    nextSel.innerHTML = steps.map((st, i) =>
+      `<option value="${st.k}" ${i === curIdx + 1 ? 'selected' : ''}>${i+1}. ${esc(st.t)}</option>`).join('');
+    const toSel = document.getElementById('handoffTo');
+    const other = TECH_NAMES.find(n => n !== currentTechIdentity) || '';
+    toSel.innerHTML = TECH_NAMES.map(n => `<option value="${n}" ${n === other ? 'selected' : ''}>${n}</option>`).join('');
+    const noteEl = document.getElementById('handoffNote');
+    noteEl.value = '';
+    modal.style.display = 'flex';
+    const okBtn = document.getElementById('handoffConfirm');
+    const cancelBtn = document.getElementById('handoffCancel');
+    function cleanup(){
+      modal.style.display = 'none';
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+    }
+    function onCancel(){ cleanup(); }
+    async function onOk(){
+      const to = toSel.value, next = nextSel.value, note = noteEl.value.trim();
+      // 目前這步若已由本人記錄過完成，時間軸就不重複寫
+      const curKey = curIdx > -1 ? steps[curIdx].k : '';
+      const prevLog = curKey && rec.dpStepLog ? rec.dpStepLog[curKey] : null;
+      const alreadyLogged = prevLog && prevLog.by === currentTechIdentity;
+      const doneLabel = curIdx > -1 && !alreadyLogged ? steps[curIdx].t : '';
+      if(curKey && !alreadyLogged){
+        rec.dpStepLog = Object.assign({}, rec.dpStepLog || {}, { [curKey]: { by: currentTechIdentity, ts: Date.now() } });
+      }
+      const from = rec.assignedTo || '未處理';
+      rec.dpStage = next;
+      rec.assignedTo = to;
+      rec.assignLog = Array.isArray(rec.assignLog) ? rec.assignLog.slice() : [];
+      rec.assignLog.push({ from, to, by: currentTechIdentity, ts: Date.now(), stage: stepLabelOf(rec, next) });
+      rec.handoffPending = to === currentTechIdentity ? null : { to, from: currentTechIdentity, note, ts: Date.now(), step: next };
+      pushTimeline(rec, { type:'handoff', to, note, label: doneLabel, next: stepLabelOf(rec, next) });
+      cleanup();
+      try{ await fsSet(rec.id, rec); }catch(e){ alert('交接失敗，請稍後再試'); }
+    }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  }
+  async function acceptHandoff(id){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec || !rec.handoffPending) return;
+    if(currentTechIdentity !== rec.handoffPending.to){
+      alert(`這張單是交接給 ${rec.handoffPending.to} 的，請由本人確認接手。`); return;
+    }
+    rec.handoffPending = null;
+    pushTimeline(rec, { type:'accept' });
+    try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
+  }
+  function dpTimelineHTML(r){
+    const list = Array.isArray(r.dpTimeline) ? r.dpTimeline : [];
+    if(!list.length) return '';
+    const rows = list.slice().sort((a,b) => (a.ts||0) - (b.ts||0)).map(e => {
+      let text = '';
+      if(e.type === 'step') text = `完成「${esc(e.label)}」`;
+      else if(e.type === 'handoff') text = `${e.label ? `完成「${esc(e.label)}」，` : ''}交接給 <b>${esc(e.to)}</b>（下一步：${esc(e.next || '')}）${e.note ? `<span class="note">備註：${esc(e.note)}</span>` : ''}`;
+      else if(e.type === 'accept') text = '確認接手';
+      return `<div class="dp-timeline-row"><span class="t">${nowLabel(e.ts)}</span><span class="who">${esc(e.by || '')}</span><span>${text}</span></div>`;
+    }).join('');
+    return `<div class="section edit-log-section"><h2>數位規劃進度紀錄</h2><div class="dp-timeline">${rows}</div></div>`;
+  }
+  function refreshHandoffBanner(){
+    const el = document.getElementById('handoffBanner');
+    if(!el) return;
+    if(!currentTechIdentity){ el.style.display = 'none'; return; }
+    const mine = cachedRecords.filter(r => !r.deleted && r.handoffPending && r.handoffPending.to === currentTechIdentity);
+    const waiting = cachedRecords.filter(r => !r.deleted && r.handoffPending && r.handoffPending.from === currentTechIdentity && handoffState(r).overdue);
+    const parts = [];
+    if(mine.length) parts.push(`你有 ${mine.length} 張單待接手：${mine.map(r => esc(r.patient || '')).join('、')}（到「數位規劃」分頁按「確認接手」）`);
+    if(waiting.length) parts.push(`你交出去的 ${waiting.length} 張單超過一天對方還沒確認接手：${waiting.map(r => esc(r.patient || '')).join('、')}，記得口頭確認一下`);
+    el.innerHTML = parts.join('<br>');
+    el.style.display = parts.length ? 'block' : 'none';
+  }
+
   async function setDpNoNext(id, checked){
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
@@ -2678,11 +2852,17 @@
           <div class="dp-card-badges">
             ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
             ${r.dpNoNextAppt ? '<span class="badge-nonext">未約討論</span>' : ''}
+            ${(() => { const h = handoffState(r); if(!h) return '';
+                const mine = h.to === currentTechIdentity;
+                return `<span class="badge-handoff ${mine ? '' : (h.overdue ? 'overdue' : 'waiting')}">${mine ? '待你接手' : `等待${esc(h.to)}接手`}</span>`; })()}
             ${dueDateBadgeHTML(r)}
           </div>
           <div class="dp-card-title">${esc(r.patient || '(未填患者)')}</div>
           <div class="dp-card-sub">病歷號 ${esc(r.chartNo || '-')}<br>醫師 ${esc(r.doctor || '-')} ・ ${esc(r.assignedTo || '未處理')}</div>
           <div class="dp-card-actions">${stageSel}<button type="button" class="ghost dpOpenBtn" data-id="${r.id}">詳情</button></div>
+          ${flow ? `<div class="dp-card-actions" style="margin-top:6px;">
+            ${(r.handoffPending && r.handoffPending.to === currentTechIdentity) ? `<button type="button" class="primary btn-accept dpAcceptBtn" data-id="${r.id}">確認接手</button>` : ''}
+            <button type="button" class="ghost dpHandoffBtn" data-id="${r.id}">完成並交接</button></div>` : ''}
         </div>`;
     };
     const colHTML = (title, cards, cls) => `<div class="dp-col ${cls || ''}">
@@ -2720,6 +2900,8 @@
       setDpStage(sel.dataset.id, sel.value);
     }));
     listEl.querySelectorAll('.dpOpenBtn').forEach(b => b.addEventListener('click', () => showCalendarOrderModal(b.dataset.id)));
+    listEl.querySelectorAll('.dpHandoffBtn').forEach(b => b.addEventListener('click', () => openHandoffModal(b.dataset.id)));
+    listEl.querySelectorAll('.dpAcceptBtn').forEach(b => b.addEventListener('click', () => acceptHandoff(b.dataset.id)));
   }
 
   const dpStageFilterEl = document.getElementById('dpStageFilter');
@@ -3022,6 +3204,8 @@
     drawHistoryList();
     renderStats();
     renderAllCalendars();
+    refreshHandoffBanner();
+    refreshOpenOrderModal();
     renderQuota();
   }
 
@@ -3212,6 +3396,20 @@
     renderCalendar({ grid:'calendarGridSender', label:'calMonthLabelSender', editable:false });
   }
   let calModalOrderId = null;
+  // 資料更新時，如果彈窗開著就重畫（保留正在輸入的技工備註）
+  function refreshOpenOrderModal(){
+    const modal = document.getElementById('calOrderModal');
+    if(!modal || modal.style.display !== 'flex' || !calModalOrderId) return;
+    if(!cachedRecords.find(x => x.id === calModalOrderId)){ modal.style.display = 'none'; return; }
+    const body = document.getElementById('calOrderModalBody');
+    const note = body.querySelector('.techNote');
+    const noteVal = note ? note.value : null;
+    const scroll = modal.querySelector('.modal-box') ? modal.querySelector('.modal-box').scrollTop : 0;
+    showCalendarOrderModal(calModalOrderId);
+    const note2 = body.querySelector('.techNote');
+    if(note2 && noteVal !== null) note2.value = noteVal;
+    if(modal.querySelector('.modal-box')) modal.querySelector('.modal-box').scrollTop = scroll;
+  }
   function showCalendarOrderModal(id){
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
