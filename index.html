@@ -91,6 +91,12 @@
     border-radius:10px; padding:10px 14px; margin-bottom:18px; font-size:13px; font-weight:600;
   }
   .edit-mode-banner button{ font-size:12px; padding:6px 12px; }
+  /* 牙技師從自己的畫面進來編輯時，隱藏送單者專屬的區塊 */
+  body.tech-editing #submitView > .view-topbar,
+  body.tech-editing #submitView > .note-shared,
+  body.tech-editing #submitView > .records{ display:none !important; }
+  body.tech-editing .edit-mode-banner{ background:#E4ECF7; border-color:#2E5AA8; color:#2E5AA8; }
+  body.tech-editing .edit-banner-text::before{ content:'牙技師編輯模式・'; }
 
   .urgent-toggle{
     display:flex; align-items:center; gap:12px;
@@ -585,7 +591,9 @@
     background:var(--accent-soft); color:var(--accent-dark); cursor:pointer;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .cal-chip.cal-chip-done{ background:#EFEFEF; color:var(--muted); text-decoration:line-through; }
+  .cal-chip.cal-chip-done, .cal-chip.cal-chip-done.cal-chip-dp, .cal-chip.cal-chip-done.cal-chip-appt, .cal-chip.cal-chip-done.cal-chip-unassigned{
+    background:#E6E3E2 !important; color:#9A9290 !important; text-decoration:line-through; font-weight:400;
+  }
   .cal-chip:hover{ background:var(--accent); color:#fff; }
   .cal-more{ font-size:10px; color:var(--muted); }
   @media (max-width:640px){
@@ -606,7 +614,23 @@
     font-family:inherit; font-size:12.5px; padding:6px 10px;
     border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink);
   }
-  .dp-board{ display:flex; gap:12px; overflow-x:auto; padding:4px 2px 10px; }
+  .dp-board{ display:flex; gap:18px; overflow-x:auto; padding:4px 2px 10px; align-items:flex-start; }
+  .dp-section{ flex:0 0 auto; display:flex; flex-direction:column; gap:8px; }
+  .dp-section-title{
+    font-size:13px; font-weight:700; padding:6px 10px; border-radius:4px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .dp-section-title span{ font-size:11.5px; font-weight:600; opacity:.85; }
+  .dp-section-cols{ display:flex; gap:10px; }
+  .dp-section-none .dp-section-title{ background:#FCEAE7; color:var(--accent-dark); }
+  .dp-section-I .dp-section-title{ background:#E3F4EF; color:#2E8B72; }
+  .dp-section-II .dp-section-title{ background:#E4ECF7; color:#2E5AA8; }
+  .dp-section-I .dp-col{ background:#F4FBF8; border-color:#CFE9E0; }
+  .dp-section-I .dp-col-head{ color:#2E8B72; border-color:#CFE9E0; }
+  .dp-section-I .dp-col-count{ background:#2E8B72; }
+  .dp-col.dp-col-none{ background:#FFF7F5; border-color:#F2D3CD; }
+  .dp-col.dp-col-none .dp-col-head{ color:var(--accent-dark); border-color:#F2D3CD; }
+  .dp-col.dp-col-none .dp-col-count{ background:var(--accent-dark); }
   .dp-col{
     flex:0 0 232px; background:#F6F9FE; border:1px solid #D8E4F3;
     border-radius:4px; padding:8px; max-height:620px; display:flex; flex-direction:column;
@@ -1074,7 +1098,7 @@
     <div class="body-pad">
 
       <div id="editModeBanner" class="edit-mode-banner" style="display:none;">
-        正在編輯已送出的單子 <button type="button" class="ghost" id="btnCancelEdit">取消編輯</button>
+        <span class="edit-banner-text">正在編輯已送出的單子</span> <button type="button" class="ghost" id="btnCancelEdit">取消編輯</button>
       </div>
 
       <div class="grid-header">
@@ -1620,7 +1644,7 @@
     const changeBtn = document.getElementById('btnChangeIdentity');
     if(!label || !picker || !changeBtn) return;
     if(currentTechIdentity){
-      label.textContent = currentTechIdentity;
+      label.textContent = `${currentTechIdentity}（只顯示自己負責與未處理的單）`;
       picker.style.display = 'none';
       changeBtn.style.display = 'inline-block';
     }else{
@@ -2315,11 +2339,11 @@
   }
 
   function renderFilterCounts(){
-    const active = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r));
+    const active = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r) && inMyScope(r));
     const counts = { all: active.length, pending:0, in_progress:0 };
     active.forEach(r => { const s = r.status||'pending'; if(counts[s]!==undefined) counts[s]++; });
-    counts.dp = cachedRecords.filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done').length;
-    counts.done = cachedRecords.filter(r => !r.deleted && r.status === 'done').length;
+    counts.dp = cachedRecords.filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done' && inMyScope(r)).length;
+    counts.done = cachedRecords.filter(r => !r.deleted && r.status === 'done' && inMyScope(r)).length;
     document.querySelectorAll('.filter-tab').forEach(tab => {
       const key = tab.dataset.filter;
       tab.querySelector('.count').textContent = counts[key] ?? 0;
@@ -2385,7 +2409,7 @@
   function drawRecordsList(){
     const listEl = document.getElementById('recordsList');
     const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
-    const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r) && matchesSearch(r));
+    const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r) && matchesSearch(r) && inMyScope(r));
     let filtered = currentFilter === 'all' ? nonDeleted : nonDeleted.filter(r => (r.status||'pending') === currentFilter);
     if(myOrdersOnly) filtered = filtered.filter(r => r.assignedTo === currentTechIdentity);
     const isDraggableTab = currentFilter === 'pending' || currentFilter === 'in_progress';
@@ -2483,7 +2507,8 @@
   // ---- 數位規劃流程 ----
   const DP_FLOWS = {
     I:   { label:'I. 已有CT板', steps:[
-            {k:'ct',t:'已有CT板'},{k:'plan',t:'植牙規劃'},{k:'appt',t:'和醫師約時間',date:true},
+            {k:'planwait',t:'待植牙規劃'},{k:'plandone',t:'已完成植牙規劃'},
+            {k:'appt',t:'與醫師約時間確認植牙規劃',date:true},
             {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'done',t:'已完成',finish:true}]},
     II:  { label:'II. 需蠟型設計', steps:[
             {k:'wax',t:'待設計蠟型'},{k:'waxdone',t:'已設計好蠟型'},
@@ -2492,7 +2517,7 @@
             {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'done',t:'已完成',finish:true}]}
   };
   // 依進度分組時的排列順序
-  const DP_STAGE_ORDER = ['wax','waxdone','discuss','ct','plan','appt','confirm2','guide','print','fit','done'];
+  const DP_STAGE_ORDER = ['wax','waxdone','discuss','planwait','plandone','plan','appt','confirm2','guide','print','fit','done'];
   // 數位規劃流程列（清單與日曆彈窗共用）
   function dpFlowBarHTML(r){
     const flow = dpFlowOf(r);
@@ -2552,7 +2577,8 @@
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
     rec.dpFlow = flow || '';
-    rec.dpStage = '';
+    // I：直接到「待植牙規劃」；II：直接到「待設計蠟型」
+    rec.dpStage = flow === 'I' ? 'planwait' : (flow === 'II' ? 'wax' : '');
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
   async function setDpStage(id, stepKey){
@@ -2564,6 +2590,7 @@
       if(!d) return;
       rec.completedDate = d;
       rec.status = 'done';
+      doneMonth = d.slice(0, 7);
     }
     rec.dpStage = turningOff ? '' : stepKey;                // 再點一次可取消
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
@@ -2590,6 +2617,11 @@
     rec.dpTimes = Object.assign({}, rec.dpTimes || {}, { [stepKey]: value });
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
+  // 選了身份後，清單只顯示「自己負責」與「未處理（還沒人認領）」的單
+  function inMyScope(r){
+    if(!currentTechIdentity) return true;
+    return r.assignedTo === currentTechIdentity || !r.assignedTo;
+  }
   let techSearch = '';
   function matchesSearch(r){
     if(!techSearch) return true;
@@ -2602,7 +2634,7 @@
     const listEl = document.getElementById('dpList');
     if(!listEl) return;
     const list = cachedRecords
-      .filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done' && matchesSearch(r))
+      .filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done' && matchesSearch(r) && inMyScope(r))
       .sort((a,b) => (b.ts||0) - (a.ts||0));
     const cnt = document.getElementById('dpCount');
     if(cnt) cnt.textContent = list.length;
@@ -2617,30 +2649,18 @@
     };
     const groupOf = r => (dpFlowOf(r) && r.dpStage) ? r.dpStage : 'none';
 
-    // 階段篩選選單
+    // 篩選：全部 / 尚未選擇情形 / I / II
     const filterSel = document.getElementById('dpStageFilter');
+    const noneList = list.filter(r => !dpFlowOf(r));
+    const flowList = f => list.filter(r => dpFlowOf(r) === f);
     if(filterSel){
-      const present = DP_STAGE_ORDER.filter(k => list.some(r => r.dpStage === k));
-      const want = ['all'].concat(present)
-        .concat(list.some(r => r.dpNoNextAppt) ? ['nonext'] : [])
-        .concat(list.some(r => !r.dpStage || !dpFlowOf(r)) ? ['none'] : []);
-      const cur = want.includes(dpStageFilter) ? dpStageFilter : 'all';
-      dpStageFilter = cur;
-      const html = want.map(k =>
-        `<option value="${k}" ${k===cur?'selected':''}>${k==='all' ? '全部（看板檢視）' : (k==='none' ? '尚未選擇情形／階段' : stageLabel(k))}</option>`).join('');
+      const opts = [['all','全部'], ['none',`尚未選擇情形（${noneList.length}）`]]
+        .concat(Object.keys(DP_FLOWS).map(f => [f, `${DP_FLOWS[f].label}（${flowList(f).length}）`]));
+      if(!opts.some(([v]) => v === dpStageFilter)) dpStageFilter = 'all';
+      const html = opts.map(([v, t]) => `<option value="${v}" ${v===dpStageFilter?'selected':''}>${esc(t)}</option>`).join('');
       if(filterSel.innerHTML !== html) filterSel.innerHTML = html;
     }
     if(list.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有進行中的數位規劃</div>'; return; }
-
-    // 要顯示哪些欄
-    let cols;
-    if(dpStageFilter === 'all') cols = DP_STAGE_ORDER.concat(['none']);
-    else if(dpStageFilter === 'nonext') cols = ['nonext'];
-    else cols = [dpStageFilter];
-
-    const cardsOf = k => k === 'nonext'
-      ? list.filter(r => r.dpNoNextAppt)
-      : list.filter(r => groupOf(r) === k);
 
     const cardHTML = r => {
       const flow = dpFlowOf(r);
@@ -2665,14 +2685,32 @@
           <div class="dp-card-actions">${stageSel}<button type="button" class="ghost dpOpenBtn" data-id="${r.id}">詳情</button></div>
         </div>`;
     };
-
-    listEl.innerHTML = `<div class="dp-board">` + cols.map(k => {
-      const cards = cardsOf(k);
-      return `<div class="dp-col">
-          <div class="dp-col-head">${k === 'none' ? '尚未選擇情形' : esc(stageLabel(k))}<span class="dp-col-count">${cards.length}</span></div>
-          <div class="dp-col-body">${cards.length ? cards.map(cardHTML).join('') : '<div class="dp-col-empty">—</div>'}</div>
+    const colHTML = (title, cards, cls) => `<div class="dp-col ${cls || ''}">
+        <div class="dp-col-head">${title}<span class="dp-col-count">${cards.length}</span></div>
+        <div class="dp-col-body">${cards.length ? cards.map(cardHTML).join('') : '<div class="dp-col-empty">—</div>'}</div>
+      </div>`;
+    // 某個情形的一整段：每個步驟一欄
+    const flowSection = f => {
+      const items = flowList(f);
+      const steps = DP_FLOWS[f].steps;
+      const unset = items.filter(r => !steps.some(st => st.k === r.dpStage));
+      const cols = (unset.length ? [colHTML('未設定階段', unset)] : [])
+        .concat(steps.map(st => colHTML(esc(st.t), items.filter(r => r.dpStage === st.k))));
+      return `<div class="dp-section dp-section-${f}">
+          <div class="dp-section-title">${esc(DP_FLOWS[f].label)}<span>${items.length} 張</span></div>
+          <div class="dp-section-cols">${cols.join('')}</div>
         </div>`;
-    }).join('') + `</div>`;
+    };
+    const noneSection = () => `<div class="dp-section dp-section-none">
+        <div class="dp-section-title">尚未選擇情形<span>${noneList.length} 張</span></div>
+        <div class="dp-section-cols">${colHTML('請先選 I 或 II', noneList, 'dp-col-none')}</div>
+      </div>`;
+
+    let html;
+    if(dpStageFilter === 'none') html = noneSection();
+    else if(DP_FLOWS[dpStageFilter]) html = flowSection(dpStageFilter);
+    else html = (noneList.length ? noneSection() : '') + Object.keys(DP_FLOWS).map(flowSection).join('');
+    listEl.innerHTML = `<div class="dp-board">${html}</div>`;
 
     listEl.querySelectorAll('.dpFlowSel').forEach(sel => sel.addEventListener('change', () => setDpFlow(sel.dataset.id, sel.value)));
     listEl.querySelectorAll('.dpStageSel').forEach(sel => sel.addEventListener('change', () => {
@@ -2683,6 +2721,9 @@
     }));
     listEl.querySelectorAll('.dpOpenBtn').forEach(b => b.addEventListener('click', () => showCalendarOrderModal(b.dataset.id)));
   }
+
+  const dpStageFilterEl = document.getElementById('dpStageFilter');
+  if(dpStageFilterEl) dpStageFilterEl.addEventListener('change', e => { dpStageFilter = e.target.value; drawDigitalPlanList(); });
 
   function drawHistoryList(){
     const listEl = document.getElementById('historyList');
@@ -2743,7 +2784,7 @@
     const d = new Date(r.ts || Date.now()); // no completion date: fall back to the submit month
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   }
-  function allDoneRecords(){ return cachedRecords.filter(r => !r.deleted && r.status === 'done'); }
+  function allDoneRecords(){ return cachedRecords.filter(r => !r.deleted && r.status === 'done' && inMyScope(r)); }
   function doneRecordsForMonth(month){
     return allDoneRecords().filter(r => doneMonthKey(r) === month && matchesSearch(r)).sort((a,b) => {
       const da = a.completedDate || '';
@@ -2800,7 +2841,7 @@
           <div class="summary-body">${buildFullOrderHTML(r)}</div>
         </details>`;
       if(openIds.has(r.id)) div.querySelector('.rec-details').open = true;
-      groupBox.appendChild(div);
+      listEl.appendChild(div);
     });
     listEl.querySelectorAll('.assignSel').forEach(s => s.addEventListener('change', () => setAssignee(s.dataset.id, s.value)));
     listEl.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
@@ -3142,7 +3183,7 @@
       else if(gov && gov.off && gov.name && !isMakeupHoliday(dateStr)) tag = `<span class="cal-gov-tag">${esc(gov.name)}</span>`;
       const maxChip = isWeek ? 8 : 3;
       const apptChips = appts.slice(0, isWeek ? 6 : 2).map(a =>
-        `<div class="cal-chip cal-chip-appt" data-id="${a.r.id}" title="${esc(a.label)}：${esc(a.r.patient || '')}">約 ${esc(a.r.patient || '(未填)')}${a.label ? '·' + esc(a.label) : ''}</div>`
+        `<div class="cal-chip cal-chip-appt${a.r.status==='done' ? ' cal-chip-done' : ''}" data-id="${a.r.id}" title="${esc(a.label)}：${esc(a.r.patient || '')}">約 ${esc(a.r.patient || '(未填)')}${a.label ? '·' + esc(a.label) : ''}</div>`
       ).join('');
       const chips = apptChips + orders.slice(0, maxChip).map(x => {
         const stage = isDigitalPlan(x) ? dpStageLabel(x) : '';
@@ -3292,6 +3333,9 @@
     loadRecord(id);
     currentEditingId = id;
     currentEditReturnRole = 'tech';
+    document.body.classList.add('tech-editing');
+    const topbar = document.querySelector('#submitView > .view-topbar');
+    if(topbar) topbar.style.display = 'none';
     document.getElementById('editModeBanner').style.display = 'flex';
     document.getElementById('btnSubmit').textContent = '儲存修改';
     applyRole('submit'); // temporarily reveal the form so the technician can edit it
@@ -3301,6 +3345,9 @@
     currentEditingId = null;
     document.getElementById('editModeBanner').style.display = 'none';
     document.getElementById('btnSubmit').textContent = '送出並儲存紀錄';
+    document.body.classList.remove('tech-editing');
+    const topbar = document.querySelector('#submitView > .view-topbar');
+    if(topbar) topbar.style.display = '';
     if(currentEditReturnRole === 'tech'){
       applyRole('tech');
       renderTechView();
@@ -3321,6 +3368,7 @@
       const d = await askCompletionDate(rec.completedDate);
       if(!d){ renderTechView(); return; }        // 取消就還原下拉選單
       rec.completedDate = d;
+      doneMonth = d.slice(0, 7);                 // 已完成分頁切到這張單的月份
     }
     rec.status = status;
     try{ await fsSet(id, rec); }catch(e){ alert('更新狀態失敗'); }
@@ -3634,8 +3682,15 @@
     });
   }
 
+  const OLD_I_STAGE_MAP = { ct:'planwait', plan:'plandone' };
   function handleRecordsUpdate(recs){
     cachedRecords = recs;
+    recs.forEach(r => {
+      if(r.dpFlow === 'I' && OLD_I_STAGE_MAP[r.dpStage]){
+        r.dpStage = OLD_I_STAGE_MAP[r.dpStage];
+        fsSet(r.id, r).catch(e => console.error(e));
+      }
+    });
     if(lastKnownSeenTs === null){
       const stored = parseInt(localGet(LAST_SEEN_KEY), 10);
       lastKnownSeenTs = isNaN(stored) ? null : stored;
