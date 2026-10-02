@@ -659,6 +659,8 @@
     border:1px solid var(--line); border-radius:3px; background:#fff; color:var(--ink);
   }
   .dp-card-actions button{ font-size:11.5px; padding:4px 10px; }
+  .dp-card-assign{ margin-bottom:6px; }
+  .dp-card-assign span{ font-size:11.5px; color:var(--muted); flex:none; }
   .dp-group{ margin:14px 0 8px; }
   .dp-group-head{
     font-size:12.5px; font-weight:700; color:#2E5AA8; background:#EAF2FE;
@@ -2858,7 +2860,8 @@
             ${dueDateBadgeHTML(r)}
           </div>
           <div class="dp-card-title">${esc(r.patient || '(未填患者)')}</div>
-          <div class="dp-card-sub">病歷號 ${esc(r.chartNo || '-')}<br>醫師 ${esc(r.doctor || '-')} ・ ${esc(r.assignedTo || '未處理')}</div>
+          <div class="dp-card-sub">病歷號 ${esc(r.chartNo || '-')}<br>醫師 ${esc(r.doctor || '-')}</div>
+          <div class="dp-card-actions dp-card-assign"><span>負責人</span>${assigneeSelectHTML(r)}</div>
           <div class="dp-card-actions">${stageSel}<button type="button" class="ghost dpOpenBtn" data-id="${r.id}">詳情</button></div>
           ${flow ? `<div class="dp-card-actions" style="margin-top:6px;">
             ${(r.handoffPending && r.handoffPending.to === currentTechIdentity) ? `<button type="button" class="primary btn-accept dpAcceptBtn" data-id="${r.id}">確認接手</button>` : ''}
@@ -2900,6 +2903,7 @@
       setDpStage(sel.dataset.id, sel.value);
     }));
     listEl.querySelectorAll('.dpOpenBtn').forEach(b => b.addEventListener('click', () => showCalendarOrderModal(b.dataset.id)));
+    listEl.querySelectorAll('.assignSel').forEach(sel => sel.addEventListener('change', () => setAssignee(sel.dataset.id, sel.value)));
     listEl.querySelectorAll('.dpHandoffBtn').forEach(b => b.addEventListener('click', () => openHandoffModal(b.dataset.id)));
     listEl.querySelectorAll('.dpAcceptBtn').forEach(b => b.addEventListener('click', () => acceptHandoff(b.dataset.id)));
   }
@@ -3427,6 +3431,7 @@
     stSel.innerHTML = [['pending','待處理'], ['in_progress','處理中'], ['done','已完成']]
       .map(([v, t]) => `<option value="${v}" ${st===v?'selected':''}>${t}</option>`).join('');
     stSel.onchange = () => setStatus(id, stSel.value);
+    stSel.style.display = isDigitalPlan(rec) ? 'none' : '';   // 數位規劃用流程步驟管理，不需要狀態選單
     const asSel = document.getElementById('calOrderAssign');
     const av = rec.assignedTo || '';
     asSel.innerHTML = ['<option value="">未處理</option>']
