@@ -295,6 +295,61 @@
   .plan-deadline-notes textarea:focus{ border-color:var(--clay); }
 
   /* tooth chart */
+  .tt-quad, [data-area-cell]{ transition:background .15s ease; }
+  .area-on-q{ background:#FCE3DD !important; }
+  .area-on-arch{ background:#FFEFCF !important; }
+  .ro-tooth-areas{ font-size:13px; font-weight:700; color:var(--accent-dark); margin-bottom:8px; }
+  .tchart{ border:1px solid var(--line); border-radius:6px; background:#fff; overflow:hidden; }
+  .tchart-cap{
+    display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    font-size:11px; color:var(--muted); padding:7px 12px; background:#FBF8F7;
+    border-bottom:1px solid var(--line); letter-spacing:.5px;
+  }
+  .tchart-cap span:first-child{ font-weight:700; letter-spacing:2px; color:var(--accent-dark); }
+  .arch-bar{ display:block; cursor:pointer; user-select:none; }
+  .arch-bar input, .q-head input{ position:absolute; opacity:0; width:0; height:0; }
+  .arch-bar span{
+    display:flex; align-items:center; justify-content:center; padding:7px;
+    font-size:12.5px; font-weight:700; letter-spacing:6px; color:#B9771A; background:#FFF8EA;
+    transition:all .12s ease;
+  }
+  .arch-top span{ border-bottom:1px solid var(--line); }
+  .arch-bottom span{ border-top:1px solid var(--line); }
+  .arch-bar:hover span{ background:#FFEFCF; }
+  .arch-bar input:checked + span{ background:#E9A93A; color:#fff; }
+  .tchart-grid{ display:grid; grid-template-columns:1fr 1fr; }
+  .tq{ padding:10px 12px; display:flex; flex-direction:column; gap:8px; transition:background .15s ease; }
+  .tq-ur, .tq-lr{ border-right:2px solid #E6D9D6; }
+  .tq-ur, .tq-ul{ border-bottom:2px solid #E6D9D6; }
+  .tq-ur .tt-quad, .tq-lr .tt-quad{ justify-content:flex-end; }
+  .tq-ul .tt-quad, .tq-ll .tt-quad{ justify-content:flex-start; }
+  .tq-ul .q-head, .tq-ll .q-head{ align-self:flex-end; }
+  .tq .tt-quad{ padding:0; border:none !important; gap:4px; flex-wrap:nowrap; }
+  .q-head{ cursor:pointer; user-select:none; align-self:flex-start; }
+  .q-head span{
+    display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--muted);
+    padding:2px 8px 2px 2px; border:1px solid transparent; border-radius:999px; transition:all .12s ease;
+  }
+  .q-head b{
+    display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px;
+    border-radius:50%; border:1.5px solid #E7B4AA; color:var(--danger); font-size:11.5px;
+  }
+  .q-head:hover span{ border-color:var(--line); }
+  .q-head input:checked + span{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .q-head input:checked + span b{ border-color:#fff; color:#fff; }
+  .tchart.ro .arch-bar, .tchart.ro .q-head{ cursor:default; }
+  .arch-bar.ro.on span{ background:#E9A93A; color:#fff; }
+  .q-head.ro.on > span{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .q-head.ro.on > span b{ border-color:#fff; color:#fff; }
+  .tchart.ro .tooth-btn{ cursor:default; }
+  .tq.area-on-q{ background:#FDEBE7 !important; }
+  .tq.area-on-arch{ background:#FFF3DB !important; }
+  .tq .tt-quad.area-on-q, .tq .tt-quad.area-on-arch{ background:transparent !important; }
+  @media (max-width:640px){
+    .tq{ padding:8px 6px; }
+    .tq .tt-quad{ gap:2px; }
+    .tq .tooth-btn{ width:24px; height:26px; font-size:11px; border-radius:4px; }
+  }
   .tooth-table{
     border:1px solid var(--line);
     border-radius:10px;
@@ -1156,7 +1211,11 @@
       <div class="grid-header">
         <div class="cell"><label>患者 <span class="req-star">*</span></label><input id="f_patient" type="text" placeholder="姓名" /></div>
         <div class="cell"><label>收件日 <span class="req-star">*</span></label><input id="f_receiveDate" type="date" /></div>
-        <div class="cell"><label>登記者 <span class="req-star">*</span></label><input id="f_registrar" type="text" placeholder="登記人員" /></div>
+        <div class="cell">
+          <label>登記者 <span class="req-star">*</span></label>
+          <select id="f_registrar"></select>
+          <input id="f_registrarOther" type="text" placeholder="請輸入登記者姓名" class="doctor-other-input" style="display:none;" />
+        </div>
         <div class="cell">
           <label>醫師 <span class="req-star">*</span></label>
           <select id="f_doctor"></select>
@@ -1330,24 +1389,28 @@
       <!-- tooth chart -->
       <div class="section">
         <h2>牙位</h2>
-        <div class="tooth-table">
-          <div class="tt-band">恆牙</div>
-          <div class="tt-row tt-title">
-            <div>右上 / UPPER RIGHT</div>
-            <div>左上 / UPPER LEFT</div>
+        <div class="tchart">
+          <div class="tchart-cap"><span>恆牙・FDI</span><span>點牙齒選單顆；點「上顎／下顎」或象限編號選範圍</span></div>
+          <label class="arch-bar arch-top"><input type="checkbox" data-key="tooth_upper" /><span>上顎</span></label>
+          <div class="tchart-grid">
+            <div class="tq tq-ur" data-area-cell="tooth_ur">
+              <label class="q-head"><input type="checkbox" data-key="tooth_q1" /><span><b>1</b>右上 UR</span></label>
+              <div class="tt-quad" data-quad="tooth_ur"></div>
+            </div>
+            <div class="tq tq-ul" data-area-cell="tooth_ul">
+              <label class="q-head"><input type="checkbox" data-key="tooth_q2" /><span><b>2</b>左上 UL</span></label>
+              <div class="tt-quad" data-quad="tooth_ul"></div>
+            </div>
+            <div class="tq tq-lr" data-area-cell="tooth_lr">
+              <div class="tt-quad" data-quad="tooth_lr"></div>
+              <label class="q-head"><input type="checkbox" data-key="tooth_q4" /><span><b>4</b>右下 LR</span></label>
+            </div>
+            <div class="tq tq-ll" data-area-cell="tooth_ll">
+              <div class="tt-quad" data-quad="tooth_ll"></div>
+              <label class="q-head"><input type="checkbox" data-key="tooth_q3" /><span><b>3</b>左下 LL</span></label>
+            </div>
           </div>
-          <div class="tt-row tt-nums">
-            <div class="tt-quad" data-quad="tooth_ur"></div>
-            <div class="tt-quad" data-quad="tooth_ul"></div>
-          </div>
-          <div class="tt-row tt-title">
-            <div>右下 / LOWER RIGHT</div>
-            <div>左下 / LOWER LEFT</div>
-          </div>
-          <div class="tt-row tt-nums">
-            <div class="tt-quad" data-quad="tooth_lr"></div>
-            <div class="tt-quad" data-quad="tooth_ll"></div>
-          </div>
+          <label class="arch-bar arch-bottom"><input type="checkbox" data-key="tooth_lower" /><span>下顎</span></label>
         </div>
         <input type="hidden" data-key="tooth_ur" />
         <input type="hidden" data-key="tooth_ul" />
@@ -1632,6 +1695,38 @@
       {name:'林喜韻', code:'07895'}
     ]}
   ];
+  // ---- 登記者名單 ----
+  const REGISTRARS = [
+    {name:'林月珍', code:'00797'}, {name:'吳心如', code:'03803'}, {name:'王怡婷', code:'04703'},
+    {name:'賴易相', code:'12731'}, {name:'林育瑩', code:'12732'}, {name:'卓慧美', code:'12733'},
+    {name:'周亭妤', code:'12734'}, {name:'張慧娟', code:'12854'}, {name:'鄭雅尹', code:'13575'},
+    {name:'李翊綺', code:'14481'}, {name:'曾婉俞', code:'13970'}, {name:'江玟靜', code:'15254'},
+    {name:'李緹偵', code:'15532'}, {name:'陳彥如', code:'13234'}, {name:'侯承瑜', code:'11971'},
+    {name:'李岳玲', code:'16335'}, {name:'賴亭慈', code:'15645'}, {name:'張芝睿', code:'16797'},
+    {name:'劉芋漣', code:'12826'}, {name:'謝秀環', code:'01209'}, {name:'商予恩', code:'15858'},
+    {name:'張堅雯', code:'14652'}, {name:'洪菁優', code:'15898'}
+  ];
+  function populateRegistrarSelect(){
+    const sel = document.getElementById('f_registrar');
+    if(!sel) return;
+    sel.innerHTML = '<option value="">請選擇登記者</option>'
+      + REGISTRARS.map(p => `<option value="${p.name}">${p.name}（${p.code}）</option>`).join('')
+      + '<option value="__other__">其他（自行填寫）</option>';
+  }
+  function getRegistrarValue(){
+    const sel = document.getElementById('f_registrar');
+    if(sel.value === '__other__') return document.getElementById('f_registrarOther').value.trim();
+    return sel.value;
+  }
+  function setRegistrarField(name){
+    const sel = document.getElementById('f_registrar');
+    const other = document.getElementById('f_registrarOther');
+    const found = REGISTRARS.some(p => p.name === name);
+    if(name && found){ sel.value = name; other.style.display = 'none'; other.value = ''; }
+    else if(name){ sel.value = '__other__'; other.style.display = 'block'; other.value = name; }
+    else{ sel.value = ''; other.style.display = 'none'; other.value = ''; }
+  }
+
   function populateDoctorSelect(){
     const sel = document.getElementById('f_doctor');
     let html = '<option value="">請選擇醫師</option>';
@@ -1646,6 +1741,13 @@
     sel.innerHTML = html;
   }
   populateDoctorSelect();
+  populateRegistrarSelect();
+  document.getElementById('f_registrar').addEventListener('change', () => {
+    const sel = document.getElementById('f_registrar');
+    const other = document.getElementById('f_registrarOther');
+    if(sel.value === '__other__'){ other.style.display = 'block'; other.focus(); }
+    else{ other.style.display = 'none'; other.value = ''; }
+  });
   document.getElementById('f_doctor').addEventListener('change', () => {
     const sel = document.getElementById('f_doctor');
     const other = document.getElementById('f_doctorOther');
@@ -1865,6 +1967,38 @@
     return `<div class="grid-header ro-grid">${rows.map(([label,val]) =>
       `<div class="cell"><label>${label}</label><div class="ro-val">${esc(val || '-')}</div></div>`).join('')}</div>`;
   }
+  // 範圍勾選 → 要上色的象限
+  const AREA_TO_QUADS = {
+    tooth_q1:['tooth_ur'], tooth_q2:['tooth_ul'], tooth_q3:['tooth_ll'], tooth_q4:['tooth_lr'],
+    tooth_upper:['tooth_ur','tooth_ul'], tooth_lower:['tooth_lr','tooth_ll']
+  };
+  function areaClassFor(quad, items){
+    const arch = (quad === 'tooth_ur' || quad === 'tooth_ul') ? 'tooth_upper' : 'tooth_lower';
+    if(items[arch]) return 'area-on-arch';
+    const q = Object.keys(AREA_TO_QUADS).find(k => k.startsWith('tooth_q') && AREA_TO_QUADS[k][0] === quad);
+    return q && items[q] ? 'area-on-q' : '';
+  }
+  function refreshToothAreaHighlight(){
+    const items = {};
+    Object.keys(AREA_TO_QUADS).forEach(k => {
+      const el = document.querySelector(`#submitView [data-key="${k}"]`);
+      items[k] = !!(el && el.checked);
+    });
+    ['tooth_ur','tooth_ul','tooth_lr','tooth_ll'].forEach(quad => {
+      const cls = areaClassFor(quad, items);
+      document.querySelectorAll(`#submitView [data-quad="${quad}"], #submitView [data-area-cell="${quad}"]`).forEach(el => {
+        el.classList.remove('area-on-q', 'area-on-arch');
+        if(cls) el.classList.add(cls);
+      });
+    });
+  }
+  const TOOTH_AREAS = [
+    ['tooth_upper','上顎',16], ['tooth_lower','下顎',16],
+    ['tooth_q1','1（右上）',8], ['tooth_q2','2（左上）',8], ['tooth_q3','3（左下）',8], ['tooth_q4','4（右下）',8]
+  ];
+  function toothAreasText(items){
+    return TOOTH_AREAS.filter(([k]) => items[k]).map(([, t]) => t).join('、');
+  }
   function renderToothRO(items){
     const groups = [
       ['tooth_ur','右上 / UPPER RIGHT'], ['tooth_ul','左上 / UPPER LEFT'],
@@ -1874,13 +2008,19 @@
     groups.forEach(([k]) => { selected[k] = (items[k] || '').split(',').map(s => s.trim()).filter(Boolean); });
     const quad = (key) => (TOOTH_NUMS[key] || []).map(num =>
       `<div class="tooth-btn${selected[key].includes(String(num)) ? ' active' : ''}">${num}</div>`).join('');
+    const ac = key => areaClassFor(key, items);
+    const on = k => items[k] ? ' on' : '';
+    const head = (k, n, t) => `<span class="q-head ro${on(k)}"><span><b>${n}</b>${t}</span></span>`;
     return `<h2>牙位</h2>
-      <div class="tooth-table">
-        <div class="tt-band">恆牙</div>
-        <div class="tt-row tt-title"><div>${groups[0][1]}</div><div>${groups[1][1]}</div></div>
-        <div class="tt-row tt-nums"><div class="tt-quad">${quad('tooth_ur')}</div><div class="tt-quad">${quad('tooth_ul')}</div></div>
-        <div class="tt-row tt-title"><div>${groups[2][1]}</div><div>${groups[3][1]}</div></div>
-        <div class="tt-row tt-nums"><div class="tt-quad">${quad('tooth_lr')}</div><div class="tt-quad">${quad('tooth_ll')}</div></div>
+      <div class="tchart ro">
+        <div class="arch-bar arch-top ro${on('tooth_upper')}"><span>上顎</span></div>
+        <div class="tchart-grid">
+          <div class="tq tq-ur ${ac('tooth_ur')}">${head('tooth_q1','1','右上 UR')}<div class="tt-quad">${quad('tooth_ur')}</div></div>
+          <div class="tq tq-ul ${ac('tooth_ul')}">${head('tooth_q2','2','左上 UL')}<div class="tt-quad">${quad('tooth_ul')}</div></div>
+          <div class="tq tq-lr ${ac('tooth_lr')}"><div class="tt-quad">${quad('tooth_lr')}</div>${head('tooth_q4','4','右下 LR')}</div>
+          <div class="tq tq-ll ${ac('tooth_ll')}"><div class="tt-quad">${quad('tooth_ll')}</div>${head('tooth_q3','3','左下 LL')}</div>
+        </div>
+        <div class="arch-bar arch-bottom ro${on('tooth_lower')}"><span>下顎</span></div>
       </div>`;
   }
   function buildFullOrderHTML(r){
@@ -1924,7 +2064,8 @@
     return `<div class="section edit-log-section"><h2>轉單紀錄</h2>${rows}</div>`;
   }
   const TOP_FIELD_LABELS = { patient:'患者', receiveDate:'收件日', registrar:'登記者', doctor:'醫師', apptDate:'約診日', chartNo:'病歷號碼' };
-  const TOOTH_FIELD_LABELS = { tooth_ur:'牙位-右上', tooth_ul:'牙位-左上', tooth_lr:'牙位-右下', tooth_ll:'牙位-左下' };
+  const TOOTH_FIELD_LABELS = { tooth_ur:'牙位-右上', tooth_ul:'牙位-左上', tooth_lr:'牙位-右下', tooth_ll:'牙位-左下',
+    tooth_upper:'牙位-上顎', tooth_lower:'牙位-下顎', tooth_q1:'牙位-1（右上）', tooth_q2:'牙位-2（左上）', tooth_q3:'牙位-3（左下）', tooth_q4:'牙位-4（右下）' };
   function itemFieldLabel(key){
     for(const def of ITEM_DEFS){
       if(def.key === key) return def.label;
@@ -2072,7 +2213,7 @@
   function collectForm(){
     const data = { patient: document.getElementById('f_patient').value,
       receiveDate: document.getElementById('f_receiveDate').value,
-      registrar: document.getElementById('f_registrar').value,
+      registrar: getRegistrarValue(),
       doctor: getDoctorValue(),
       chartNo: normalizeChartNo(document.getElementById('f_chartNo').value),
       items: {} };
@@ -2129,7 +2270,6 @@
     const checks = [
       { el: document.getElementById('f_patient'), label:'患者' },
       { el: document.getElementById('f_receiveDate'), label:'收件日' },
-      { el: document.getElementById('f_registrar'), label:'登記者' },
       { el: document.getElementById('f_chartNo'), label:'病歷號碼' }
     ];
     checks.forEach(c => {
@@ -2139,6 +2279,13 @@
         invalids.push(c.label);
       }
     });
+    const regSel = document.getElementById('f_registrar');
+    const regOther = document.getElementById('f_registrarOther');
+    regSel.classList.remove('field-invalid'); regOther.classList.remove('field-invalid');
+    if(!getRegistrarValue()){
+      (regSel.value === '__other__' ? regOther : regSel).classList.add('field-invalid');
+      invalids.push('登記者');
+    }
     const doctorSel = document.getElementById('f_doctor');
     const doctorOther = document.getElementById('f_doctorOther');
     doctorSel.classList.remove('field-invalid');
@@ -2164,6 +2311,7 @@
 
   document.getElementById('submitView').addEventListener('change', e => {
     if(e.target.matches('[data-key], #f_receiveDate')) refreshDueDateHint();
+    if(e.target.matches('.arch-bar input, .q-head input')) refreshToothAreaHighlight();
     if(e.target.matches('[data-key="dp_implant"]') && e.target.checked){
       alert('植牙規劃，若缺牙、假牙多、沒有咬合關係，請先印模做 CT 模板。');
     }
@@ -2171,7 +2319,8 @@
   document.addEventListener('toothchange', refreshDueDateHint);
 
   function clearForm(){
-    ['f_patient','f_registrar','f_chartNo'].forEach(id => document.getElementById(id).value = '');
+    ['f_patient','f_chartNo'].forEach(id => document.getElementById(id).value = '');
+    setRegistrarField('');
     setDoctorField('');
     document.getElementById('f_receiveDate').value = todayISO();
     document.querySelectorAll('[data-key]').forEach(el => {
@@ -2181,6 +2330,7 @@
     document.querySelectorAll('.tooth-btn.active').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.field-invalid').forEach(el => el.classList.remove('field-invalid'));
     refreshDueDateHint();
+    refreshToothAreaHighlight();
   }
   document.getElementById('btnClear').addEventListener('click', () => {
     if(confirm('確定要清除整份表單嗎？')){
@@ -2228,6 +2378,7 @@
     if(!count) return TEETH_TIERS[0].days; // 沒選牙位時以最短天數計
     return (TEETH_TIERS.find(t => count <= t.max) || TEETH_TIERS[TEETH_TIERS.length-1]).days;
   }
+  // 只算單顆牙位；上顎、下顎、象限的勾選不計入顆數
   function countSelectedTeeth(items){
     return ['tooth_ur','tooth_ul','tooth_lr','tooth_ll']
       .reduce((n, k) => n + String(items[k] || '').split(',').filter(Boolean).length, 0);
@@ -3064,9 +3215,11 @@
   }
   // Excel 用：牙位只列數字
   function toothSummaryText(items){
-    return ['tooth_ur','tooth_ul','tooth_lr','tooth_ll']
+    const nums = ['tooth_ur','tooth_ul','tooth_lr','tooth_ll']
       .flatMap(k => String(items[k] || '').split(',').map(x => x.trim()).filter(Boolean))
       .join(',');
+    const areas = toothAreasText(items);
+    return [areas, nums].filter(Boolean).join('；');
   }
   function buildExcelRow(r){
     const items = r.items || {};
@@ -3507,7 +3660,7 @@
     document.querySelectorAll('.field-invalid').forEach(el => el.classList.remove('field-invalid'));
     document.getElementById('f_patient').value = r.patient || '';
     document.getElementById('f_receiveDate').value = r.receiveDate || '';
-    document.getElementById('f_registrar').value = r.registrar || '';
+    setRegistrarField(r.registrar || '');
     setDoctorField(r.doctor || '');
     document.getElementById('f_chartNo').value = r.chartNo || '';
     document.querySelectorAll('[data-key]').forEach(el => {
@@ -3519,6 +3672,7 @@
     });
     syncToothButtonsFromHidden();
     refreshDueDateHint();
+    refreshToothAreaHighlight();
     window.scrollTo({top:0, behavior:'smooth'});
   }
 
