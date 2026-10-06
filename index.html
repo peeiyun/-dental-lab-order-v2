@@ -900,6 +900,22 @@
   .view{ display:none; }
   body.role-submit #submitView{ display:block; }
   body.role-tech #techView{ display:block; }
+  body.role-techlogin #techLoginView{ display:block; }
+  .login-box{
+    max-width:360px; margin:60px auto; background:#fff; border:1px solid var(--line);
+    border-radius:8px; padding:28px 26px; display:flex; flex-direction:column; gap:8px;
+  }
+  .login-icon{ width:64px; height:64px; align-self:center; }
+  .login-box h2{ text-align:center; margin:4px 0 0; font-size:18px; color:var(--ink); }
+  .login-sub{ text-align:center; font-size:12px; color:var(--muted); margin:0 0 8px; }
+  .login-box label{ font-size:12px; font-weight:600; color:var(--muted); }
+  .login-box input{
+    font-family:inherit; font-size:14px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:4px; outline:none;
+  }
+  .login-box input:focus{ border-color:var(--accent); }
+  .login-box button{ padding:10px; font-size:14px; }
+  .login-error{ min-height:18px; font-size:12px; color:var(--danger); }
   body.role-none #roleSelect{ display:block; }
   #roleSelect{ display:none; }
 
@@ -1035,6 +1051,7 @@
      ============================================================ -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
   const firebaseConfig = {
@@ -1185,6 +1202,25 @@
         <div class="title">我是牙技師</div>
         <div class="desc">接收通知、查看與處理技工單</div>
       </div>
+    </div>
+  </div>
+
+  <div class="view" id="techLoginView">
+    <div class="login-box">
+      <svg class="login-icon" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M30 32 C30 16 44 13 50 19 C56 13 70 16 70 32 C70 47 64 54 62 66 C60 78 54 82 52 72 C50.5 64 50 61 50 61 C50 61 49.5 64 48 72 C46 82 40 78 38 66 C36 54 30 47 30 32 Z" fill="#9ED9CA"/>
+        <line x1="62" y1="86" x2="86" y2="54" stroke="#2E8B72" stroke-width="6" stroke-linecap="round"/>
+        <path d="M86 54 Q92 46 88 40" fill="none" stroke="#2E8B72" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+      <h2>牙技師登入</h2>
+      <p class="login-sub">送單者不需要登入，請回上一頁選「我是送單者」。</p>
+      <label for="loginAccount">帳號（員編）</label>
+      <input type="text" id="loginAccount" placeholder="例如 14652" autocomplete="username" />
+      <label for="loginPassword">密碼</label>
+      <input type="password" id="loginPassword" autocomplete="current-password" />
+      <div class="login-error" id="loginError"></div>
+      <button type="button" class="primary" id="btnLogin">登入</button>
+      <button type="button" class="ghost" id="btnLoginBack">返回</button>
     </div>
   </div>
 
@@ -1471,6 +1507,7 @@
       <button type="button" class="identity-btn" data-name="菁優">菁優</button>
     </span>
     <button type="button" class="ghost" id="btnChangeIdentity" style="display:none;">切換身份</button>
+    <button type="button" class="ghost" id="btnLogout">登出</button>
   </div>
 
   <div class="handoff-banner" id="handoffBanner" style="display:none;"></div>
@@ -1793,26 +1830,77 @@
   const TECH_NAMES = ['堅雯', '菁優'];
   const TECH_IDENTITY_KEY = 'tech_identity';
   let currentTechIdentity = null;
+  // 牙技師帳號（Firebase Authentication 的 email）→ 姓名
+  const TECH_ACCOUNTS = {
+    '14652@cych.org.tw': '堅雯',
+    '15898@cych.org.tw': '菁優'
+  };
+  const LOGIN_DOMAIN = '@cych.org.tw';
+  const auth = firebase.auth();
+  let authUser = null;
+  function techNameOf(user){ return user && user.email ? (TECH_ACCOUNTS[user.email.toLowerCase()] || null) : null; }
+  auth.onAuthStateChanged(user => {
+    authUser = user;
+    const name = techNameOf(user);
+    if(user && !name){                         // 不是牙技師帳號
+      auth.signOut();
+      return;
+    }
+    // 在登入畫面等待時，登入成功就直接進牙技師畫面
+    if(name && document.body.classList.contains('role-techlogin')) enterTechView();
+    // 在牙技師畫面時被登出，就回到登入畫面
+    if(!name && document.body.classList.contains('role-tech')) applyRole('techlogin');
+  });
+  function enterTechView(){
+    applyRole('tech');
+    onRoleActivated('tech');
+  }
+  async function doLogin(){
+    const accEl = document.getElementById('loginAccount');
+    const pwEl = document.getElementById('loginPassword');
+    const errEl = document.getElementById('loginError');
+    let acc = accEl.value.trim().toLowerCase();
+    if(acc && !acc.includes('@')) acc += LOGIN_DOMAIN;   // 只輸入員編也可以
+    errEl.textContent = '';
+    if(!acc || !pwEl.value){ errEl.textContent = '請輸入帳號和密碼'; return; }
+    if(!TECH_ACCOUNTS[acc]){ errEl.textContent = '這個帳號沒有牙技師權限'; return; }
+    const btn = document.getElementById('btnLogin');
+    btn.disabled = true; btn.textContent = '登入中…';
+    try{
+      await auth.signInWithEmailAndPassword(acc, pwEl.value);
+      pwEl.value = '';
+    }catch(e){
+      console.error(e);
+      errEl.textContent = (e && (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found'))
+        ? '帳號或密碼錯誤' : (e && e.code === 'auth/too-many-requests' ? '嘗試次數過多，請稍後再試' : '登入失敗，請檢查網路後再試');
+    }finally{
+      btn.disabled = false; btn.textContent = '登入';
+    }
+  }
+  document.getElementById('btnLogin').addEventListener('click', doLogin);
+  document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); });
+  document.getElementById('btnLoginBack').addEventListener('click', () => showRoleSelect());
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    if(!confirm('確定要登出嗎？')) return;
+    await auth.signOut();
+    showRoleSelect();
+  });
+
   function updateIdentityUI(){
     const label = document.getElementById('techIdentityLabel');
     const picker = document.getElementById('identityPicker');
     const changeBtn = document.getElementById('btnChangeIdentity');
     if(!label || !picker || !changeBtn) return;
-    if(currentTechIdentity){
-      label.textContent = `${currentTechIdentity}（只顯示自己負責與未處理的單）`;
-      picker.style.display = 'none';
-      changeBtn.style.display = 'inline-block';
-    }else{
-      label.textContent = '尚未選擇';
-      picker.style.display = 'inline-flex';
-      changeBtn.style.display = 'none';
-    }
+    picker.style.display = 'none';            // 身份由登入帳號決定，不再手動選
+    changeBtn.style.display = 'none';
+    label.textContent = currentTechIdentity
+      ? `${currentTechIdentity}（只顯示自己負責與未處理的單）`
+      : '未登入';
     // identity affects the calendar and the "my orders" counts, so redraw
     if(document.body.classList.contains('role-tech')) renderTechView();
   }
   function initTechIdentity(){
-    const saved = localGet(TECH_IDENTITY_KEY);
-    currentTechIdentity = (saved && TECH_NAMES.includes(saved)) ? saved : null;
+    currentTechIdentity = techNameOf(authUser);
     updateIdentityUI();
   }
   document.querySelectorAll('.identity-btn').forEach(b => {
@@ -1830,8 +1918,9 @@
   });
 
   function applyRole(role){
-    document.body.classList.remove('role-submit','role-tech','role-none');
-    document.body.classList.add(role === 'submit' ? 'role-submit' : role === 'tech' ? 'role-tech' : 'role-none');
+    document.body.classList.remove('role-submit','role-tech','role-none','role-techlogin');
+    const cls = { submit:'role-submit', tech:'role-tech', techlogin:'role-techlogin' }[role] || 'role-none';
+    document.body.classList.add(cls);
   }
   function showRoleSelect(){
     applyRole('none');
@@ -1842,12 +1931,18 @@
     }catch(e){}
   }
   function chooseRole(role){
-    applyRole(role);
     try{
       const url = new URL(window.location.href);
       url.searchParams.set('role', role);
       history.replaceState(null, '', url.toString());
     }catch(e){}
+    // 牙技師端一定要登入
+    if(role === 'tech' && !techNameOf(authUser)){
+      applyRole('techlogin');
+      setTimeout(() => { const a = document.getElementById('loginAccount'); if(a) a.focus(); }, 50);
+      return;
+    }
+    applyRole(role);
     onRoleActivated(role);
   }
   function onRoleActivated(role){
@@ -4042,7 +4137,7 @@
   const OLD_I_STAGE_MAP = { ct:'planwait', plan:'plandone' };
   function handleRecordsUpdate(recs){
     cachedRecords = recs;
-    recs.forEach(r => {
+    if(techNameOf(authUser)) recs.forEach(r => {
       if(r.dpFlow === 'I' && OLD_I_STAGE_MAP[r.dpStage]){
         r.dpStage = OLD_I_STAGE_MAP[r.dpStage];
         fsSet(r.id, r).catch(e => console.error(e));
