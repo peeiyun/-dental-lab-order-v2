@@ -1080,11 +1080,6 @@
     newOrder: false          // 送單者新開單（預設關閉，避免吃掉每月額度）
   };
 
-  // 新單通知的收件人
-  const NEW_ORDER_RECIPIENTS = [
-    { name:'堅雯', email:'14652@cych.org.tw' },
-    { name:'姵云', email:'16659@cych.org.tw' }
-  ];
 </script>
 </head>
 <body class="role-none">
@@ -1528,7 +1523,7 @@
         </select>
         <select id="calDoctorFilter" class="cal-ctl"><option value="">全部醫師</option></select>
         <span class="cal-scope-note" id="calScopeNote"></span>
-        <label class="sound-toggle cal-unassigned-toggle"><input type="checkbox" id="chkCalUnassigned" checked /> 含未處理（未指派）的單</label>
+        <label class="sound-toggle cal-unassigned-toggle"><input type="checkbox" id="chkCalUnassigned" /> 只看我負責的單</label>
       </div>
       <div class="calendar-grid" id="calendarGrid"></div>
     </details>
@@ -1833,7 +1828,8 @@
   // 牙技師帳號（Firebase Authentication 的 email）→ 姓名
   const TECH_ACCOUNTS = {
     '14652@cych.org.tw': '堅雯',
-    '15898@cych.org.tw': '菁優'
+    '15898@cych.org.tw': '菁優',
+    '16659@cych.org.tw': '姵云'
   };
   const LOGIN_DOMAIN = '@cych.org.tw';
   const auth = firebase.auth();
@@ -1893,9 +1889,7 @@
     if(!label || !picker || !changeBtn) return;
     picker.style.display = 'none';            // 身份由登入帳號決定，不再手動選
     changeBtn.style.display = 'none';
-    label.textContent = currentTechIdentity
-      ? `${currentTechIdentity}（只顯示自己負責與未處理的單）`
-      : '未登入';
+    label.textContent = currentTechIdentity || '未登入';
     // identity affects the calendar and the "my orders" counts, so redraw
     if(document.body.classList.contains('role-tech')) renderTechView();
   }
@@ -3040,10 +3034,8 @@
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
   // 選了身份後，清單只顯示「自己負責」與「未處理（還沒人認領）」的單
-  function inMyScope(r){
-    if(!currentTechIdentity) return true;
-    return r.assignedTo === currentTechIdentity || !r.assignedTo;
-  }
+  // 牙技師可以互相看到對方的單（要只看自己的，用「只看我的單」篩選）
+  function inMyScope(r){ return true; }
   let techSearch = '';
   function matchesSearch(r){
     if(!techSearch) return true;
@@ -3555,7 +3547,7 @@
     const includeUnassigned = !!(document.getElementById('chkCalUnassigned') || {}).checked;
     const scopeNote = o.scopeNote ? document.getElementById(o.scopeNote) : null;
     if(scopeNote && !document.body.classList.contains('holiday-mode')){
-      scopeNote.textContent = currentTechIdentity ? `只顯示「${currentTechIdentity}」負責的單` : '尚未選擇身份，顯示全部單子';
+      scopeNote.textContent = (includeUnassigned && currentTechIdentity) ? `只顯示「${currentTechIdentity}」負責的單` : '顯示全部牙技師的單';
     }
     const passDoctor = r => !o.editable || !calDoctorFilter || r.doctor === calDoctorFilter;
     if(o.editable) refreshCalDoctorOptions();
@@ -3563,9 +3555,8 @@
       if(r.deleted || !r.items || !r.items.dueDate) return false;
       if(!passDoctor(r)) return false;
       if(!o.editable) return true;                 // 送單者畫面：顯示全部
-      if(!currentTechIdentity) return true;
-      if(r.assignedTo === currentTechIdentity) return true;
-      return includeUnassigned && !r.assignedTo;
+      if(!includeUnassigned || !currentTechIdentity) return true;   // 預設看全部
+      return r.assignedTo === currentTechIdentity;  // 勾「只看我負責的單」時
     }).forEach(r => {
       const d = r.items.dueDate;
       if(!dueMap[d]) dueMap[d] = [];
