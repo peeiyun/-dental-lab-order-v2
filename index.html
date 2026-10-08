@@ -462,6 +462,25 @@
     max-width:900px; margin:26px auto 0; padding:0 16px;
   }
   .records h3{ font-size:13px; color:var(--muted); letter-spacing:1px; margin:14px 0 10px; text-transform:uppercase;}
+  .query-box{ background:#fff; border:1px solid var(--line); padding:14px 16px; }
+  .query-grid{ display:grid; grid-template-columns:1fr 1.4fr 1fr; gap:12px; }
+  .q-field{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .q-field label{ font-size:12px; color:var(--muted); }
+  .q-field select, .q-field input{ width:100%; box-sizing:border-box; font:inherit; font-size:14px; color:var(--ink, #2b2b2b);
+    padding:7px 9px; border:1px solid var(--line); background:#fff; outline:none; }
+  .q-field select:focus, .q-field input:focus{ border-color:var(--accent); background:var(--accent-soft); }
+  .q-status input{ accent-color:var(--accent); }
+  .q-range-inputs{ display:flex; align-items:center; gap:6px; }
+  .q-range-inputs input{ flex:1; min-width:0; }
+  .query-foot{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:12px; }
+  .q-status{ display:flex; align-items:center; gap:14px; font-size:14px; flex-wrap:wrap; }
+  .q-status label{ display:flex; align-items:center; gap:4px; cursor:pointer; }
+  .q-status-label{ font-size:12px; color:var(--muted); }
+  .q-actions{ display:flex; gap:8px; }
+  .q-hint{ font-size:12px; color:var(--muted); margin:10px 0 0; }
+  .q-result-info{ font-size:13px; color:var(--muted); margin:14px 0 8px; }
+  .q-editlog{ font-size:12px; color:var(--muted); margin-top:3px; }
+  @media (max-width:640px){ .query-grid{ grid-template-columns:1fr; } }
 
   .notif-bar{
     display:flex; align-items:center; gap:16px; flex-wrap:wrap;
@@ -1469,22 +1488,42 @@
 
   <p class="note-shared">送出後會自動存入共用清單，牙技師端會即時看到並收到通知。</p>
 
-  <div class="records">
-    <div class="collapsible-block" style="margin:0 0 16px;">
-      <details class="calendar-details" open>
-        <summary>日曆（灰底為週末、國定假日與牙技師休假）</summary>
-        <div class="calendar-toolbar">
-          <button type="button" class="ghost" id="calPrevMonthSender">‹ 上個月</button>
-          <span id="calMonthLabelSender" class="calendar-month-label">—</span>
-          <button type="button" class="ghost" id="calNextMonthSender">下個月 ›</button>
-          <button type="button" class="ghost" id="calTodaySender">回到今天</button>
+  <div class="records sender-query">
+    <h3>查詢已送出的單</h3>
+    <div class="query-box">
+      <div class="query-grid">
+        <div class="q-field">
+          <label for="q_doctor">醫師</label>
+          <select id="q_doctor"></select>
         </div>
-        <div class="calendar-grid" id="calendarGridSender"></div>
-      </details>
+        <div class="q-field q-range">
+          <label>開單區間（收件日）</label>
+          <div class="q-range-inputs">
+            <input id="q_from" type="date" />
+            <span>～</span>
+            <input id="q_to" type="date" />
+          </div>
+        </div>
+        <div class="q-field">
+          <label for="q_chartNo">病歷號</label>
+          <input id="q_chartNo" type="text" inputmode="numeric" placeholder="例如 12345" />
+        </div>
+      </div>
+      <div class="query-foot">
+        <div class="q-status">
+          <span class="q-status-label">是否完成</span>
+          <label><input type="checkbox" id="q_undone" checked /> 未完成</label>
+          <label><input type="checkbox" id="q_done" checked /> 已完成</label>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="ghost" id="btnQueryClear">清除</button>
+          <button type="button" class="primary" id="btnQuery">查詢</button>
+        </div>
+      </div>
+      <p class="q-hint">醫師、開單區間、病歷號至少填一項。查到的單可以按「編輯」修改，儲存時需要輸入修改人，並會留下修改紀錄。</p>
     </div>
-
-    <h3>近期送出狀態（唯讀）</h3>
-    <div id="myRecordsList"><div class="rec-empty">載入中…</div></div>
+    <div id="queryResultInfo" class="q-result-info"></div>
+    <div id="queryResults"></div>
   </div>
   </div>
   <!-- /submitView -->
@@ -2190,6 +2229,8 @@
     const allKeys = new Set([...Object.keys(oldItems), ...Object.keys(newItems)]);
     allKeys.forEach(k => {
       const ov = oldItems[k], nv = newItems[k];
+      const blank = v => v === undefined || v === null || v === '' || v === false;
+      if(blank(ov) && blank(nv)) return; // 空白與未勾選視為相同
       if(JSON.stringify(ov ?? '') !== JSON.stringify(nv ?? '')){
         changes.push(`${itemFieldLabel(k)}：${formatFieldVal(ov)} → ${formatFieldVal(nv)}`);
       }
@@ -3636,7 +3677,6 @@
   }
   function renderAllCalendars(){
     renderCalendar();
-    renderCalendar({ grid:'calendarGridSender', label:'calMonthLabelSender', editable:false });
   }
   let calModalOrderId = null;
   // 資料更新時，如果彈窗開著就重畫（保留正在輸入的技工備註）
@@ -3835,19 +3875,84 @@
     try{ await fsSet(id, rec); }catch(e){ alert('指派失敗'); }
   }
 
-  function renderMySubmissions(){
-    const listEl = document.getElementById('myRecordsList');
-    const active = cachedRecords.filter(r => !r.deleted);
-    if(active.length === 0){ listEl.innerHTML = '<div class="rec-empty">尚無紀錄</div>'; return; }
+  // ---- 送單者：查詢已送出的單 ----
+  let lastQuery = null; // 最近一次查詢條件；資料更新時自動重查
+  function populateQueryDoctorSelect(){
+    const sel = document.getElementById('q_doctor');
+    if(!sel) return;
+    let html = '<option value="">全部醫師</option>';
+    DOCTOR_GROUPS.forEach(g => {
+      html += `<optgroup label="${g.label}">`;
+      g.doctors.forEach(d => { html += `<option value="${d.name}">${d.name}${d.code ? `（${d.code}）` : ''}</option>`; });
+      html += '</optgroup>';
+    });
+    // 名單外（自行填寫）的醫師，從既有單子補進來
+    const known = new Set(DOCTOR_GROUPS.flatMap(g => g.doctors.map(d => d.name)));
+    const extra = [...new Set(cachedRecords.map(r => r.doctor).filter(n => n && !known.has(n)))].sort();
+    if(extra.length){
+      html += '<optgroup label="其他">' + extra.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>';
+    }
+    const keep = sel.value;
+    sel.innerHTML = html;
+    sel.value = keep;
+    if(sel.value !== keep) sel.value = '';
+  }
+  function readQueryForm(){
+    const chartEl = document.getElementById('q_chartNo');
+    const rawChart = chartEl.value.trim();
+    const chartNo = rawChart ? normalizeChartNo(rawChart) : '';
+    if(rawChart) chartEl.value = chartNo;
+    return {
+      doctor: document.getElementById('q_doctor').value,
+      from: document.getElementById('q_from').value,
+      to: document.getElementById('q_to').value,
+      chartNo,
+      undone: document.getElementById('q_undone').checked,
+      done: document.getElementById('q_done').checked
+    };
+  }
+  function runQuery(q){
+    const infoEl = document.getElementById('queryResultInfo');
+    const listEl = document.getElementById('queryResults');
+    if(!infoEl || !listEl) return;
+    if(!q){ infoEl.textContent = ''; listEl.innerHTML = ''; return; }
+    let from = q.from, to = q.to;
+    if(from && to && from > to){ const t = from; from = to; to = t; }
+    const res = cachedRecords.filter(r => {
+      if(r.deleted) return false;
+      const isDone = (r.status || 'pending') === 'done';
+      if(isDone && !q.done) return false;
+      if(!isDone && !q.undone) return false;
+      if(q.doctor && (r.doctor || '') !== q.doctor) return false;
+      if(q.chartNo && normalizeChartNo(r.chartNo || '') !== q.chartNo) return false;
+      if(from || to){
+        const d = r.receiveDate || (r.ts ? new Date(r.ts - new Date(r.ts).getTimezoneOffset()*60000).toISOString().slice(0,10) : '');
+        if(!d) return false;
+        if(from && d < from) return false;
+        if(to && d > to) return false;
+      }
+      return true;
+    }).sort((a, b) => ((b.receiveDate || '').localeCompare(a.receiveDate || '')) || ((b.ts || 0) - (a.ts || 0)));
+    infoEl.textContent = `找到 ${res.length} 筆`;
+    if(res.length === 0){ listEl.innerHTML = '<div class="rec-empty">沒有符合條件的單子</div>'; return; }
     listEl.innerHTML = '';
-    active.slice(0,5).forEach(r => {
+    res.forEach(r => {
       const status = r.status || 'pending';
+      const items = checkedMainItems(r.items || {}).join('、');
+      const due = r.items && r.items.dueDate;
+      const log = Array.isArray(r.editLog) && r.editLog.length ? r.editLog[r.editLog.length - 1] : null;
       const div = document.createElement('div');
       div.className = 'rec ' + assigneeColorClass(r);
       div.innerHTML = `<div class="meta">
-          <span class="status-badge ${STATUS_CLASS[status]}">${STATUS_LABEL[status]}</span>
-          <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
-          <div class="sub">${esc(subLineText(r))}</div>
+          <span class="status-badge ${STATUS_CLASS[status] || ''}">${STATUS_LABEL[status] || status}</span>
+          ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
+          <b>${esc(r.patient || '(未填患者)')}</b> ・ 病歷號 ${esc(r.chartNo || '-')}
+          ${items ? ` ・ ${esc(items)}` : ''}
+          <div class="sub">${esc(`收件日 ${r.receiveDate || '-'} ・ 醫師 ${r.doctor || '-'}`
+            + (due ? ` ・ 完成日 ${due}` : '')
+            + (r.completedDate ? ` ・ 實際完成 ${r.completedDate}` : '')
+            + (r.assignedTo ? ` ・ 牙技師 ${r.assignedTo}` : ''))}</div>
+          ${log ? `<div class="q-editlog">最後修改：${esc(log.editor || '')}・${new Date(log.ts).toLocaleString('zh-TW')}（共 ${r.editLog.length} 次）</div>` : ''}
         </div>
         <div class="rec-actions">
           <button data-id="${r.id}" class="editBtn">編輯</button>
@@ -3856,6 +3961,30 @@
     });
     listEl.querySelectorAll('.editBtn').forEach(b => b.addEventListener('click', () => startEditRecord(b.dataset.id)));
   }
+  function renderMySubmissions(){ // 資料更新時：刷新醫師選單、重跑上次查詢
+    populateQueryDoctorSelect();
+    runQuery(lastQuery);
+  }
+  (function bindQueryUI(){
+    const btn = document.getElementById('btnQuery');
+    if(!btn) return;
+    populateQueryDoctorSelect();
+    btn.addEventListener('click', () => {
+      const q = readQueryForm();
+      if(!q.doctor && !q.from && !q.to && !q.chartNo){ alert('請至少選擇一個查詢條件：醫師、開單區間或病歷號。'); return; }
+      if(!q.undone && !q.done){ alert('請至少勾選「未完成」或「已完成」其中一項。'); return; }
+      lastQuery = q;
+      runQuery(q);
+    });
+    document.getElementById('q_chartNo').addEventListener('keydown', e => { if(e.key === 'Enter') btn.click(); });
+    document.getElementById('btnQueryClear').addEventListener('click', () => {
+      ['q_doctor','q_from','q_to','q_chartNo'].forEach(id => { document.getElementById(id).value = ''; });
+      document.getElementById('q_undone').checked = true;
+      document.getElementById('q_done').checked = true;
+      lastQuery = null;
+      runQuery(null);
+    });
+  })();
 
   async function deleteRecord(id){
     if(!confirm('確定要把這筆單移到「歷史紀錄」嗎？之後可以再從歷史紀錄還原。')) return;
