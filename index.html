@@ -1049,7 +1049,15 @@
     resize:vertical; outline:none;
   }
   .techNote:focus{ border-color:var(--accent); }
-  .tech-note-actions{ display:flex; justify-content:flex-end; margin-top:10px; }
+  .tech-note-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .techDoneBtn{ background:#3E8E6B; color:#fff; border-color:#3E8E6B; font-weight:600; }
+  .techDoneBtn:hover{ background:#2F6F53; border-color:#2F6F53; color:#fff; }
+  .takeBtn{ background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
+  .takeBtn:hover{ background:var(--accent-dark); border-color:var(--accent-dark); color:#fff; }
+  .take-tech-list{ display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 4px; }
+  .take-tech-list button{ flex:1; min-width:110px; padding:12px; font-size:15px; font-weight:600; }
+  .take-tech-list button.is-me{ border-color:var(--accent); color:var(--accent-dark); background:var(--accent-soft); }
+  .take-info{ font-size:13px; color:var(--muted); }
   .techSaveBtn{
     font-family:inherit; font-size:13px; font-weight:700;
     padding:8px 20px; border-radius:8px; border:1px solid var(--accent);
@@ -1161,6 +1169,17 @@
       <div id="calDayBody"></div>
       <div class="modal-actions">
         <button type="button" class="ghost" id="calDayClose">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="takeOrderModal" style="display:none;">
+    <div class="modal-box">
+      <h3>接單：是哪位牙技師接的？</h3>
+      <div class="take-info" id="takeOrderInfo"></div>
+      <div class="take-tech-list" id="takeOrderTechs"></div>
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="takeOrderCancel">取消</button>
       </div>
     </div>
   </div>
@@ -1452,6 +1471,10 @@
             <label class="chip chip-sub"><input type="checkbox" data-key="ost_lingual" /><span>LINGUAL</span></label>
           </div>
         </div>
+
+        <div class="item">
+          <label class="chip chip-main"><input type="checkbox" data-key="implant_temp_reglue" /><span>植體temp重黏</span></label>
+        </div>
       </div>
 
       <!-- tooth chart -->
@@ -1591,7 +1614,7 @@
       <div class="modal-box-header">
         <h3>單子內容</h3>
         <span class="modal-head-actions">
-          <select id="calOrderStatus" class="statusSel"></select>
+          <button type="button" class="takeBtn" id="calOrderTake" style="display:none;">接單</button>
           <select id="calOrderAssign" class="assignSel"></select>
           <button type="button" class="ghost" id="calOrderEdit">編輯單子內容</button>
           <button type="button" class="ghost" id="calOrderModalClose">關閉</button>
@@ -1607,13 +1630,13 @@
     </div>
     <div class="tech-search-bar">
       <input type="search" id="techSearch" placeholder="搜尋病歷號或患者姓名…" autocomplete="off" />
+      <button type="button" class="primary" id="techSearchBtn">搜尋</button>
       <button type="button" class="ghost" id="techSearchClear">清除</button>
       <span class="tech-search-note" id="techSearchNote"></span>
     </div>
     <div class="filter-tabs">
       <button class="filter-tab active" data-filter="all">全部 <span class="count">0</span></button>
-      <button class="filter-tab" data-filter="pending">待處理 <span class="count">0</span></button>
-      <button class="filter-tab" data-filter="in_progress">處理中 <span class="count">0</span></button>
+      <button class="filter-tab" data-filter="in_progress">已接單 <span class="count">0</span></button>
       <button class="filter-tab" data-filter="dp">數位規劃 <span class="count">0</span></button>
       <button class="filter-tab" data-filter="done">已完成 <span class="count">0</span></button>
     </div>
@@ -2050,7 +2073,8 @@
     { key:'temp_denture', label:'臨時假牙', section:'other', subs:[{key:'temp_shell', label:'SHELL'}, {key:'temp_vacuum', label:'VACUUM 式'}, {key:'temp_other', label:'其他', text:'temp_other_text'}] },
     { key:'ortho_digital', label:'矯正資料數位建檔', section:'other', subs:[{key:'ortho_model', label:'模型'}, {key:'ortho_scan', label:'口掃'}, {key:'ortho_invisalign', label:'傳送隱適美'}] },
     { key:'zirconia', label:'氧化鋯處理', section:'other', subs:[{key:'zirconia_model', label:'有實體模'}, {key:'zirconia_other', label:'其他', text:'zirconia_other_text'}] },
-    { key:'ortho_surgery_template', label:'正顎手術模板', section:'other', subs:[{key:'ost_occlusal', label:'OCCLUSAL'}, {key:'ost_palatal', label:'PALATAL'}, {key:'ost_lingual', label:'LINGUAL'}] }
+    { key:'ortho_surgery_template', label:'正顎手術模板', section:'other', subs:[{key:'ost_occlusal', label:'OCCLUSAL'}, {key:'ost_palatal', label:'PALATAL'}, {key:'ost_lingual', label:'LINGUAL'}] },
+    { key:'implant_temp_reglue', label:'植體temp重黏', section:'other' }
   ];
   function esc(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
   function buildOrderSummaryHTML(items){
@@ -2194,6 +2218,8 @@
             <textarea class="techNote" data-id="${r.id}" placeholder="填寫處理備註…">${esc(r.techNote || '')}</textarea>
           </div>
           <div class="tech-note-actions">
+            ${!isDigitalPlan(r) && r.status !== 'done' ? `<button type="button" class="techDoneBtn" data-id="${r.id}">已完成</button>` : ''}
+            ${!isDigitalPlan(r) && r.status === 'done' ? `<button type="button" class="ghost techUndoneBtn" data-id="${r.id}">取消完成（退回已接單）</button>` : ''}
             <button type="button" class="techSaveBtn" data-id="${r.id}">確定</button>
           </div>
         </div>
@@ -2489,7 +2515,7 @@
   document.getElementById('btnPrint').addEventListener('click', () => window.print());
 
   // ---- status labels ----
-  const STATUS_LABEL = { pending:'待處理', in_progress:'處理中', on_hold:'壓單', done:'已完成' };
+  const STATUS_LABEL = { pending:'未接單', in_progress:'已接單', on_hold:'壓單', done:'已完成' };
   const STATUS_CLASS = { pending:'st-pending', in_progress:'st-progress', on_hold:'st-hold', done:'st-done' };
   let currentFilter = 'all';
   let currentSort = 'ts_desc';
@@ -2765,7 +2791,7 @@
     const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r) && matchesSearch(r) && inMyScope(r));
     let filtered = currentFilter === 'all' ? nonDeleted : nonDeleted.filter(r => (r.status||'pending') === currentFilter);
     if(myOrdersOnly) filtered = filtered.filter(r => r.assignedTo === currentTechIdentity);
-    const isDraggableTab = currentFilter === 'pending' || currentFilter === 'in_progress';
+    const isDraggableTab = currentFilter === 'in_progress';
     if(isDraggableTab){
       // in 待處理／處理中, respect manual drag order instead of the sort dropdown
       filtered = filtered.slice().sort((a,b) => {
@@ -2794,12 +2820,7 @@
           <div class="sub">${esc(subLineText(r))}</div>
         </div>
         <div class="rec-actions">
-          ${assigneeSelectHTML(r)}
-          <select class="statusSel" data-id="${r.id}">
-            <option value="pending" ${status==='pending'?'selected':''}>待處理</option>
-            <option value="in_progress" ${status==='in_progress'?'selected':''}>處理中</option>
-            <option value="done" ${status==='done'?'selected':''}>已完成</option>
-          </select>
+          ${takeOrAssignHTML(r)}
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
@@ -2812,7 +2833,10 @@
       listEl.appendChild(div);
     });
     if(isDraggableTab) enableDragReorder(listEl);
-    listEl.querySelectorAll('.assignSel').forEach(s => s.addEventListener('change', () => setAssignee(s.dataset.id, s.value)));
+    listEl.querySelectorAll('.assignSel').forEach(s => s.addEventListener('change', () => {
+      if(!s.value) return releaseOrder(s.dataset.id);   // 選「退回未接單」
+      setAssignee(s.dataset.id, s.value);
+    }));
     listEl.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
     listEl.querySelectorAll('.statusSel').forEach(s => s.addEventListener('change', () => setStatus(s.dataset.id, s.value)));
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
@@ -3131,7 +3155,7 @@
       if(hd) hd.open = true;
     }
     const parts = [];
-    if(cnt.all) parts.push(`處理中／待處理 ${cnt.all}`);
+    if(cnt.all) parts.push(`全部（未完成） ${cnt.all}`);
     if(cnt.dp) parts.push(`數位規劃 ${cnt.dp}`);
     if(cnt.done) parts.push(`已完成 ${cnt.done}`);
     if(hist) parts.push(`歷史紀錄 ${hist}`);
@@ -3145,6 +3169,8 @@
     input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(applyTechSearch, 150); });
     input.addEventListener('keydown', e => { if(e.key === 'Enter'){ clearTimeout(timer); applyTechSearch(); } });
     input.addEventListener('search', () => { clearTimeout(timer); applyTechSearch(); }); // 搜尋框內建的 ✕
+    const sb = document.getElementById('techSearchBtn');
+    if(sb) sb.addEventListener('click', () => { clearTimeout(timer); applyTechSearch(); });
     const clr = document.getElementById('techSearchClear');
     if(clr) clr.addEventListener('click', () => { input.value = ''; applyTechSearch(); input.focus(); });
   })();
@@ -3357,11 +3383,6 @@
         </div>
         <div class="rec-actions">
           ${assigneeSelectHTML(r)}
-          <select class="statusSel" data-id="${r.id}">
-            <option value="pending">待處理</option>
-            <option value="in_progress">處理中</option>
-            <option value="done" selected>已完成</option>
-          </select>
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
@@ -3812,13 +3833,12 @@
     body.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
     bindDpHandlers(body);
     // 標題列：狀態與負責人可直接改
-    const st = rec.status || 'pending';
-    const stSel = document.getElementById('calOrderStatus');
-    stSel.innerHTML = [['pending','待處理'], ['in_progress','處理中'], ['done','已完成']]
-      .map(([v, t]) => `<option value="${v}" ${st===v?'selected':''}>${t}</option>`).join('');
-    stSel.onchange = () => setStatus(id, stSel.value);
-    stSel.style.display = isDigitalPlan(rec) ? 'none' : '';   // 數位規劃用流程步驟管理，不需要狀態選單
+    const needTake = !isDigitalPlan(rec) && (rec.status || 'pending') === 'pending';
+    const takeBtn = document.getElementById('calOrderTake');
+    takeBtn.style.display = needTake ? '' : 'none';
+    takeBtn.onclick = () => openTakeOrderModal(id);
     const asSel = document.getElementById('calOrderAssign');
+    asSel.style.display = needTake ? 'none' : '';
     const av = rec.assignedTo || '';
     asSel.innerHTML = ['<option value="">未處理</option>']
       .concat(TECH_NAMES.map(n => `<option value="${n}" ${av===n?'selected':''}>${n}</option>`)).join('');
@@ -3966,6 +3986,88 @@
       sendLineMessage(`【技工單完成】\n${lineOrderLines(rec)}\n完成日期：${rec.completedDate || '-'}`);
     }
   }
+
+  // ---- 接單 / 已完成（取代原本的狀態下拉選單）----
+  function takeOrAssignHTML(r){
+    const st = r.status || 'pending';
+    if(st === 'pending') return `<button type="button" class="takeBtn" data-id="${r.id}">接單</button>`;
+    const val = r.assignedTo || '';
+    const opts = ['<option value="">退回未接單</option>']
+      .concat(TECH_NAMES.map(n => `<option value="${n}" ${val===n?'selected':''}>${n}</option>`));
+    if(val && !TECH_NAMES.includes(val)) opts.push(`<option value="${esc(val)}" selected>${esc(val)}</option>`);
+    return `<select class="assignSel" data-id="${r.id}" title="轉給其他牙技師">${opts.join('')}</select>`;
+  }
+  let takeOrderId = null;
+  function openTakeOrderModal(id){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    takeOrderId = id;
+    document.getElementById('takeOrderInfo').textContent =
+      `${rec.patient || '(未填患者)'}・病歷號 ${rec.chartNo || '-'}・${checkedMainItems(rec.items || {}).join('、') || '技工單'}`;
+    const box = document.getElementById('takeOrderTechs');
+    box.innerHTML = TECH_NAMES.map(n =>
+      `<button type="button" data-name="${n}" class="${n === currentTechIdentity ? 'is-me' : ''}">${n}${n === currentTechIdentity ? '（我）' : ''}</button>`).join('');
+    box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      document.getElementById('takeOrderModal').style.display = 'none';
+      takeOrder(takeOrderId, b.dataset.name);
+    }));
+    document.getElementById('takeOrderModal').style.display = 'flex';
+  }
+  document.getElementById('takeOrderCancel').addEventListener('click', () => {
+    document.getElementById('takeOrderModal').style.display = 'none';
+  });
+  async function takeOrder(id, name){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec || !name) return;
+    const from = rec.assignedTo || '未處理';
+    rec.assignLog = Array.isArray(rec.assignLog) ? rec.assignLog.slice() : [];
+    rec.assignLog.push({ from, to: name, by: currentTechIdentity || name, ts: Date.now(), stage: '接單' });
+    rec.assignedTo = name;
+    rec.status = 'in_progress';
+    rec.takenAt = Date.now();
+    try{ await fsSet(id, rec); }catch(e){ alert('接單失敗，請確認網路連線'); }
+  }
+  async function releaseOrder(id){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    if(!confirm('確定要把這張單退回「待處理（未接單）」嗎？')){ renderTechView(); return; }
+    rec.assignLog = Array.isArray(rec.assignLog) ? rec.assignLog.slice() : [];
+    rec.assignLog.push({ from: rec.assignedTo || '未處理', to: '未處理', by: currentTechIdentity || '未知', ts: Date.now(), stage: '退回未接單' });
+    rec.assignedTo = null;
+    rec.status = 'pending';
+    rec.takenAt = null;
+    try{ await fsSet(id, rec); }catch(e){ alert('更新失敗'); }
+  }
+  async function markDoneFromNote(id){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    // 一併存下目前輸入中的技工備註
+    const btn = document.querySelector(`.techDoneBtn[data-id="${id}"]`);
+    const sec = btn ? btn.closest('.tech-note-section') : null;
+    const note = sec ? sec.querySelector('.techNote') : null;
+    if(note) rec.techNote = note.value;
+    if(!rec.assignedTo && currentTechIdentity && TECH_NAMES.includes(currentTechIdentity)){
+      rec.assignLog = Array.isArray(rec.assignLog) ? rec.assignLog.slice() : [];
+      rec.assignLog.push({ from:'未處理', to: currentTechIdentity, by: currentTechIdentity, ts: Date.now(), stage:'完成時自動帶入' });
+      rec.assignedTo = currentTechIdentity;
+    }
+    await setStatus(id, 'done');
+  }
+  async function undoDone(id){
+    if(!confirm('確定要取消完成，把這張單退回「已接單」嗎？')) return;
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    rec.completedDate = null;
+    await setStatus(id, 'in_progress');
+  }
+  // 事件委派：清單、已完成分頁、日曆彈窗都適用
+  document.addEventListener('click', e => {
+    const t = e.target.closest('.takeBtn[data-id], .techDoneBtn, .techUndoneBtn');
+    if(!t) return;
+    if(t.classList.contains('takeBtn')) openTakeOrderModal(t.dataset.id);
+    else if(t.classList.contains('techDoneBtn')) markDoneFromNote(t.dataset.id);
+    else undoDone(t.dataset.id);
+  });
 
   async function setAssignee(id, name){
     const rec = cachedRecords.find(x => x.id === id);
