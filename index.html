@@ -2980,6 +2980,10 @@
       rec.status = 'done';
       doneMonth = d.slice(0, 7);
     }
+    if(turningOff && stepKey === 'done' && rec.status === 'done'){   // 取消「已完成」→ 退回進行中
+      rec.status = 'in_progress';
+      rec.completedDate = null;
+    }
     rec.dpStage = turningOff ? '' : stepKey;                // 再點一次可取消
     if(!turningOff){
       rec.dpStepLog = Object.assign({}, rec.dpStepLog || {}, { [stepKey]: { by: currentTechIdentity || '未選擇身份', ts: Date.now() } });
@@ -3044,6 +3048,14 @@
     function onCancel(){ cleanup(); }
     async function onOk(){
       const to = toSel.value, next = nextSel.value, note = noteEl.value.trim();
+      if(next === 'done'){                                   // 下一步選「已完成」= 直接結案
+        cleanup();
+        const d = await askCompletionDate(rec.completedDate);
+        if(!d) return;
+        rec.completedDate = d;
+        rec.status = 'done';
+        doneMonth = d.slice(0, 7);
+      }
       // 目前這步若已由本人記錄過完成，時間軸就不重複寫
       const curKey = curIdx > -1 ? steps[curIdx].k : '';
       const prevLog = curKey && rec.dpStepLog ? rec.dpStepLog[curKey] : null;
@@ -3057,7 +3069,7 @@
       rec.assignedTo = to;
       rec.assignLog = Array.isArray(rec.assignLog) ? rec.assignLog.slice() : [];
       rec.assignLog.push({ from, to, by: currentTechIdentity, ts: Date.now(), stage: stepLabelOf(rec, next) });
-      rec.handoffPending = to === currentTechIdentity ? null : { to, from: currentTechIdentity, note, ts: Date.now(), step: next };
+      rec.handoffPending = (to === currentTechIdentity || next === 'done') ? null : { to, from: currentTechIdentity, note, ts: Date.now(), step: next };
       pushTimeline(rec, { type:'handoff', to, note, label: doneLabel, next: stepLabelOf(rec, next) });
       cleanup();
       try{ await fsSet(rec.id, rec); }catch(e){ alert('交接失敗，請稍後再試'); }
@@ -4467,10 +4479,28 @@
   function handleRecordsUpdate(recs){
     cachedRecords = recs;
     if(techNameOf(authUser)) recs.forEach(r => {
+      if(r.deleted) return;
+      let changed = false;
       if(r.dpFlow === 'I' && OLD_I_STAGE_MAP[r.dpStage]){
         r.dpStage = OLD_I_STAGE_MAP[r.dpStage];
-        fsSet(r.id, r).catch(e => console.error(e));
+        changed = true;
       }
+      // 數位規劃已到「已完成」步驟 → 整張單標成已完成，移到已完成分頁
+      if(isDigitalPlan(r) && r.dpStage === 'done' && r.status !== 'done'){
+        r.status = 'done';
+        if(!r.completedDate){
+          const log = r.dpStepLog && r.dpStepLog.done;
+          const d = new Date(log && log.ts ? log.ts : Date.now());
+          r.completedDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+        changed = true;
+      }
+      // 已經有負責人的一般單 → 視為已接單
+      if(!isDigitalPlan(r) && (r.status || 'pending') === 'pending' && r.assignedTo){
+        r.status = 'in_progress';
+        changed = true;
+      }
+      if(changed) fsSet(r.id, r).catch(e => console.error(e));
     });
     if(lastKnownSeenTs === null){
       const stored = parseInt(localGet(LAST_SEEN_KEY), 10);
