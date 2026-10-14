@@ -72,6 +72,8 @@
     display:flex; align-items:center; justify-content:center;
     padding:20px;
   }
+  /* 單子詳情彈窗放在底層，從裡面跳出的「完成日期／接單／交接」等小視窗才會蓋在它上面 */
+  #calOrderModal{ z-index:9000; }
   .modal-box{
     max-width:340px; width:100%;
     background:#fff; border-radius:14px; padding:24px 22px;
@@ -634,7 +636,10 @@
   .cal-days.week-view{ grid-template-columns:repeat(7,1fr); }
   .cal-days.week-view .cal-cell{ min-height:190px; }
   .cal-scope-note{ font-size:12px; color:#2E5AA8; font-weight:600; }
-  .cal-unassigned-toggle{ margin-left:auto; }
+  .cal-tech-filter{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:4px 0 12px; }
+  .cal-tech-filter-label{ font-size:12px; color:var(--muted); margin-right:2px; }
+  .cal-tech-filter button{ padding:6px 16px; font-size:13.5px; background:#fff; }
+  .cal-tech-filter button.on, .cal-tech-filter button.on:hover{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
   .cal-chip.cal-chip-unassigned{ background:#F1F1EF; color:var(--muted); }
   .cal-chip.cal-chip-appt{ background:#E4ECF7; color:#2E5AA8; font-weight:700; }
   .cal-chip.cal-chip-dp{ background:#EDE7F6; color:#5B3E9B; }
@@ -1591,6 +1596,13 @@
   <div class="records collapsible-block">
     <details class="calendar-details" open>
       <summary>日曆</summary>
+      <div class="cal-tech-filter" id="calTechFilter">
+        <span class="cal-tech-filter-label">顯示</span>
+        <button type="button" data-v="all" class="on">全部</button>
+        <button type="button" data-v="堅雯">堅雯</button>
+        <button type="button" data-v="菁優">菁優</button>
+        <button type="button" data-v="__none__">未接單</button>
+      </div>
       <div class="calendar-toolbar">
         <button type="button" class="ghost" id="calPrevMonth">‹ 上一頁</button>
         <span id="calMonthLabel" class="calendar-month-label">—</span>
@@ -1603,7 +1615,6 @@
         </select>
         <select id="calDoctorFilter" class="cal-ctl"><option value="">全部醫師</option></select>
         <span class="cal-scope-note" id="calScopeNote"></span>
-        <label class="sound-toggle cal-unassigned-toggle"><input type="checkbox" id="chkCalUnassigned" /> 只看我負責的單</label>
       </div>
       <div class="calendar-grid" id="calendarGrid"></div>
     </details>
@@ -1778,27 +1789,27 @@
 
   // ---- doctor list (grouped dropdown) ----
   const DOCTOR_GROUPS = [
-    { label:'01 牙髓病科', doctors:[
-      {name:'黃薰玉', code:'07114'}, {name:'林佩玉', code:'07183'}, {name:'翁子甯', code:'07317'},
-      {name:'龔俊綺', code:'07697'}, {name:'黃秋碧', code:'07111'}, {name:'廖方圓', code:'07829'},
-      {name:'江典容', code:'07799'}, {name:'陳炯宏', code:'07913'}
+    { label:'01 贗復補綴牙科', doctors:[
+      {name:'周庭暵', code:'07314'}, {name:'張琬婷', code:'07170'}, {name:'許綺真', code:''},
+      {name:'戴晸昆', code:''}, {name:'郭芳妤', code:'07887'}, {name:'顏愉家', code:'07834'},
+      {name:'趙子彤', code:'07877'}
     ]},
     { label:'02 牙周病科', doctors:[
       {name:'鄭嘉瑢', code:'07567'}, {name:'蔡祐年', code:'07634'}, {name:'楊惠敏', code:'07172'},
       {name:'蔡凰慈', code:'07356'}, {name:'林敬偉', code:'07522'}, {name:'陳怡璇', code:'07802'},
       {name:'高聖硯', code:'A08330'}
     ]},
-    { label:'03 贗復補綴牙科', doctors:[
-      {name:'周庭暵', code:'07314'}, {name:'張琬婷', code:'07170'}, {name:'許綺真', code:''},
-      {name:'戴晸昆', code:''}, {name:'郭芳妤', code:'07887'}, {name:'顏愉家', code:'07834'},
-      {name:'趙子彤', code:'07877'}
+    { label:'03 口腔顎面外科', doctors:[
+      {name:'林煥章', code:'02191'}, {name:'董俊良', code:'04899'}, {name:'林蔚庭', code:'07313'},
+      {name:'陳靜容', code:''}, {name:'林立綺', code:''}, {name:'林書輔', code:''}
     ]},
     { label:'04 齒顎矯正科', doctors:[
       {name:'黃奕帛', code:'07318'}, {name:'孫櫻珊', code:'07270'}, {name:'蔡佳君', code:'07462'}
     ]},
-    { label:'05 口腔顎面外科', doctors:[
-      {name:'林煥章', code:'02191'}, {name:'董俊良', code:'04899'}, {name:'林蔚庭', code:'07313'},
-      {name:'陳靜容', code:''}, {name:'林立綺', code:''}, {name:'林書輔', code:''}
+    { label:'05 牙髓病科', doctors:[
+      {name:'黃薰玉', code:'07114'}, {name:'林佩玉', code:'07183'}, {name:'翁子甯', code:'07317'},
+      {name:'龔俊綺', code:'07697'}, {name:'黃秋碧', code:'07111'}, {name:'廖方圓', code:'07829'},
+      {name:'江典容', code:'07799'}, {name:'陳炯宏', code:'07913'}
     ]},
     { label:'06 特殊需求者口腔醫學科', doctors:[
       {name:'劉育嘉', code:'07204'}
@@ -3641,10 +3652,13 @@
   let calendarViewDate = new Date();
   let calViewMode = 'month';
   let calDoctorFilter = '';
+  let calTechFilter = 'all';
   function refreshCalDoctorOptions(){
     const sel = document.getElementById('calDoctorFilter');
     if(!sel) return;
-    const names = Array.from(new Set(cachedRecords.filter(r => !r.deleted && r.doctor).map(r => r.doctor))).sort();
+    const used = new Set(cachedRecords.filter(r => !r.deleted && r.doctor).map(r => r.doctor));
+    const listed = DOCTOR_GROUPS.flatMap(g => g.doctors.map(d => d.name));   // 依科別順序
+    const names = listed.filter(n => used.has(n)).concat([...used].filter(n => !listed.includes(n)).sort());
     const cur = names.includes(calDoctorFilter) ? calDoctorFilter : '';
     calDoctorFilter = cur;
     const want = ['<option value="">全部醫師</option>']
@@ -3683,19 +3697,22 @@
     }
 
     const dueMap = {};
-    const includeUnassigned = !!(document.getElementById('chkCalUnassigned') || {}).checked;
     const scopeNote = o.scopeNote ? document.getElementById(o.scopeNote) : null;
     if(scopeNote && !document.body.classList.contains('holiday-mode')){
-      scopeNote.textContent = (includeUnassigned && currentTechIdentity) ? `只顯示「${currentTechIdentity}」負責的單` : '顯示全部牙技師的單';
+      scopeNote.textContent = calTechFilter === 'all' ? '' : (calTechFilter === '__none__' ? '只顯示未接單的單' : `只顯示「${calTechFilter}」負責的單`);
     }
-    const passDoctor = r => !o.editable || !calDoctorFilter || r.doctor === calDoctorFilter;
+    // 牙技師篩選：全部／堅雯／菁優／未接單
+    const passTech = r => {
+      if(!o.editable || calTechFilter === 'all') return true;
+      if(calTechFilter === '__none__') return !r.assignedTo && r.status !== 'done';
+      return r.assignedTo === calTechFilter;
+    };
+    const passDoctor = r => !o.editable || ((!calDoctorFilter || r.doctor === calDoctorFilter) && passTech(r));
     if(o.editable) refreshCalDoctorOptions();
     cachedRecords.filter(r => {
       if(r.deleted || !r.items || !r.items.dueDate) return false;
       if(!passDoctor(r)) return false;
-      if(!o.editable) return true;                 // 送單者畫面：顯示全部
-      if(!includeUnassigned || !currentTechIdentity) return true;   // 預設看全部
-      return r.assignedTo === currentTechIdentity;  // 勾「只看我負責的單」時
+      return true;
     }).forEach(r => {
       const d = r.items.dueDate;
       if(!dueMap[d]) dueMap[d] = [];
@@ -3885,8 +3902,11 @@
     }
     renderAllCalendars();
   });
-  const chkCalUnassignedEl = document.getElementById('chkCalUnassigned');
-  if(chkCalUnassignedEl) chkCalUnassignedEl.addEventListener('change', () => renderCalendar());
+  document.querySelectorAll('#calTechFilter button').forEach(btn => btn.addEventListener('click', () => {
+    calTechFilter = btn.dataset.v;
+    document.querySelectorAll('#calTechFilter button').forEach(b => b.classList.toggle('on', b === btn));
+    renderAllCalendars();
+  }));
   const calViewModeEl = document.getElementById('calViewMode');
   if(calViewModeEl) calViewModeEl.addEventListener('change', e => { calViewMode = e.target.value; renderAllCalendars(); });
   const calDoctorFilterEl = document.getElementById('calDoctorFilter');
