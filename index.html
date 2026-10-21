@@ -2569,6 +2569,7 @@
   let currentFilter = 'all';
   let currentSort = 'ts_desc';
   let myOrdersOnly = false;
+  function passMine(r){ return !myOrdersOnly || (!!currentTechIdentity && r.assignedTo === currentTechIdentity); }
   let cachedRecords = [];
   let soundEnabled = true;
   let unseenCount = 0;
@@ -2782,7 +2783,13 @@
     });
     applyTabVisibility();
     const myOrdersCountEl = document.getElementById('myOrdersCount');
-    if(myOrdersCountEl) myOrdersCountEl.textContent = active.filter(r => r.assignedTo === currentTechIdentity && currentTechIdentity).length;
+    if(myOrdersCountEl){
+      const me = r => !!currentTechIdentity && r.assignedTo === currentTechIdentity;
+      const pool = currentFilter === 'dp' ? cachedRecords.filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done')
+        : currentFilter === 'done' ? cachedRecords.filter(r => !r.deleted && r.status === 'done')
+        : (currentFilter === 'all' ? active : active.filter(r => (r.status||'pending') === currentFilter));
+      myOrdersCountEl.textContent = pool.filter(me).length;
+    }
     const historyCount = cachedRecords.filter(r => r.deleted).length;
     const histCountEl = document.getElementById('historyCount');
     if(histCountEl) histCountEl.textContent = historyCount;
@@ -3279,7 +3286,7 @@
     const listEl = document.getElementById('dpList');
     if(!listEl) return;
     const list = cachedRecords
-      .filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done' && matchesSearch(r) && inMyScope(r))
+      .filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done' && matchesSearch(r) && inMyScope(r) && passMine(r))
       .sort((a,b) => (b.ts||0) - (a.ts||0));
     const cnt = document.getElementById('dpCount');
     if(cnt) cnt.textContent = list.length;
@@ -3555,7 +3562,7 @@
   function allDoneRecords(){ return cachedRecords.filter(r => !r.deleted && r.status === 'done' && inMyScope(r)); }
   function doneRecordsForMonth(month){
     // 搜尋時不分月份，列出所有符合的已完成單
-    return allDoneRecords().filter(r => (techSearch ? true : doneMonthKey(r) === month) && matchesSearch(r)).sort((a,b) => {
+    return allDoneRecords().filter(r => (techSearch ? true : doneMonthKey(r) === month) && matchesSearch(r) && passMine(r)).sort((a,b) => {
       const da = a.completedDate || '';
       const db = b.completedDate || '';
       if(!da && !db) return (b.ts||0) - (a.ts||0);
@@ -4464,7 +4471,7 @@
       return;
     }
     myOrdersOnly = e.target.checked;
-    drawRecordsList();
+    renderTechView();   // 一般清單、數位規劃、已完成都套用
   });
 
   document.getElementById('btnSubmit').addEventListener('click', async () => {
