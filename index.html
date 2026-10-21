@@ -898,6 +898,11 @@
     max-width:900px; margin:0 auto 12px; padding:10px 14px; border-radius:4px;
     background:#FFF4D6; border:1px solid #E8C77A; color:#7A5410; font-size:13px; font-weight:600;
   }
+  .hb-title{ margin:2px 0 6px; }
+  .hb-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:6px 0; border-top:1px dashed #E8C77A; font-weight:500; }
+  .hb-btns{ display:flex; gap:6px; align-items:center; }
+  .hb-btns button{ font-size:12px; padding:5px 10px; }
+  .hb-to{ font-size:12px; color:#7A5410; }
   .badge-handoff{ display:inline-block; font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; background:#FFE8A8; color:#7A5410; }
   .badge-handoff.waiting{ background:#EEE9E7; color:var(--muted); }
   .badge-handoff.overdue{ background:#FCE4E4; color:var(--danger); }
@@ -2745,7 +2750,10 @@
     const cur = input.value;
     hint.classList.toggle('too-early', !!cur && cur < info.earliest);
   }
-  async function fsSet(id, data){ await ordersCol().doc(id).set(data); }
+  async function fsSet(id, data){
+    if(data && data.status === 'done' && data.handoffPending) data.handoffPending = null;   // 已結單就不再等待接手
+    await ordersCol().doc(id).set(data);
+  }
   async function fsDelete(id){ await ordersCol().doc(id).delete(); }
 
   function sortByTsDesc(recs){ return recs.slice().sort((a,b) => (b.ts||0) - (a.ts||0)); }
@@ -2961,8 +2969,9 @@
     }).join('');
     const hs = handoffState(r);
     const handoffBtns = flow ? `<div class="dp-handoff-actions">
-        ${hs && hs.to === currentTechIdentity ? `<button type="button" class="primary btn-accept dpAcceptBtn" data-id="${r.id}">確認接手</button>` : ''}
-        <button type="button" class="ghost dpHandoffBtn" data-id="${r.id}">完成並交接</button>
+        ${hs && hs.to === currentTechIdentity ? `<button type="button" class="primary btn-accept dpAcceptBtn" data-id="${r.id}">確認接手</button><button type="button" class="ghost dpCancelHandoffBtn" data-id="${r.id}">退回</button>` : ''}
+        ${hs && hs.from === currentTechIdentity ? `<button type="button" class="ghost dpCancelHandoffBtn" data-id="${r.id}">取消交接</button>` : ''}
+        ${hs ? '' : `<button type="button" class="ghost dpHandoffBtn" data-id="${r.id}">完成並交接</button>`}
         ${hs ? `<span class="badge-handoff ${hs.to === currentTechIdentity ? '' : (hs.overdue ? 'overdue' : 'waiting')}">${hs.to === currentTechIdentity ? `${esc(hs.from)} 交接給你，待接手` : `等待 ${esc(hs.to)} 接手`}${hs.note ? `・${esc(hs.note)}` : ''}</span>` : ''}
       </div>` : '';
     return `<div class="dp-flow-bar">
@@ -2982,6 +2991,7 @@
     root.querySelectorAll('.dpNoNext').forEach(cb => cb.addEventListener('change', () => setDpNoNext(cb.dataset.id, cb.checked)));
     root.querySelectorAll('.dpHandoffBtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openHandoffModal(b.dataset.id); }));
     root.querySelectorAll('.dpAcceptBtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); acceptHandoff(b.dataset.id); }));
+    root.querySelectorAll('.dpCancelHandoffBtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); cancelHandoff(b.dataset.id); }));
     root.querySelectorAll('.dpTime').forEach(inp => inp.addEventListener('change', () => {
       const rec = cachedRecords.find(x => x.id === inp.dataset.id);
       const flow = rec && dpFlowOf(rec);
@@ -3057,7 +3067,7 @@
   }
   function handoffState(r){
     const h = r.handoffPending;
-    if(!h) return null;
+    if(!h || r.deleted || r.status === 'done') return null;
     const hours = (Date.now() - (h.ts || 0)) / 3600000;
     return { to: h.to, from: h.from, note: h.note, ts: h.ts, overdue: hours >= 24 };
   }
@@ -3109,11 +3119,13 @@
         rec.dpStepLog = Object.assign({}, rec.dpStepLog || {}, { [curKey]: { by: currentTechIdentity, ts: Date.now() } });
       }
       const from = rec.assignedTo || '未處理';
+      const prevStage = rec.dpStage || '';
+      const prevAssignee = rec.assignedTo || null;
       rec.dpStage = next;
       rec.assignedTo = to;
       rec.assignLog = Array.isArray(rec.assignLog) ? rec.assignLog.slice() : [];
       rec.assignLog.push({ from, to, by: currentTechIdentity, ts: Date.now(), stage: stepLabelOf(rec, next) });
-      rec.handoffPending = (to === currentTechIdentity || next === 'done') ? null : { to, from: currentTechIdentity, note, ts: Date.now(), step: next };
+      rec.handoffPending = (to === currentTechIdentity || next === 'done') ? null : { to, from: currentTechIdentity, note, ts: Date.now(), step: next, prevStage, prevAssignee };
       pushTimeline(rec, { type:'handoff', to, note, label: doneLabel, next: stepLabelOf(rec, next) });
       cleanup();
       try{ await fsSet(rec.id, rec); }catch(e){ alert('交接失敗，請稍後再試'); }
@@ -3129,6 +3141,28 @@
     }
     rec.handoffPending = null;
     pushTimeline(rec, { type:'accept' });
+    try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
+  }
+  // 取消交接：交出去的人按錯可以收回（負責人與步驟還原）
+  async function cancelHandoff(id){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec || !rec.handoffPending) return;
+    const h = rec.handoffPending;
+    if(currentTechIdentity !== h.from && currentTechIdentity !== h.to){
+      alert(`這張單是 ${h.from} 交接給 ${h.to} 的，只有他們兩位可以取消。`); return;
+    }
+    const isSender = currentTechIdentity === h.from;
+    const msg = isSender
+      ? `確定要取消交接嗎？\n負責人會改回「${h.prevAssignee || h.from}」${h.prevStage !== undefined ? '，步驟也會還原' : ''}。`
+      : `確定要退回這張單嗎？\n負責人會改回「${h.prevAssignee || h.from}」。`;
+    if(!confirm(msg)) return;
+    const backTo = h.prevAssignee || h.from;
+    rec.assignLog = Array.isArray(rec.assignLog) ? rec.assignLog.slice() : [];
+    rec.assignLog.push({ from: rec.assignedTo || '未處理', to: backTo, by: currentTechIdentity, ts: Date.now(), stage: isSender ? '取消交接' : '退回交接' });
+    rec.assignedTo = backTo;
+    if(h.prevStage !== undefined) rec.dpStage = h.prevStage;
+    rec.handoffPending = null;
+    pushTimeline(rec, { type:'note', label: isSender ? `取消交接（原本交給 ${h.to}）` : `退回交接給 ${backTo}` });
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
   function dpTimelineHTML(r){
@@ -3148,13 +3182,20 @@
     const el = document.getElementById('handoffBanner');
     if(!el) return;
     if(!currentTechIdentity){ el.style.display = 'none'; return; }
-    const mine = cachedRecords.filter(r => !r.deleted && r.handoffPending && r.handoffPending.to === currentTechIdentity);
-    const waiting = cachedRecords.filter(r => !r.deleted && r.handoffPending && r.handoffPending.from === currentTechIdentity && handoffState(r).overdue);
-    const parts = [];
-    if(mine.length) parts.push(`你有 ${mine.length} 張單待接手：${mine.map(r => esc(r.patient || '')).join('、')}（到「數位規劃」分頁按「確認接手」）`);
-    if(waiting.length) parts.push(`你交出去的 ${waiting.length} 張單超過一天對方還沒確認接手：${waiting.map(r => esc(r.patient || '')).join('、')}，記得口頭確認一下`);
-    el.innerHTML = parts.join('<br>');
-    el.style.display = parts.length ? 'block' : 'none';
+    const open = cachedRecords.filter(r => handoffState(r));
+    const mine = open.filter(r => r.handoffPending.to === currentTechIdentity);
+    const waiting = open.filter(r => r.handoffPending.from === currentTechIdentity && handoffState(r).overdue);
+    const row = (r, btns) => `<div class="hb-row"><span>${esc(r.patient || '(未填患者)')}・病歷號 ${esc(r.chartNo || '-')}${r.handoffPending.note ? `・${esc(r.handoffPending.note)}` : ''}</span><span class="hb-btns">${btns}</span></div>`;
+    let html = '';
+    if(mine.length) html += `<div class="hb-title">你有 ${mine.length} 張單待接手</div>`
+      + mine.map(r => row(r, `<button type="button" class="primary hb-accept" data-id="${r.id}">確認接手</button><button type="button" class="ghost hb-cancel" data-id="${r.id}">退回</button><button type="button" class="ghost hb-open" data-id="${r.id}">詳情</button>`)).join('');
+    if(waiting.length) html += `<div class="hb-title">你交出去的 ${waiting.length} 張單超過一天對方還沒確認接手，記得口頭確認一下</div>`
+      + waiting.map(r => row(r, `<span class="hb-to">交給 ${esc(r.handoffPending.to)}</span><button type="button" class="ghost hb-cancel" data-id="${r.id}">取消交接</button>`)).join('');
+    el.innerHTML = html;
+    el.style.display = html ? 'block' : 'none';
+    el.querySelectorAll('.hb-accept').forEach(b => b.addEventListener('click', () => acceptHandoff(b.dataset.id)));
+    el.querySelectorAll('.hb-cancel').forEach(b => b.addEventListener('click', () => cancelHandoff(b.dataset.id)));
+    el.querySelectorAll('.hb-open').forEach(b => b.addEventListener('click', () => showCalendarOrderModal(b.dataset.id)));
   }
 
   async function setDpNoNext(id, checked){
@@ -3292,8 +3333,11 @@
           <div class="dp-card-actions dp-card-assign"><span>負責人</span>${assigneeSelectHTML(r)}</div>
           <div class="dp-card-actions">${stageSel}<button type="button" class="ghost dpOpenBtn" data-id="${r.id}">詳情</button></div>
           ${flow ? `<div class="dp-card-actions" style="margin-top:6px;">
-            ${(r.handoffPending && r.handoffPending.to === currentTechIdentity) ? `<button type="button" class="primary btn-accept dpAcceptBtn" data-id="${r.id}">確認接手</button>` : ''}
-            <button type="button" class="ghost dpHandoffBtn" data-id="${r.id}">完成並交接</button></div>` : ''}
+            ${(() => { const h = handoffState(r); if(!h) return '';
+                if(h.to === currentTechIdentity) return `<button type="button" class="primary btn-accept dpAcceptBtn" data-id="${r.id}">確認接手</button><button type="button" class="ghost dpCancelHandoffBtn" data-id="${r.id}">退回</button>`;
+                if(h.from === currentTechIdentity) return `<button type="button" class="ghost dpCancelHandoffBtn" data-id="${r.id}">取消交接</button>`;
+                return ''; })()}
+            ${handoffState(r) ? '' : `<button type="button" class="ghost dpHandoffBtn" data-id="${r.id}">完成並交接</button>`}</div>` : ''}
         </div>`;
     };
     const colHTML = (title, cards, cls) => `<div class="dp-col ${cls || ''}">
@@ -3348,6 +3392,7 @@
     listEl.querySelectorAll('.assignSel').forEach(sel => sel.addEventListener('change', () => setAssignee(sel.dataset.id, sel.value)));
     listEl.querySelectorAll('.dpHandoffBtn').forEach(b => b.addEventListener('click', () => openHandoffModal(b.dataset.id)));
     listEl.querySelectorAll('.dpAcceptBtn').forEach(b => b.addEventListener('click', () => acceptHandoff(b.dataset.id)));
+    listEl.querySelectorAll('.dpCancelHandoffBtn').forEach(b => b.addEventListener('click', () => cancelHandoff(b.dataset.id)));
   }
 
   // ---- II 蠟型設計：待約後續 ----
@@ -4667,6 +4712,8 @@
         }
         changed = true;
       }
+      // 已結單卻還掛著交接 → 清掉，避免一直提醒
+      if((r.status === 'done') && r.handoffPending){ r.handoffPending = null; changed = true; }
       // 已經有負責人的一般單 → 視為已接單
       if(!isDigitalPlan(r) && (r.status || 'pending') === 'pending' && r.assignedTo){
         r.status = 'in_progress';
