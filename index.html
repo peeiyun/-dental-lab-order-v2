@@ -435,7 +435,8 @@
   .due-date-input:focus{ border-color:var(--accent); }
   .due-hint{ font-size:12px; color:var(--muted); line-height:1.7; margin:-6px 0 12px; }
   .due-hint.active{ background:var(--accent-soft); color:var(--accent-dark); padding:8px 10px; border-radius:4px; }
-  .due-hint.too-early{ background:#FCE4E4; color:var(--danger); }
+  .due-hint.too-early{ background:#FCE4E4; color:var(--danger); border:1px solid #E7A3A3; }
+  .due-hint-warn{ margin-top:6px; padding-top:6px; border-top:1px dashed #E7A3A3; font-weight:700; }
   .due-hint-detail{ opacity:.85; }
 
   .actions{
@@ -577,6 +578,44 @@
     padding:2px 9px; border-radius:999px; margin-right:8px;
     vertical-align:middle; background:#FCE4E4; color:var(--danger);
   }
+
+  /* ---- 牙技師端：左側功能列 ---- */
+  .tech-shell{ display:flex; align-items:flex-start; min-height:calc(100vh - 60px); }
+  .tech-side{ flex:0 0 190px; position:sticky; top:0; align-self:flex-start; min-height:calc(100vh - 60px);
+    background:#2F3A48; padding:14px 0 24px; display:flex; flex-direction:column; }
+  .side-title{ color:#fff; font-weight:700; font-size:14px; letter-spacing:1px; padding:6px 20px 14px; border-bottom:1px solid rgba(255,255,255,.12); margin-bottom:8px; }
+  .side-item{ display:flex; align-items:center; gap:12px; width:100%; padding:12px 20px; background:none; border:none; border-left:4px solid transparent;
+    color:#D6DDE6; font-size:14px; text-align:left; cursor:pointer; }
+  .side-item svg{ width:18px; height:18px; flex-shrink:0; }
+  .side-item span{ flex:1; }
+  .side-item:hover{ background:rgba(255,255,255,.07); color:#fff; border-color:transparent; }
+  .side-item.on{ background:#FAF6F5; color:var(--accent-dark); font-weight:700; border-left-color:var(--accent); }
+  .side-count{ font-style:normal; font-size:11px; font-weight:700; min-width:20px; text-align:center; padding:1px 6px; background:rgba(255,255,255,.15); color:#fff; }
+  .side-item.on .side-count{ background:var(--accent); }
+  .side-count:empty{ display:none; }
+  .tech-main{ flex:1; min-width:0; padding:16px 24px 40px; }
+  .tech-main .records, .tech-main .tech-identity-bar, .tech-main .handoff-banner, .tech-main .quota-warning{ max-width:1100px; }
+  .tech-main [data-panel].panel-off{ display:none !important; }
+  .tech-main .filter-tabs{ display:none; }
+  .tech-main details > summary{ font-size:16px; }
+  @media (max-width:760px){
+    .tech-shell{ flex-direction:column; }
+    .tech-side{ position:static; min-height:0; width:100%; flex:none; flex-direction:row; overflow-x:auto; padding:0; }
+    .side-title{ display:none; }
+    .side-item{ width:auto; flex:0 0 auto; padding:10px 14px; border-left:none; border-bottom:3px solid transparent; white-space:nowrap; }
+    .side-item.on{ border-bottom-color:var(--accent); }
+    .tech-main{ padding:12px 10px 30px; }
+  }
+  /* ---- 已接單／未接單底色 ---- */
+  .rec.rec-unassigned{ background:#FFF8E6; border-left:4px solid #E0A526; }
+  .dp-card.rec-unassigned{ border-left-color:#E0A526; background:#FFF8E6; }
+  .cal-chip.cal-chip-unassigned{ background:#FFEFC2 !important; color:#7A5410 !important; font-weight:700; }
+  .cal-chip.cal-chip-a{ background:#DCE8FB; color:#1F4688; }
+  .cal-chip.cal-chip-b{ background:#D9F0E8; color:#1F6653; }
+  .cal-chip.cal-chip-appt{ background:#fff !important; color:#2E5AA8 !important; border:1px solid #2E5AA8; }
+  .cal-legend{ display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--muted); margin:8px 0 4px; }
+  .cal-legend span{ display:flex; align-items:center; gap:5px; }
+  .cal-legend i{ width:14px; height:10px; display:inline-block; }
   .rec.assignee-a{ background:#EAF2FE; border-left:4px solid #2E5AA8; }
   .rec.assignee-b{ background:#E9F6F2; border-left:4px solid #2E8B72; }
   .rec.is-urgent{ border-left:4px solid var(--danger); background:#FFFBFA; }
@@ -1620,6 +1659,12 @@
     <button class="switch-role" id="switchRoleFromTech">切換身份</button>
   </div>
 
+  <div class="tech-shell">
+  <nav class="tech-side" aria-label="牙技師功能選單">
+    <div class="side-title">內部技工單</div>
+    <button type="button" class="side-item" data-panel="calendar" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>日曆</span><em class="side-count" data-count="calendar"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5h11M9 12h11M9 19h11"/><circle cx="4.5" cy="5" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="19" r="1"/></svg><span>全部單子</span><em class="side-count" data-count="all"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="in_progress"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M3 21c0-3.3 2.7-6 6-6"/><path d="M15 17l2 2 4-4"/></svg><span>已接單</span><em class="side-count" data-count="in_progress"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="dp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/></svg><span>數位規劃</span><em class="side-count" data-count="dp"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><span>已完成</span><em class="side-count" data-count="done"></em></button><button type="button" class="side-item" data-panel="history" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span>歷史紀錄</span><em class="side-count" data-count="history"></em></button><button type="button" class="side-item" data-panel="stats" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17v-5M13 17V8M18 17v-9"/></svg><span>統計分析</span><em class="side-count" data-count="stats"></em></button><button type="button" class="side-item" data-panel="quota" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21a9 9 0 1 1 9-9"/><path d="M12 12l5-3"/></svg><span>額度監控</span><em class="side-count" data-count="quota"></em></button>
+  </nav>
+  <main class="tech-main">
   <div class="tech-identity-bar" id="techIdentityBar">
     <span>目前身份：<b id="techIdentityLabel">尚未選擇</b></span>
     <span class="identity-picker" id="identityPicker">
@@ -1633,7 +1678,7 @@
   <div class="handoff-banner" id="handoffBanner" style="display:none;"></div>
   <div class="quota-warning" id="quotaWarning" style="display:none;"></div>
 
-  <div class="records collapsible-block">
+  <div class="records collapsible-block" data-panel="calendar">
     <details class="calendar-details" open>
       <summary>日曆</summary>
       <div class="cal-tech-filter" id="calTechFilter">
@@ -1657,6 +1702,13 @@
         <span class="cal-scope-note" id="calScopeNote"></span>
       </div>
       <div class="calendar-grid" id="calendarGrid"></div>
+      <div class="cal-legend">
+        <span><i style="background:#FFEFC2;border:1px solid #E0A526"></i>未接單</span>
+        <span><i style="background:#DCE8FB"></i>堅雯</span>
+        <span><i style="background:#D9F0E8"></i>菁優</span>
+        <span><i style="background:#fff;border:1px solid #2E5AA8"></i>約診</span>
+        <span><i style="background:#E6E3E2"></i>已完成</span>
+      </div>
     </details>
   </div>
 
@@ -1676,7 +1728,7 @@
     </div>
   </div>
 
-  <div class="records">
+  <div class="records" data-panel="orders">
     <div class="notif-bar">
       <label class="sound-toggle my-orders-toggle"><input type="checkbox" id="chkMyOrders" /> 只看我的單 <span class="count" id="myOrdersCount">0</span></label>
     </div>
@@ -1707,7 +1759,7 @@
     </div>
   </div>
 
-  <div class="records tab-panel" id="dpBlock" style="display:none;">
+  <div class="records tab-panel" id="dpBlock" data-panel="orders" style="display:none;">
     <p class="mini-note">數位規劃的單子集中在這裡追蹤進度。先選擇情形，再點選目前完成到哪個階段；標示「時間」的階段要填日期。要結案請在「技工處理紀錄」填完成日期。</p>
     <div class="dp-filter-bar">
       <label for="dpStageFilter">只看階段</label>
@@ -1717,7 +1769,7 @@
     <span id="dpCount" style="display:none;">0</span>
   </div>
 
-  <div class="records tab-panel" id="doneBlock" style="display:none;">
+  <div class="records tab-panel" id="doneBlock" data-panel="orders" style="display:none;">
     <span id="doneCount" style="display:none;">0</span>
     <div class="history-toolbar">
         <select id="doneMonthSelect" class="done-sort-select"></select>
@@ -1730,7 +1782,7 @@
     <div id="doneList"><div class="rec-empty">載入中…</div></div>
   </div>
 
-  <div class="records collapsible-block">
+  <div class="records collapsible-block" data-panel="history">
     <details class="history-details">
       <summary>歷史紀錄（已刪除） <span class="count" id="historyCount">0</span></summary>
       <p class="mini-note">從清單刪除的單子會先移到這裡，可以「還原」回一般清單，或「永久刪除」徹底移除（無法復原）。</p>
@@ -1743,7 +1795,7 @@
     </details>
   </div>
 
-  <div class="records collapsible-block">
+  <div class="records collapsible-block" data-panel="stats">
     <details class="stats-details" open>
       <summary>統計</summary>
       <div class="stats-toolbar">
@@ -1759,7 +1811,7 @@
     </details>
   </div>
 
-  <div class="records collapsible-block">
+  <div class="records collapsible-block" data-panel="quota">
     <details class="quota-details">
       <summary>額度監控 <span class="count" id="quotaPctSummary">—</span></summary>
       <div class="quota-body">
@@ -1772,6 +1824,8 @@
         <a id="quotaConsoleLink" href="https://console.firebase.google.com/" target="_blank" rel="noopener">開啟 Firebase 主控台 ↗</a></p>
       </div>
     </details>
+  </div>
+  </main>
   </div>
   </div>
   <!-- /techView -->
@@ -2075,6 +2129,7 @@
     startOrdersListener(); // one shared real-time listener drives both views
     startHolidayListener();
     if(role === 'tech'){
+      setTimeout(() => setTechPanel(techPanel, currentFilter), 0);
       initTechIdentity();
       renderTechView(); // draw immediately with whatever the listener already cached
     }else if(role === 'submit'){
@@ -2464,8 +2519,8 @@
     while(cur < info.earliest && shortDays < 90){ cur = addWorkdays(cur, 1); shortDays++; }
     alert(
       `提醒：此單需要 ${info.days} 個工作天，最早完成日為 ${info.earliest}，目前填的是 ${input.value}（少 ${shortDays} 個工作天）。\n\n`
-      + '小於工作天，請跟技師聯絡。\n\n'
-      + '此單仍會送出，並標記為急件。');
+      + (document.body.classList.contains('tech-editing') ? '' : '小於工作天，請跟技師聯絡。\n\n')
+      + (currentEditingId ? '儲存後此單仍會標記為急件。' : '此單仍會送出，並標記為急件。'));
     return { rush:true, shortDays, requiredDays: info.days, earliest: info.earliest };
   }
 
@@ -2752,7 +2807,9 @@
     hint.innerHTML = `需要 <b>${info.days}</b> 個工作天（六日與休假日不計，收件日當天不算）。最早完成日：<b>${info.earliest}</b><br><span class="due-hint-detail">依據：${esc(detail)}</span>`;
     hint.className = 'due-hint active';
     const cur = input.value;
-    hint.classList.toggle('too-early', !!cur && cur < info.earliest);
+    const early = !!cur && cur < info.earliest;
+    hint.classList.toggle('too-early', early);
+    if(early) hint.innerHTML += `<div class="due-hint-warn">您選的完成日早於最早完成日，送出後會標記為<b>急件</b>，請先與牙技師聯絡。</div>`;
   }
   async function fsSet(id, data){
     if(data && data.status === 'done' && data.handoffPending) data.handoffPending = null;   // 已結單就不再等待接手
@@ -2762,6 +2819,34 @@
 
   function sortByTsDesc(recs){ return recs.slice().sort((a,b) => (b.ts||0) - (a.ts||0)); }
 
+  // ---- 左側功能列 ----
+  let techPanel = (function(){ try{ return localStorage.getItem('techPanel') || 'calendar'; }catch(e){ return 'calendar'; } })();
+  function setTechPanel(panel, filter){
+    techPanel = panel || 'calendar';
+    try{ localStorage.setItem('techPanel', techPanel); }catch(e){}
+    if(panel === 'orders' && filter){ currentFilter = filter; }
+    document.querySelectorAll('#techView [data-panel]').forEach(el => {
+      if(el.classList.contains('side-item')) return;
+      el.classList.toggle('panel-off', el.dataset.panel !== techPanel);
+    });
+    const det = { calendar:'.calendar-details', history:'.history-details', stats:'.stats-details', quota:'.quota-details' }[techPanel];
+    if(det){ const d = document.querySelector(det); if(d) d.open = true; }
+    syncSideNav();
+    if(panel === 'orders'){ renderFilterCounts(); drawRecordsList(); }
+    if(panel === 'calendar') renderAllCalendars();
+    window.scrollTo({ top: 0 });
+  }
+  function syncSideNav(){
+    document.querySelectorAll('.side-item').forEach(b => {
+      const on = b.dataset.panel === techPanel && (techPanel !== 'orders' || b.dataset.filter === currentFilter);
+      b.classList.toggle('on', on);
+    });
+    const counts = {};
+    document.querySelectorAll('.filter-tab').forEach(t => { counts[t.dataset.filter] = t.querySelector('.count').textContent; });
+    const hc = document.getElementById('historyCount'); if(hc) counts.history = hc.textContent;
+    document.querySelectorAll('.side-count').forEach(c => { const k = c.dataset.count; c.textContent = counts[k] !== undefined ? counts[k] : ''; });
+  }
+  document.querySelectorAll('.side-item').forEach(b => b.addEventListener('click', () => setTechPanel(b.dataset.panel, b.dataset.filter)));
   function applyTabVisibility(){
     const isDp = currentFilter === 'dp';
     const isDone = currentFilter === 'done';
@@ -2785,6 +2870,7 @@
       tab.classList.toggle('active', currentFilter === key);
     });
     applyTabVisibility();
+    if(typeof syncSideNav === 'function') syncSideNav();
     const myOrdersCountEl = document.getElementById('myOrdersCount');
     if(myOrdersCountEl){
       const me = r => !!currentTechIdentity && r.assignedTo === currentTechIdentity;
@@ -2840,6 +2926,7 @@
   }
   function assigneeColorClass(r){
     const idx = TECH_NAMES.indexOf(r.assignedTo);
+    if(!r.assignedTo && r.status !== 'done') return 'rec-unassigned';
     return idx === 0 ? 'assignee-a' : idx === 1 ? 'assignee-b' : '';
   }
   function dueDateBadgeHTML(r){
@@ -2875,6 +2962,7 @@
       if(isDraggableTab) div.setAttribute('draggable', 'true');
       div.innerHTML = `<div class="meta">
           ${isDraggableTab ? '<span class="drag-handle" title="拖曳調整順序">⠿</span>' : ''}
+          ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
           ${dueDateBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS[status] || 'st-pending'}">${STATUS_LABEL[status] || status}</span>
           ${assigneeBadgeHTML(r)}
@@ -3261,8 +3349,9 @@
       if(next) currentFilter = next;
     }
     if(hist > 0 && !cnt.all && !cnt.dp && !cnt.done){
-      const hd = document.querySelector('.history-details');
-      if(hd) hd.open = true;
+      setTechPanel('history');
+    }else if(techPanel !== 'orders'){
+      setTechPanel('orders', currentFilter);
     }
     const parts = [];
     if(cnt.all) parts.push(`全部（未完成） ${cnt.all}`);
@@ -3361,7 +3450,7 @@
       const steps = DP_FLOWS[f].steps;
       const unset = items.filter(r => !steps.some(st => st.k === r.dpStage));
       const cols = (unset.length ? [colHTML('未設定階段', unset)] : [])
-        .concat(steps.map(st => colHTML(esc(st.t), items.filter(r => r.dpStage === st.k))));
+        .concat(steps.filter(st => !st.finish).map(st => colHTML(esc(st.t), items.filter(r => r.dpStage === st.k))));
       return `<div class="dp-section dp-section-${f}">
           <div class="dp-section-title">${esc(DP_FLOWS[f].label)}<span>${items.length} 張</span></div>
           ${f === 'II' ? followUpBlockHTML(items) : ''}
@@ -4002,7 +4091,8 @@
     const stage = isDigitalPlan(x) ? dpStageLabel(x) : '';
     const name = esc(x.patient || '(未填)');
     const text = stage ? `${name}·${esc(stage)}` : name;
-    return `<div class="cal-chip${x.status==='done' ? ' cal-chip-done' : ''}${!x.assignedTo ? ' cal-chip-unassigned' : ''}${stage ? ' cal-chip-dp' : ''}" data-id="${x.id}" title="${esc(x.patient || '')}${stage ? '：' + esc(stage) : ''}">${text}</div>`;
+    const who = x.assignedTo ? (TECH_NAMES.indexOf(x.assignedTo) === 1 ? ' cal-chip-b' : ' cal-chip-a') : ' cal-chip-unassigned';
+    return `<div class="cal-chip${x.status==='done' ? ' cal-chip-done' : ''}${who}" data-id="${x.id}" title="${esc(x.patient || '')}${stage ? '：' + esc(stage) : ''}">${text}</div>`;
   }
   function showCalendarDayModal(dateStr){
     const data = calDayData[dateStr];
@@ -4510,11 +4600,19 @@
       data.rushShortDays = rush.shortDays;
       data.rushRequiredDays = rush.requiredDays;
       data.rushEarliest = rush.earliest;
+    }else if(currentEditingId){
+      // 修改後完成日已足夠工作天 → 取消急件標示
+      data.rush = false;
+      data.rushShortDays = null;
+      data.rushRequiredDays = null;
+      data.rushEarliest = null;
     }
     if(currentEditingId){
       const original = cachedRecords.find(x => x.id === currentEditingId);
       if(!original){ alert('找不到原始資料，無法儲存修改'); return; }
       const changes = buildChangeSummary(original, data);
+      if(original.rush && data.rush === false) changes.push('急件：是 → 否（完成日已符合所需工作天）');
+      if(!original.rush && data.rush === true) changes.push('急件：否 → 是');
       if(changes.length === 0){ alert('沒有偵測到任何欄位變動，未儲存。'); return; }
       const editor = await askEditorName();
       if(!editor){ alert('未輸入修改者，已取消儲存。'); return; }
