@@ -554,7 +554,12 @@
   .filter-tab.active{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent-dark); }
   .filter-tab.active .count{ color:var(--accent-dark); }
 
+  .sort-bar .lf-gap{ margin-left:14px; }
+  .sort-bar input[type=date], .sort-bar select{ font:inherit; font-size:12.5px; padding:5px 8px; border:1px solid var(--line); background:#fff; color:var(--ink); }
+  .sort-bar button{ font-size:12px; padding:5px 10px; }
+  .lf-note{ font-weight:700; color:var(--accent-dark); }
   .sort-bar{
+    flex-wrap:wrap;
     display:flex; align-items:center; gap:8px; margin-top:10px;
     font-size:12.5px; color:var(--muted);
   }
@@ -582,16 +587,19 @@
   /* ---- 牙技師端：左側功能列 ---- */
   .tech-shell{ display:flex; align-items:flex-start; min-height:calc(100vh - 60px); }
   .tech-side{ flex:0 0 190px; position:sticky; top:0; align-self:flex-start; min-height:calc(100vh - 60px);
-    background:#2F3A48; padding:14px 0 24px; display:flex; flex-direction:column; }
-  .side-title{ color:#fff; font-weight:700; font-size:14px; letter-spacing:1px; padding:6px 20px 14px; border-bottom:1px solid rgba(255,255,255,.12); margin-bottom:8px; }
+    background:#FFFFFF; border:1px solid var(--line); padding:14px 0 24px; display:flex; flex-direction:column; }
+  .side-title{ color:var(--accent-dark); font-weight:700; font-size:14px; letter-spacing:1px; padding:6px 20px 14px; border-bottom:1px solid var(--line); margin-bottom:8px; }
   .side-item{ display:flex; align-items:center; gap:12px; width:100%; padding:12px 20px; background:none; border:none; border-left:4px solid transparent;
-    color:#D6DDE6; font-size:14px; text-align:left; cursor:pointer; }
-  .side-item svg{ width:18px; height:18px; flex-shrink:0; }
+    color:#4E4643; font-size:14px; text-align:left; cursor:pointer; }
+  .side-item svg{ width:18px; height:18px; flex-shrink:0; color:#8A807C; }
   .side-item span{ flex:1; }
-  .side-item:hover{ background:rgba(255,255,255,.07); color:#fff; border-color:transparent; }
-  .side-item.on{ background:#FAF6F5; color:var(--accent-dark); font-weight:700; border-left-color:var(--accent); }
-  .side-count{ font-style:normal; font-size:11px; font-weight:700; min-width:20px; text-align:center; padding:1px 6px; background:rgba(255,255,255,.15); color:#fff; }
-  .side-item.on .side-count{ background:var(--accent); }
+  .side-item:hover{ background:#F7F3F2; color:var(--ink); border-color:transparent; }
+  .side-item:focus{ outline:none; }
+  .side-item:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+  .side-item.on{ background:var(--accent-soft); color:var(--accent-dark); font-weight:700; border-left-color:var(--accent); }
+  .side-item.on svg{ color:var(--accent); }
+  .side-count{ font-style:normal; font-size:11px; font-weight:700; min-width:20px; text-align:center; padding:1px 6px; background:#EFEAE8; color:#6F6662; }
+  .side-item.on .side-count{ background:var(--accent); color:#fff; }
   .side-count:empty{ display:none; }
   .tech-main{ flex:1; min-width:0; padding:16px 24px 40px; }
   .tech-main .records, .tech-main .tech-identity-bar, .tech-main .handoff-banner, .tech-main .quota-warning{ max-width:1100px; }
@@ -1752,6 +1760,23 @@
         <option value="doctor">醫師（A→Z）</option>
         <option value="due_date">完成日（近→遠）</option>
       </select>
+      <label for="listTechFilter" class="lf-gap">牙技師</label>
+      <select id="listTechFilter">
+        <option value="">全部</option>
+        <option value="堅雯">堅雯</option>
+        <option value="菁優">菁優</option>
+        <option value="__none__">未接單</option>
+      </select>
+      <label for="listDateField" class="lf-gap">日期</label>
+      <select id="listDateField">
+        <option value="due">完成日</option>
+        <option value="receive">收件日</option>
+      </select>
+      <input type="date" id="listDateFrom" aria-label="起日" />
+      <span>～</span>
+      <input type="date" id="listDateTo" aria-label="迄日" />
+      <button type="button" class="ghost" id="listFilterClear">清除篩選</button>
+      <span class="lf-note" id="listFilterNote"></span>
     </div>
     <div id="recordsSection">
       <h3>已送出紀錄</h3>
@@ -2940,6 +2965,19 @@
     const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r) && matchesSearch(r) && inMyScope(r));
     let filtered = currentFilter === 'all' ? nonDeleted : nonDeleted.filter(r => (r.status||'pending') === currentFilter);
     if(myOrdersOnly) filtered = filtered.filter(r => r.assignedTo === currentTechIdentity);
+    // 牙技師／日期篩選
+    const lt = (document.getElementById('listTechFilter') || {}).value || '';
+    const lfField = (document.getElementById('listDateField') || {}).value || 'due';
+    let lf = (document.getElementById('listDateFrom') || {}).value || '', lto = (document.getElementById('listDateTo') || {}).value || '';
+    if(lf && lto && lf > lto){ const t = lf; lf = lto; lto = t; }
+    if(lt) filtered = filtered.filter(r => lt === '__none__' ? !r.assignedTo : r.assignedTo === lt);
+    if(lf || lto) filtered = filtered.filter(r => {
+      const d = lfField === 'receive' ? (r.receiveDate || '') : ((r.items && r.items.dueDate) || '');
+      if(!d) return false;
+      return (!lf || d >= lf) && (!lto || d <= lto);
+    });
+    const lnote = document.getElementById('listFilterNote');
+    if(lnote) lnote.textContent = (lt || lf || lto) ? `篩選後 ${filtered.length} 張` : '';
     const isDraggableTab = currentFilter === 'in_progress';
     if(isDraggableTab){
       // in 待處理／處理中, respect manual drag order instead of the sort dropdown
@@ -4563,6 +4601,15 @@
       renderFilterCounts();
       drawRecordsList();
     });
+  });
+  ['listTechFilter','listDateField','listDateFrom','listDateTo'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('change', () => drawRecordsList());
+  });
+  document.getElementById('listFilterClear').addEventListener('click', () => {
+    ['listTechFilter','listDateFrom','listDateTo'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('listDateField').value = 'due';
+    drawRecordsList();
   });
   document.getElementById('sortSelect').addEventListener('change', e => {
     currentSort = e.target.value;
