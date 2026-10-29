@@ -95,8 +95,10 @@
   .edit-mode-banner button{ font-size:12px; padding:6px 12px; }
   /* 牙技師從自己的畫面進來編輯時，隱藏送單者專屬的區塊 */
   body.tech-editing #submitView > .view-topbar,
-  body.tech-editing #submitView > .note-shared,
-  body.tech-editing #submitView > .records{ display:none !important; }
+  body.tech-editing #submitView .note-shared,
+  body.tech-editing #submitView .sender-side,
+  body.tech-editing #submitView .records{ display:none !important; }
+  body.tech-editing #submitView .sheet{ display:block !important; }
   body.tech-editing .edit-mode-banner{ background:#E4ECF7; border-color:#2E5AA8; color:#2E5AA8; }
   body.tech-editing .edit-banner-text::before{ content:'牙技師編輯模式・'; }
 
@@ -603,7 +605,17 @@
   .side-count:empty{ display:none; }
   .tech-main{ flex:1; min-width:0; padding:16px 24px 40px; }
   .tech-main .records, .tech-main .tech-identity-bar, .tech-main .handoff-banner, .tech-main .quota-warning{ max-width:1100px; }
-  .tech-main [data-panel].panel-off{ display:none !important; }
+  .tech-main [data-panel].panel-off, .tech-main [data-spanel].panel-off{ display:none !important; }
+  .sender-main .sheet{ margin-top:0; }
+  .submit-done-box{ text-align:center; max-width:400px; }
+  .sd-icon{ width:64px; height:64px; margin:0 auto 6px; color:#2E8B72; }
+  .sd-icon svg{ width:64px; height:64px; }
+  .submit-done-box h3{ font-size:22px; margin:4px 0 12px; }
+  .sd-body{ text-align:left; background:#F7F3F2; padding:12px 16px; font-size:14px; line-height:1.9; }
+  .sd-body b{ display:inline-block; min-width:64px; color:var(--muted); font-weight:600; }
+  .sd-rush{ color:var(--danger); font-weight:700; }
+  .sd-note{ font-size:13px; color:var(--muted); margin:12px 0 0; }
+  .submit-done-box .modal-actions{ justify-content:center; }
   .tech-main .filter-tabs{ display:none; }
   .tech-main details > summary{ font-size:16px; }
   @media (max-width:760px){
@@ -615,6 +627,9 @@
     .tech-main{ padding:12px 10px 30px; }
   }
   /* ---- 已接單／未接單底色 ---- */
+  .model-chk{ display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:600; color:#7A5410; background:#fff; border:1px solid #E0A526; padding:5px 10px; cursor:pointer; white-space:nowrap; }
+  .model-chk input{ accent-color:#2E8B72; width:15px; height:15px; }
+  .badge-model{ display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; background:#D9F0E8; color:#1F6653; }
   .rec.rec-unassigned{ background:#FFF8E6; border-left:4px solid #E0A526; }
   .dp-card.rec-unassigned{ border-left-color:#E0A526; background:#FFF8E6; }
   .cal-chip.cal-chip-unassigned{ background:#FFEFC2 !important; color:#7A5410 !important; font-weight:700; }
@@ -1372,7 +1387,14 @@
     <span class="role-tag">送單者畫面</span>
     <button class="switch-role" id="switchRoleFromSubmit">切換身份</button>
   </div>
-  <div class="sheet" id="sheet">
+  <div class="tech-shell sender-shell">
+  <nav class="tech-side sender-side" aria-label="送單者功能選單">
+    <div class="side-title">內部技工單</div>
+    <button type="button" class="side-item sender-item on" data-spanel="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg><span>首頁・填寫技工單</span></button>
+    <button type="button" class="side-item sender-item" data-spanel="query"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>查詢已送出的單</span></button>
+  </nav>
+  <main class="tech-main sender-main">
+  <div class="sheet" id="sheet" data-spanel="home">
     <div class="stub">
       <div>
         <h1>內部技工單</h1>
@@ -1619,9 +1641,9 @@
     </div>
   </div>
 
-  <p class="note-shared">送出後會自動存入共用清單，牙技師端會即時看到並收到通知。</p>
+  <p class="note-shared" data-spanel="home">送出後會自動存入共用清單，牙技師端會即時看到並收到通知。</p>
 
-  <div class="records sender-query">
+  <div class="records sender-query" data-spanel="query">
     <h3>查詢已送出的單</h3>
     <div class="query-box">
       <div class="query-grid">
@@ -1658,8 +1680,20 @@
     <div id="queryResultInfo" class="q-result-info"></div>
     <div id="queryResults"></div>
   </div>
+  </main>
+  </div>
   </div>
   <!-- /submitView -->
+
+  <div class="modal-overlay" id="submitDoneModal" style="display:none;">
+    <div class="modal-box submit-done-box">
+      <div class="sd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.5 12.5l3 3 6-6.5"/></svg></div>
+      <h3>技工單已送出</h3>
+      <div class="sd-body" id="submitDoneBody"></div>
+      <p class="sd-note" id="submitDoneNote">牙技師端已即時收到這張單。</p>
+      <div class="modal-actions"><button type="button" class="primary" id="submitDoneOk">回到首頁</button></div>
+    </div>
+  </div>
 
   <div class="view" id="techView">
   <div class="view-topbar">
@@ -2158,6 +2192,7 @@
       initTechIdentity();
       renderTechView(); // draw immediately with whatever the listener already cached
     }else if(role === 'submit'){
+      if(typeof setSenderPanel === 'function') setSenderPanel('home');
       renderMySubmissions(); // draw immediately with whatever the listener already cached
       refreshDueDateHint();
       renderAllCalendars();
@@ -2862,16 +2897,31 @@
     window.scrollTo({ top: 0 });
   }
   function syncSideNav(){
-    document.querySelectorAll('.side-item').forEach(b => {
+    document.querySelectorAll('#techView .side-item').forEach(b => {
       const on = b.dataset.panel === techPanel && (techPanel !== 'orders' || b.dataset.filter === currentFilter);
       b.classList.toggle('on', on);
     });
     const counts = {};
     document.querySelectorAll('.filter-tab').forEach(t => { counts[t.dataset.filter] = t.querySelector('.count').textContent; });
     const hc = document.getElementById('historyCount'); if(hc) counts.history = hc.textContent;
-    document.querySelectorAll('.side-count').forEach(c => { const k = c.dataset.count; c.textContent = counts[k] !== undefined ? counts[k] : ''; });
+    document.querySelectorAll('#techView .side-count').forEach(c => { const k = c.dataset.count; c.textContent = counts[k] !== undefined ? counts[k] : ''; });
   }
-  document.querySelectorAll('.side-item').forEach(b => b.addEventListener('click', () => setTechPanel(b.dataset.panel, b.dataset.filter)));
+  document.querySelectorAll('#techView .side-item').forEach(b => b.addEventListener('click', () => setTechPanel(b.dataset.panel, b.dataset.filter)));
+  // ---- 送單端左側功能列 ----
+  function setSenderPanel(panel){
+    document.querySelectorAll('#submitView [data-spanel]').forEach(el => {
+      if(el.classList.contains('sender-item')) el.classList.toggle('on', el.dataset.spanel === panel);
+      else el.classList.toggle('panel-off', el.dataset.spanel !== panel);
+    });
+    window.scrollTo({ top: 0 });
+  }
+  document.querySelectorAll('#submitView .sender-item').forEach(b => b.addEventListener('click', () => {
+    if(currentEditingId && b.dataset.spanel !== 'home'){
+      if(!confirm('目前正在編輯單子，離開會放棄這次修改，確定嗎？')) return;
+      exitEditMode(); clearForm();
+    }
+    setSenderPanel(b.dataset.spanel);
+  }));
   function applyTabVisibility(){
     const isDp = currentFilter === 'dp';
     const isDone = currentFilter === 'done';
@@ -3002,12 +3052,14 @@
           ${isDraggableTab ? '<span class="drag-handle" title="拖曳調整順序">⠿</span>' : ''}
           ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
           ${dueDateBadgeHTML(r)}
+          ${modelBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS[status] || 'st-pending'}">${STATUS_LABEL[status] || status}</span>
           ${assigneeBadgeHTML(r)}
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
           <div class="sub">${esc(subLineText(r))}</div>
         </div>
         <div class="rec-actions">
+          ${modelReadyHTML(r)}
           ${takeOrAssignHTML(r)}
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
@@ -3460,6 +3512,7 @@
           <div class="dp-card-badges">
             ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
             ${r.dpNoNextAppt ? '<span class="badge-nonext">未約後續</span>' : ''}
+            ${modelBadgeHTML(r)}
             ${(() => { const h = handoffState(r); if(!h) return '';
                 const mine = h.to === currentTechIdentity;
                 return `<span class="badge-handoff ${mine ? '' : (h.overdue ? 'overdue' : 'waiting')}">${mine ? '待你接手' : `等待${esc(h.to)}接手`}</span>`; })()}
@@ -4310,7 +4363,31 @@
   // ---- editing an already-submitted order (sender side) ----
   let currentEditingId = null;
   let currentEditReturnRole = null;
+  // 送出成功視窗：顯示摘要，按「回到首頁」或 5 秒後自動回到首頁
+  let submitDoneTimer = null;
+  function showSubmitDone(d){
+    const items = checkedMainItems(d.items || {}).join('、') || '-';
+    document.getElementById('submitDoneBody').innerHTML =
+      `<div><b>患者</b>${esc(d.patient || '-')}</div><div><b>病歷號</b>${esc(d.chartNo || '-')}</div>`
+      + `<div><b>醫師</b>${esc(d.doctor || '-')}</div><div><b>項目</b>${esc(items)}</div>`
+      + `<div><b>完成日</b>${esc((d.items && d.items.dueDate) || '-')}${d.rush ? '　<span class="sd-rush">急件</span>' : ''}</div>`;
+    const modal = document.getElementById('submitDoneModal');
+    const note = document.getElementById('submitDoneNote');
+    let left = 5;
+    const tick = () => { note.textContent = `牙技師端已即時收到這張單。${left} 秒後自動回到首頁`; };
+    tick();
+    modal.style.display = 'flex';
+    clearInterval(submitDoneTimer);
+    submitDoneTimer = setInterval(() => { left--; if(left <= 0) closeSubmitDone(); else tick(); }, 1000);
+  }
+  function closeSubmitDone(){
+    clearInterval(submitDoneTimer);
+    document.getElementById('submitDoneModal').style.display = 'none';
+    setSenderPanel('home');
+  }
+  document.getElementById('submitDoneOk').addEventListener('click', closeSubmitDone);
   function startEditRecord(id){
+    setSenderPanel('home');
     loadRecord(id);
     currentEditingId = id;
     currentEditReturnRole = null;
@@ -4366,6 +4443,26 @@
   }
 
   // ---- 接單 / 已完成（取代原本的狀態下拉選單）----
+  // 未接單：牙技師可先標記模型是否已製作好
+  function modelReadyHTML(r){
+    if((r.status || 'pending') !== 'pending') return '';
+    return `<label class="model-chk" title="模型已灌好、可以開始製作"><input type="checkbox" class="modelChk" data-id="${r.id}" ${r.modelReady ? 'checked' : ''} /> 模型已做好</label>`;
+  }
+  function modelBadgeHTML(r){
+    if(!r.modelReady) return '';
+    const m = r.modelReady; const d = m.ts ? new Date(m.ts) : null;
+    return `<span class="badge-model" title="${esc(m.by || '')} ${d ? d.toLocaleString('zh-TW') : ''}">模型已做好${d ? `・${d.getMonth()+1}/${d.getDate()}` : ''}</span>`;
+  }
+  async function toggleModelReady(id, on){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    rec.modelReady = on ? { by: currentTechIdentity || '未知', ts: Date.now() } : null;
+    try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
+  }
+  document.addEventListener('change', e => {
+    const c = e.target.closest && e.target.closest('.modelChk');
+    if(c) toggleModelReady(c.dataset.id, c.checked);
+  });
   function takeOrAssignHTML(r){
     const st = r.status || 'pending';
     if(st === 'pending') return `<button type="button" class="takeBtn" data-id="${r.id}">接單</button>`;
@@ -4671,8 +4768,10 @@
       try{
         await fsSet(currentEditingId, merged);
         alert('修改已儲存！');
+        const wasTech = currentEditReturnRole === 'tech';
         exitEditMode();
         clearForm();
+        if(!wasTech) setSenderPanel('query');
       }catch(e){
         console.error(e);
         alert('儲存時發生錯誤，請確認網路連線與 Firebase 設定是否正確');
@@ -4686,8 +4785,8 @@
       await fsSet(data.id, data);
       localSet(LAST_SEEN_KEY, String(data.ts)); // the person submitting doesn't need a notification for their own order
       if(LINE_NOTIFY_ON.newOrder) sendLineMessage(`【新技工單】\n${lineOrderLines(data)}`);
-      alert('已送出並儲存！牙技師端會即時看到這張單。');
       clearForm(); // ready for the next order
+      showSubmitDone(data);
     }catch(e){
       console.error(e);
       alert('儲存時發生錯誤，請確認網路連線與 Firebase 設定是否正確');
