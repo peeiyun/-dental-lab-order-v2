@@ -839,6 +839,22 @@
   }
   .dp-col-count{ background:#2E5AA8; color:#fff; border-radius:999px; padding:1px 8px; font-size:11px; }
   .dp-col-body{ overflow-y:auto; }
+  .dp-mode-label{ margin-left:14px; font-size:12.5px; color:var(--muted); }
+  .dp-mode{ display:inline-flex; }
+  .dp-mode button{ font-size:12px; padding:5px 12px; background:#fff; }
+  .dp-mode button.on{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; }
+  .dp-mini{ display:flex; flex-direction:column; align-items:stretch; gap:2px; width:100%; text-align:left; background:#fff; border:1px solid var(--line);
+    border-left:4px solid var(--line); padding:7px 9px; margin-bottom:6px; cursor:pointer; font:inherit; color:var(--ink); }
+  .dp-mini:hover{ border-color:var(--accent); }
+  .dp-mini.assignee-a{ border-left-color:#2E5AA8; background:#F7FAFF; }
+  .dp-mini.assignee-b{ border-left-color:#2E8B72; background:#F5FBF9; }
+  .dp-mini.rec-unassigned{ border-left-color:#E0A526; background:#FFF8E6; }
+  .dpm-l1{ display:flex; justify-content:space-between; align-items:baseline; gap:6px; font-size:13px; }
+  .dpm-l1 b{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dpm-due{ font-size:11px; color:#8F6820; white-space:nowrap; }
+  .dpm-l2{ font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dpm-badges{ display:flex; flex-wrap:wrap; gap:3px; margin-top:2px; }
+  .dpm-badges span{ font-size:10px !important; padding:1px 6px !important; }
   .dp-col-empty{ font-size:12px; color:var(--muted); text-align:center; padding:8px 0; }
   .dp-card{
     background:#fff; border:1px solid var(--line); border-left-width:4px; border-left-color:var(--line);
@@ -1847,6 +1863,11 @@
     <div class="dp-filter-bar">
       <label for="dpStageFilter">只看階段</label>
       <select id="dpStageFilter"><option value="all">全部（依階段分組）</option></select>
+      <span class="dp-mode-label">卡片</span>
+      <span class="dp-mode" role="group" aria-label="卡片顯示方式">
+        <button type="button" data-mode="compact">精簡</button>
+        <button type="button" data-mode="full">完整</button>
+      </span>
     </div>
     <div id="dpList"><div class="rec-empty">載入中…</div></div>
     <span id="dpCount" style="display:none;">0</span>
@@ -3521,6 +3542,12 @@
     if(clr) clr.addEventListener('click', () => { input.value = ''; applyTechSearch(); input.focus(); });
   })();
   let dpStageFilter = 'all';
+  let dpCardMode = (function(){ try{ return localStorage.getItem('dpCardMode') || 'compact'; }catch(e){ return 'compact'; } })();
+  document.querySelectorAll('.dp-mode button').forEach(b => b.addEventListener('click', () => {
+    dpCardMode = b.dataset.mode;
+    try{ localStorage.setItem('dpCardMode', dpCardMode); }catch(e){}
+    drawDigitalPlanList();
+  }));
   function drawDigitalPlanList(){
     const listEl = document.getElementById('dpList');
     if(!listEl) return;
@@ -3553,8 +3580,22 @@
     }
     if(list.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有進行中的數位規劃</div>'; return; }
 
+    const miniHTML = r => {
+      const h = handoffState(r);
+      const badges = [r.rush ? '<span class="badge-rush">急件</span>' : '',
+        r.dpNoNextAppt ? '<span class="badge-nonext">未約後續</span>' : '',
+        h ? `<span class="badge-handoff ${h.to === currentTechIdentity ? '' : (h.overdue ? 'overdue' : 'waiting')}">${h.to === currentTechIdentity ? '待你接手' : `等${esc(h.to)}接手`}</span>` : '',
+        r.modelReady ? '<span class="badge-model">模型好</span>' : ''].join('');
+      const due = r.items && r.items.dueDate ? r.items.dueDate.slice(5).replace('-', '/') : '';
+      return `<button type="button" class="dp-mini ${assigneeColorClass(r)}" data-id="${r.id}" title="點開看詳情、改階段、交接">
+          <span class="dpm-l1"><b>${esc(r.patient || '(未填患者)')}</b>${due ? `<span class="dpm-due">完成 ${esc(due)}</span>` : ''}</span>
+          <span class="dpm-l2">${esc(r.doctor || '-')}・${r.assignedTo ? esc(r.assignedTo) : '未指派'}</span>
+          ${badges ? `<span class="dpm-badges">${badges}</span>` : ''}
+        </button>`;
+    };
     const cardHTML = r => {
       const flow = dpFlowOf(r);
+      if(dpCardMode === 'compact' && flow) return miniHTML(r);
       const steps = flow ? DP_FLOWS[flow].steps : [];
       const stageSel = flow
         ? `<select class="dpStageSel" data-id="${r.id}">
@@ -3636,7 +3677,8 @@
       if(!sel.value){ setDpStage(sel.dataset.id, rec ? rec.dpStage : ''); return; }  // 清掉階段
       setDpStage(sel.dataset.id, sel.value);
     }));
-    listEl.querySelectorAll('.dpOpenBtn').forEach(b => b.addEventListener('click', () => showCalendarOrderModal(b.dataset.id)));
+    listEl.querySelectorAll('.dpOpenBtn, .dp-mini').forEach(b => b.addEventListener('click', () => showCalendarOrderModal(b.dataset.id)));
+    document.querySelectorAll('.dp-mode button').forEach(b => b.classList.toggle('on', b.dataset.mode === dpCardMode));
     listEl.querySelectorAll('.dpDelBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
     listEl.querySelectorAll('.assignSel').forEach(sel => sel.addEventListener('change', () => setAssignee(sel.dataset.id, sel.value)));
     listEl.querySelectorAll('.dpHandoffBtn').forEach(b => b.addEventListener('click', () => openHandoffModal(b.dataset.id)));
@@ -3909,6 +3951,38 @@
     const areas = toothAreasText(items);
     return [areas, nums].filter(Boolean).join('；');
   }
+  // ---- 製作分工：誰完成了哪些步驟 ----
+  // 數位規劃：依流程順序列出每一步的完成者，同一人連續的步驟合併，例如「菁優：已設計好蠟型、與醫師討論蠟型設計 → 堅雯：植牙規劃、導版設計」
+  function workSteps(r){
+    const flow = dpFlowOf(r);
+    if(!isDigitalPlan(r) || !flow) return null;
+    const log = r.dpStepLog || {};
+    return DP_FLOWS[flow].steps
+      .filter(st => log[st.k] && log[st.k].by && !/^待/.test(st.t))
+      .map(st => ({ by: log[st.k].by, label: st.finish ? '結案' : st.t }));
+  }
+  function workSplitText(r){
+    const steps = workSteps(r);
+    if(steps){
+      if(!steps.length) return r.assignedTo || '';
+      const groups = [];
+      steps.forEach(x => { const g = groups[groups.length - 1]; if(g && g.by === x.by) g.items.push(x.label); else groups.push({ by: x.by, items: [x.label] }); });
+      return groups.map(g => `${g.by}：${g.items.join('、')}`).join(' → ');
+    }
+    // 一般單：依轉單紀錄列出經手的牙技師
+    const chain = [];
+    (Array.isArray(r.assignLog) ? r.assignLog : []).forEach(e => { if(e.to && e.to !== '未處理' && chain[chain.length - 1] !== e.to) chain.push(e.to); });
+    if(r.assignedTo && chain[chain.length - 1] !== r.assignedTo) chain.push(r.assignedTo);
+    if(!chain.length) return '';
+    return chain.length === 1 ? `${chain[0]}：整單製作` : chain.map((n, i) => i === chain.length - 1 ? `${n}：接手完成` : `${n}：轉出`).join(' → ');
+  }
+  function workByTech(r, name){
+    const steps = workSteps(r);
+    if(steps) return steps.filter(x => x.by === name).map(x => x.label).join('、');
+    if(r.assignedTo === name) return r.status === 'done' ? '整單製作' : '製作中';
+    const touched = (Array.isArray(r.assignLog) ? r.assignLog : []).some(e => e.to === name);
+    return touched ? '曾負責（已轉出）' : '';
+  }
   function buildExcelRow(r){
     const items = r.items || {};
     return {
@@ -3922,10 +3996,9 @@
         .map(e => `${e.ts ? new Date(e.ts).toLocaleString('zh-TW') : ''} ${e.from || ''}→${e.to || ''}（操作者 ${e.by || '未知'}${e.stage ? '，階段 ' + e.stage : ''}）`)
         .join('；'),
       '狀態': STATUS_LABEL[r.status] || r.status || '',
-      '數位/模板': sectionSummaryText('digital', items),
-      '模型/咬合相關': sectionSummaryText('left', items),
-      '假牙/蠟型相關': sectionSummaryText('right', items),
-      '其他技工項目': sectionSummaryText('other', items),
+      '製作項目': ['digital','left','right','other'].map(sec => sectionSummaryText(sec, items)).filter(Boolean).join('；'),
+      '製作分工': workSplitText(r),
+      ...Object.fromEntries(TECH_NAMES.map(n => [`${n}完成`, workByTech(r, n)])),
       '牙位': toothSummaryText(items),
       '須完成日': items.dueDate || '',
       '交待事項': items.notes || '',
@@ -4250,9 +4323,11 @@
   function calOrderChipHTML(x){
     const stage = isDigitalPlan(x) ? dpStageLabel(x) : '';
     const name = esc(x.patient || '(未填)');
-    const text = stage ? `${name}·${esc(stage)}` : name;
+    const itemFull = checkedMainItems(x.items || {}).join('、');
+    const itemShort = itemFull.replace(/（[^）]*）/g, '');
+    const text = stage ? `${name}·${esc(stage)}` : (itemShort ? `${name}·${esc(itemShort)}` : name);
     const who = x.assignedTo ? (TECH_NAMES.indexOf(x.assignedTo) === 1 ? ' cal-chip-b' : ' cal-chip-a') : ' cal-chip-unassigned';
-    return `<div class="cal-chip${x.status==='done' ? ' cal-chip-done' : ''}${who}" data-id="${x.id}" title="${esc(x.patient || '')}${stage ? '：' + esc(stage) : ''}">${text}</div>`;
+    return `<div class="cal-chip${x.status==='done' ? ' cal-chip-done' : ''}${who}" data-id="${x.id}" title="${esc(x.patient || '')}${stage ? '：' + esc(stage) : (itemFull ? '：' + esc(itemFull) : '')}">${text}</div>`;
   }
   function showCalendarDayModal(dateStr){
     const data = calDayData[dateStr];
