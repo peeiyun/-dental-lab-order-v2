@@ -810,6 +810,7 @@
   .fu-main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
   .fu-name{ font-weight:700; font-size:14px; }
   .fu-name span{ font-weight:400; font-size:12px; color:var(--muted); margin-left:8px; }
+  .fu-wait{ color:#B04C42; font-weight:700; }
   .fu-stage, .fu-last{ font-size:12px; color:var(--ink); }
   .fu-none{ color:var(--muted); }
   .fu-more{ font-size:11px; padding:0 6px; margin-left:6px; background:none; border:none; color:#2E5AA8; text-decoration:underline; cursor:pointer; }
@@ -885,7 +886,7 @@
   .dp-group[open] > .dp-group-head::before{ content:'▾'; }
   .rec.dp-compact{ padding:8px 12px; }
   .rec.dp-compact .sub{ font-size:11.5px; }
-  .dp-nonext{ font-size:11px; display:flex; align-items:center; gap:4px; cursor:pointer; }
+  .dp-nonext{ font-size:11.5px; display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap; margin-top:4px; }
   .dp-nonext input{ accent-color:#2E5AA8; }
   .dp-step.current .dp-nonext{ color:#fff; }
   .badge-rush{
@@ -3207,8 +3208,8 @@
             {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'done',t:'已完成',finish:true}]},
     II:  { label:'II. 需蠟型設計', steps:[
             {k:'wax',t:'待設計蠟型'},{k:'waxdone',t:'已設計好蠟型'},
-            {k:'discuss',t:'與醫師討論蠟型設計',date:true,noNext:true},
-            {k:'plan',t:'植牙規劃'},{k:'confirm2',t:'和醫師確認植牙規劃',date:true,beforeExplain:true},
+            {k:'discuss',t:'與醫師討論蠟型設計',date:true,noNext:true,romexis:true},
+            {k:'plan',t:'植牙規劃'},{k:'confirm2',t:'和醫師確認植牙規劃',date:true,beforeExplain:true,noNext:true},
             {k:'guide',t:'導版設計'},{k:'print',t:'列印'},{k:'fit',t:'合模'},{k:'done',t:'已完成',finish:true}]}
   };
   // 依進度分組時的排列順序
@@ -3224,9 +3225,13 @@
       const dateInput = st.date
         ? `<input type="date" class="dpTime" data-id="${r.id}" data-step="${st.k}" value="${esc(times[st.k] || '')}" onclick="event.stopPropagation()" />`
         : '';
-      const noNext = st.noNext
-        ? `<label class="dp-nonext" onclick="event.stopPropagation()"><input type="checkbox" class="dpNoNext" data-id="${r.id}" ${r.dpNoNextAppt ? 'checked' : ''} /> 未約後續</label>`
-        : '';
+      const noNextOn = r.dpNoNextAppt && (r.dpNoNextStep || 'discuss') === st.k;
+      const noNext = (st.noNext
+        ? `<label class="dp-nonext" onclick="event.stopPropagation()"><input type="checkbox" class="dpNoNext" data-id="${r.id}" data-step="${st.k}" ${noNextOn ? 'checked' : ''} /> 未約後續</label>`
+        : '')
+        + (st.romexis
+        ? `<label class="dp-nonext" onclick="event.stopPropagation()"><input type="checkbox" class="dpRomexis" data-id="${r.id}" ${r.dpRomexis ? 'checked' : ''} /> 疊 ROMEXIS</label>`
+        : '');
       const log = (r.dpStepLog || {})[st.k];
       const logHtml = log ? `<span class="dp-step-log">✓ ${esc(log.by)} ${nowLabel(log.ts)}</span>` : '';
       return `<div class="dp-step ${cls}" data-id="${r.id}" data-step="${st.k}">
@@ -3254,7 +3259,8 @@
   function bindDpHandlers(root){
     root.querySelectorAll('.dpFlowSel').forEach(sel => sel.addEventListener('change', () => setDpFlow(sel.dataset.id, sel.value)));
     root.querySelectorAll('.dp-step').forEach(el => el.addEventListener('click', () => setDpStage(el.dataset.id, el.dataset.step)));
-    root.querySelectorAll('.dpNoNext').forEach(cb => cb.addEventListener('change', () => setDpNoNext(cb.dataset.id, cb.checked)));
+    root.querySelectorAll('.dpNoNext').forEach(cb => cb.addEventListener('change', () => setDpNoNext(cb.dataset.id, cb.checked, cb.dataset.step)));
+    root.querySelectorAll('.dpRomexis').forEach(cb => cb.addEventListener('change', () => setDpRomexis(cb.dataset.id, cb.checked)));
     root.querySelectorAll('.dpHandoffBtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openHandoffModal(b.dataset.id); }));
     root.querySelectorAll('.dpAcceptBtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); acceptHandoff(b.dataset.id); }));
     root.querySelectorAll('.dpCancelHandoffBtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); cancelHandoff(b.dataset.id); }));
@@ -3464,12 +3470,22 @@
     el.querySelectorAll('.hb-open').forEach(b => b.addEventListener('click', () => showCalendarOrderModal(b.dataset.id)));
   }
 
-  async function setDpNoNext(id, checked){
+  async function setDpRomexis(id, checked){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    rec.dpRomexis = checked ? { by: currentTechIdentity || '未知', ts: Date.now() } : null;
+    pushTimeline(rec, { type:'note', label: checked ? '已疊 ROMEXIS' : '取消「已疊 ROMEXIS」' });
+    try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
+  }
+  async function setDpNoNext(id, checked, step){
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
     rec.dpNoNextAppt = !!checked;
-    if(checked){ rec.dpNoNextSince = Date.now(); pushTimeline(rec, { type:'note', label:'標記未約後續' }); }
-    else rec.dpNoNextSince = null;
+    if(checked){
+      rec.dpNoNextStep = step || 'discuss';
+      rec.dpNoNextSince = Date.now();
+      pushTimeline(rec, { type:'note', label:`標記未約後續（${stepLabelOf(rec, rec.dpNoNextStep)}）` });
+    }else{ rec.dpNoNextSince = null; rec.dpNoNextStep = null; }
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
   async function setDpTime(id, stepKey, value, step){
@@ -3610,6 +3626,7 @@
           <div class="dp-card-badges">
             ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
             ${r.dpNoNextAppt ? '<span class="badge-nonext">未約後續</span>' : ''}
+            ${r.dpRomexis ? '<span class="badge-model">已疊 ROMEXIS</span>' : ''}
             ${modelBadgeHTML(r)}
             ${(() => { const h = handoffState(r); if(!h) return '';
                 const mine = h.to === currentTechIdentity;
@@ -3637,9 +3654,9 @@
     const flowSection = f => {
       const items = flowList(f);
       const steps = DP_FLOWS[f].steps;
-      const unset = items.filter(r => !steps.some(st => st.k === r.dpStage));
+      const unset = items.filter(r => !steps.some(st => st.k === r.dpStage) && !(f === 'II' && r.dpNoNextAppt));
       const cols = (unset.length ? [colHTML('未設定階段', unset)] : [])
-        .concat(steps.filter(st => !st.finish).map(st => colHTML(esc(st.t), items.filter(r => r.dpStage === st.k))));
+        .concat(steps.filter(st => !st.finish).map(st => colHTML(esc(st.t), items.filter(r => r.dpStage === st.k && !(f === 'II' && r.dpNoNextAppt)))));
       return `<div class="dp-section dp-section-${f}">
           <div class="dp-section-title">${esc(DP_FLOWS[f].label)}<span>${items.length} 張</span></div>
           ${f === 'II' ? followUpBlockHTML(items) : ''}
@@ -3701,11 +3718,12 @@
       const logs = Array.isArray(r.dpFollowLog) ? r.dpFollowLog : [];
       const last = logs[logs.length - 1];
       const stage = r.dpStage ? stepLabelOf(r, r.dpStage) : '未設定階段';
+      const waitFor = stepLabelOf(r, r.dpNoNextStep || 'discuss');
       return `<div class="fu-row ${lvl}" data-id="${r.id}">
           <div class="fu-days"><b>${days}</b><span>天</span>${days > 14 ? '<em>逾期</em>' : ''}</div>
           <div class="fu-main">
             <div class="fu-name">${esc(r.patient || '(未填患者)')}<span>病歷號 ${esc(r.chartNo || '-')}・${esc(r.doctor || '-')}・${r.assignedTo ? esc(r.assignedTo) : '未指派'}</span></div>
-            <div class="fu-stage">目前：${esc(stage)}</div>
+            <div class="fu-stage">目前：${esc(stage)}　<span class="fu-wait">待約：${esc(waitFor)}</span>${r.dpRomexis ? '　<span class="badge-model">已疊 ROMEXIS</span>' : ''}</div>
             <div class="fu-last">${last ? `最近聯絡：${new Date(last.ts).getMonth()+1}/${new Date(last.ts).getDate()} ${esc(last.by || '')}－${esc(last.text)}${logs.length > 1 ? `<button type="button" class="fu-more" data-id="${r.id}">共 ${logs.length} 筆</button>` : ''}` : '<span class="fu-none">尚無聯絡紀錄</span>'}</div>
             <div class="fu-log-all" id="fuLog_${r.id}" style="display:none;">${logs.slice().reverse().map(l =>
               `<div>${new Date(l.ts).toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})} ${esc(l.by || '')}－${esc(l.text)}</div>`).join('')}</div>
@@ -3725,7 +3743,7 @@
         </div>`;
     }).join('');
     return `<details class="fu-block" open>
-        <summary>待約後續 <span class="fu-count">${list.length}</span><span class="fu-hint">已設計好蠟型、還沒跟醫師約討論時間的單（等最久的排最上面；超過 7 天黃色、14 天紅色）</span></summary>
+        <summary>待約後續 <span class="fu-count">${list.length}</span><span class="fu-hint">還沒跟醫師約好「討論蠟型設計」或「確認植牙規劃」的單，約好後會回到下方步驟（等最久的排最上面；超過 7 天黃色、14 天紅色）</span></summary>
         ${list.length ? `<div class="fu-list">${rows}</div>` : '<div class="fu-empty">目前沒有待約後續的單</div>'}
       </details>`;
   }
@@ -3740,18 +3758,21 @@
   async function markFollowUpBooked(id, date){
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
-    if(!date){ alert('請先選擇約好的討論日期'); return; }
-    rec.dpTimes = Object.assign({}, rec.dpTimes || {}, { discuss: date });
+    if(!date){ alert('請先選擇約好的日期'); return; }
+    const step = rec.dpNoNextStep || 'discuss';
+    const label = stepLabelOf(rec, step);
+    rec.dpTimes = Object.assign({}, rec.dpTimes || {}, { [step]: date });
+    rec.dpNoNextStep = null;
     rec.dpNoNextAppt = false;
     rec.dpNoNextSince = null;
     rec.dpFollowLog = Array.isArray(rec.dpFollowLog) ? rec.dpFollowLog.slice() : [];
-    rec.dpFollowLog.push({ by: currentTechIdentity || '未知', ts: Date.now(), text: `已約好討論日期 ${date}` });
-    const before = ['', 'wax', 'waxdone'];
-    if(before.includes(rec.dpStage || '')){
-      rec.dpStage = 'discuss';
-      rec.dpStepLog = Object.assign({}, rec.dpStepLog || {}, { discuss: { by: currentTechIdentity || '未知', ts: Date.now() } });
+    rec.dpFollowLog.push({ by: currentTechIdentity || '未知', ts: Date.now(), text: `已約好「${label}」${date}` });
+    const order = DP_FLOWS.II.steps.map(x => x.k);
+    if(order.indexOf(rec.dpStage || '') < order.indexOf(step)){
+      rec.dpStage = step;
+      rec.dpStepLog = Object.assign({}, rec.dpStepLog || {}, { [step]: { by: currentTechIdentity || '未知', ts: Date.now() } });
     }
-    pushTimeline(rec, { type:'note', label:`已約好與醫師討論蠟型設計（${date}）` });
+    pushTimeline(rec, { type:'note', label:`已約好「${label}」（${date}）` });
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
   function bindFollowUp(root){
@@ -3776,8 +3797,11 @@
     root.querySelectorAll('.fu-line').forEach(b => b.addEventListener('click', () => {
       const r = cachedRecords.find(x => x.id === b.dataset.id);
       if(!r) return;
-      const text = `${r.patient || '(未填患者)'}（病歷號 ${r.chartNo || '-'}）的植牙規劃蠟型已設計好，想跟您約時間討論蠟型設計，請問您方便的時間？\n技師：${r.assignedTo || currentTechIdentity || '-'}`;
-      openLineDoctorModal(r.id, text, () => addFollowLog(r.id, '已 LINE 通知醫師約討論時間'));
+      const isConfirm = r.dpNoNextStep === 'confirm2';
+      const text = isConfirm
+        ? `${r.patient || '(未填患者)'}（病歷號 ${r.chartNo || '-'}）的植牙規劃已完成，想跟您約時間確認植牙規劃，請問您方便的時間？\n技師：${r.assignedTo || currentTechIdentity || '-'}`
+        : `${r.patient || '(未填患者)'}（病歷號 ${r.chartNo || '-'}）的植牙規劃蠟型已設計好，想跟您約時間討論蠟型設計，請問您方便的時間？\n技師：${r.assignedTo || currentTechIdentity || '-'}`;
+      openLineDoctorModal(r.id, text, () => addFollowLog(r.id, isConfirm ? '已 LINE 通知醫師約確認植牙規劃時間' : '已 LINE 通知醫師約討論時間'));
     }));
   }
 
