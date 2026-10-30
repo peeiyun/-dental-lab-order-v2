@@ -644,6 +644,9 @@
   /* ---- 已接單／未接單底色 ---- */
   .model-chk{ display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:600; color:#7A5410; background:#fff; border:1px solid #E0A526; padding:5px 10px; cursor:pointer; white-space:nowrap; }
   .model-chk input{ accent-color:#2E8B72; width:15px; height:15px; }
+  .badge-ct{ display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; background:#E4E0F7; color:#4A3D99; }
+  .dp-ct-chk{ display:inline-flex; align-items:center; gap:4px; margin-left:10px; font-weight:700; color:#4A3D99; cursor:pointer; white-space:nowrap; }
+  .dp-ct-chk input{ width:auto !important; margin:0; }
   .badge-model{ display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; background:#D9F0E8; color:#1F6653; }
   .rec.rec-unassigned{ background:#FFF8E6; border-left:4px solid #E0A526; }
   .dp-card.rec-unassigned{ border-left-color:#E0A526; background:#FFF8E6; }
@@ -841,6 +844,33 @@
   .dp-col-count{ background:#2E5AA8; color:#fff; border-radius:999px; padding:1px 8px; font-size:11px; }
   .dp-col-body{ overflow-y:auto; }
   .dp-mode-label{ margin-left:14px; font-size:12.5px; color:var(--muted); }
+  .dp-view-title{ font-size:15px; font-weight:700; color:var(--ink); margin-right:6px; }
+  .side-caret{ width:14px !important; height:14px !important; margin-left:-6px; transition:transform .2s; }
+  .side-item.on .side-caret{ transform:rotate(180deg); }
+  .side-sub{ display:none; flex-direction:column; padding:2px 0 6px; background:#FCF8F7; }
+  .tech-side.dp-open .side-sub{ display:flex; }
+  .side-subitem{ display:flex; align-items:center; gap:8px; width:100%; padding:8px 20px 8px 52px; background:none; border:none; color:#5B514E; font-size:13px; text-align:left; cursor:pointer; }
+  .side-subitem span{ flex:1; }
+  .side-subitem em{ font-style:normal; font-size:11px; color:#8A807C; }
+  .side-subitem:hover{ color:var(--accent-dark); background:#F7F0EE; border-color:transparent; }
+  .side-subitem.on{ color:var(--accent-dark); font-weight:700; }
+  .side-subitem.on::before{ content:''; width:6px; height:6px; background:var(--accent); margin-left:-14px; margin-right:2px; }
+  body.side-collapsed .side-sub{ display:none !important; }
+  /* 條列 */
+  .dp-table-wrap{ overflow-x:auto; background:#fff; border:1px solid var(--line); }
+  .dp-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .dp-table th{ text-align:left; font-weight:700; color:var(--muted); font-size:12px; padding:8px 10px; border-bottom:2px solid var(--line); background:#FAF6F5; white-space:nowrap; }
+  .dp-table td{ padding:8px 10px; border-bottom:1px solid #F0EAE8; vertical-align:middle; }
+  .dp-table tr.dpt-row{ cursor:pointer; }
+  .dp-table tr.dpt-row:hover td{ background:#FFF6F4; }
+  .dp-table tr.dpt-group td{ background:#EEF3FB; color:#2E5AA8; font-weight:700; font-size:12.5px; padding:6px 10px; }
+  .dp-table tr.dpt-group.g-none td{ background:#FCEAE7; color:var(--accent-dark); }
+  .dp-table tr.dpt-group.g-I td{ background:#E3F4EF; color:#2E8B72; }
+  .dp-table td.dpt-name{ font-weight:700; white-space:nowrap; }
+  .dp-table .dpt-tags span{ font-size:10.5px !important; padding:1px 6px !important; margin-right:3px; }
+  .dpt-who{ display:inline-block; font-size:11.5px; font-weight:700; padding:1px 8px; }
+  .dpt-who.a{ background:#DCE8FB; color:#1F4688; } .dpt-who.b{ background:#D9F0E8; color:#1F6653; } .dpt-who.n{ background:#FFEFC2; color:#7A5410; }
+  .dpt-due.over{ color:var(--danger); font-weight:700; }
   .dp-mode{ display:inline-flex; }
   .dp-mode button{ font-size:12px; padding:5px 12px; background:#fff; }
   .dp-mode button.on{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; }
@@ -1736,7 +1766,12 @@
   <div class="tech-shell">
   <nav class="tech-side" aria-label="牙技師功能選單">
     <div class="side-title"><span class="side-title-text">內部技工單</span><button type="button" class="side-toggle" aria-label="收合／展開功能列" title="收合／展開功能列"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button></div>
-    <button type="button" class="side-item" data-panel="calendar" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>日曆</span><em class="side-count" data-count="calendar"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5h11M9 12h11M9 19h11"/><circle cx="4.5" cy="5" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="19" r="1"/></svg><span>全部單子</span><em class="side-count" data-count="all"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="pending"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/></svg><span>未接單</span><em class="side-count" data-count="pending"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="in_progress"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M3 21c0-3.3 2.7-6 6-6"/><path d="M15 17l2 2 4-4"/></svg><span>已接單</span><em class="side-count" data-count="in_progress"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="dp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/></svg><span>數位規劃</span><em class="side-count" data-count="dp"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><span>已完成</span><em class="side-count" data-count="done"></em></button><button type="button" class="side-item" data-panel="history" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span>歷史紀錄</span><em class="side-count" data-count="history"></em></button><button type="button" class="side-item" data-panel="stats" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17v-5M13 17V8M18 17v-9"/></svg><span>統計分析</span><em class="side-count" data-count="stats"></em></button><button type="button" class="side-item" data-panel="quota" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21a9 9 0 1 1 9-9"/><path d="M12 12l5-3"/></svg><span>額度監控</span><em class="side-count" data-count="quota"></em></button>
+    <button type="button" class="side-item" data-panel="calendar" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>日曆</span><em class="side-count" data-count="calendar"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5h11M9 12h11M9 19h11"/><circle cx="4.5" cy="5" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="19" r="1"/></svg><span>全部單子</span><em class="side-count" data-count="all"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="pending"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/></svg><span>未接單</span><em class="side-count" data-count="pending"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="in_progress"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M3 21c0-3.3 2.7-6 6-6"/><path d="M15 17l2 2 4-4"/></svg><span>已接單</span><em class="side-count" data-count="in_progress"></em></button><button type="button" class="side-item" data-panel="orders" data-filter="dp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/></svg><span>數位規劃</span><svg class="side-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg><em class="side-count" data-count="dp"></em></button><div class="side-sub" id="dpSubNav">
+      <button type="button" class="side-subitem" data-dpf="all"><span>全部單子</span><em data-dpc="all"></em></button>
+      <button type="button" class="side-subitem" data-dpf="none"><span>尚未選擇情形</span><em data-dpc="none"></em></button>
+      <button type="button" class="side-subitem" data-dpf="I"><span>I. 已有CT板</span><em data-dpc="I"></em></button>
+      <button type="button" class="side-subitem" data-dpf="II"><span>II. 需蠟型設計</span><em data-dpc="II"></em></button>
+    </div><button type="button" class="side-item" data-panel="orders" data-filter="done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><span>已完成</span><em class="side-count" data-count="done"></em></button><button type="button" class="side-item" data-panel="history" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span>歷史紀錄</span><em class="side-count" data-count="history"></em></button><button type="button" class="side-item" data-panel="stats" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17v-5M13 17V8M18 17v-9"/></svg><span>統計分析</span><em class="side-count" data-count="stats"></em></button><button type="button" class="side-item" data-panel="quota" data-filter=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21a9 9 0 1 1 9-9"/><path d="M12 12l5-3"/></svg><span>額度監控</span><em class="side-count" data-count="quota"></em></button>
   </nav>
   <main class="tech-main">
   <div class="tech-identity-bar" id="techIdentityBar">
@@ -1862,10 +1897,17 @@
   <div class="records tab-panel" id="dpBlock" data-panel="orders" style="display:none;">
     <p class="mini-note">數位規劃的單子集中在這裡追蹤進度。先選擇情形，再點選目前完成到哪個階段；標示「時間」的階段要填日期。要結案請在「技工處理紀錄」填完成日期。</p>
     <div class="dp-filter-bar">
-      <label for="dpStageFilter">只看階段</label>
-      <select id="dpStageFilter"><option value="all">全部（依階段分組）</option></select>
-      <span class="dp-mode-label">卡片</span>
-      <span class="dp-mode" role="group" aria-label="卡片顯示方式">
+      <label for="dpStageFilter" style="display:none">只看階段</label>
+      <select id="dpStageFilter" style="display:none"><option value="all">全部（依階段分組）</option></select>
+      <span class="dp-view-title" id="dpViewTitle">全部單子</span>
+      <span class="dp-ct-opt" style="display:none"><select id="dpCtFilter" aria-label="CT篩選"><option value="all">II 全部</option><option value="yes">只看有CT</option><option value="no">只看沒CT</option></select></span>
+      <span class="dp-mode-label">排列</span>
+      <span class="dp-mode dp-layout" role="group" aria-label="排列方式">
+        <button type="button" data-layout="board">一格一格</button>
+        <button type="button" data-layout="list">條列</button>
+      </span>
+      <span class="dp-mode-label dp-card-opt">卡片</span>
+      <span class="dp-mode dp-card-opt" role="group" aria-label="卡片顯示方式">
         <button type="button" data-mode="compact">精簡</button>
         <button type="button" data-mode="full">完整</button>
       </span>
@@ -2953,12 +2995,19 @@
       const on = b.dataset.panel === techPanel && (techPanel !== 'orders' || b.dataset.filter === currentFilter);
       b.classList.toggle('on', on);
     });
+    const dpOpen = techPanel === 'orders' && currentFilter === 'dp';
+    const side = document.querySelector('#techView .tech-side');
+    if(side) side.classList.toggle('dp-open', dpOpen);
+    document.querySelectorAll('#dpSubNav .side-subitem').forEach(b => b.classList.toggle('on', dpOpen && b.dataset.dpf === (typeof dpStageFilter !== 'undefined' ? dpStageFilter : 'all')));
     const counts = {};
     document.querySelectorAll('.filter-tab').forEach(t => { counts[t.dataset.filter] = t.querySelector('.count').textContent; });
     const hc = document.getElementById('historyCount'); if(hc) counts.history = hc.textContent;
     document.querySelectorAll('#techView .side-count').forEach(c => { const k = c.dataset.count; c.textContent = counts[k] !== undefined ? counts[k] : ''; });
   }
-  document.querySelectorAll('#techView .side-item').forEach(b => b.addEventListener('click', () => setTechPanel(b.dataset.panel, b.dataset.filter)));
+  document.querySelectorAll('#techView .side-item').forEach(b => b.addEventListener('click', () => {
+    if(b.dataset.filter === 'dp' && typeof dpStageFilter !== 'undefined') dpStageFilter = 'all';
+    setTechPanel(b.dataset.panel, b.dataset.filter);
+  }));
   // ---- 送單端左側功能列 ----
   function setSenderPanel(panel){
     document.querySelectorAll('#submitView [data-spanel]').forEach(el => {
@@ -3251,6 +3300,7 @@
           <option value="" ${!flow?'selected':''}>請選擇</option>
           ${Object.keys(DP_FLOWS).map(k => `<option value="${k}" ${flow===k?'selected':''}>${DP_FLOWS[k].label}</option>`).join('')}
         </select>
+        ${flow === 'II' ? `<label class="dp-ct-chk" onclick="event.stopPropagation()"><input type="checkbox" class="dpHasCT" data-id="${r.id}" ${r.dpHasCT ? 'checked' : ''} /> 已有CT板</label>` : ''}
         ${flow ? '<span>目前階段：點選下方步驟</span>' : ''}
       </div>
       ${flow ? `<div class="dp-steps">${stepsHtml}</div>` : ''}
@@ -3261,6 +3311,7 @@
     root.querySelectorAll('.dp-step').forEach(el => el.addEventListener('click', () => setDpStage(el.dataset.id, el.dataset.step)));
     root.querySelectorAll('.dpNoNext').forEach(cb => cb.addEventListener('change', () => setDpNoNext(cb.dataset.id, cb.checked, cb.dataset.step)));
     root.querySelectorAll('.dpRomexis').forEach(cb => cb.addEventListener('change', () => setDpRomexis(cb.dataset.id, cb.checked)));
+    root.querySelectorAll('.dpHasCT').forEach(cb => cb.addEventListener('change', () => setDpHasCT(cb.dataset.id, cb.checked)));
     root.querySelectorAll('.dpHandoffBtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openHandoffModal(b.dataset.id); }));
     root.querySelectorAll('.dpAcceptBtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); acceptHandoff(b.dataset.id); }));
     root.querySelectorAll('.dpCancelHandoffBtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); cancelHandoff(b.dataset.id); }));
@@ -3470,6 +3521,13 @@
     el.querySelectorAll('.hb-open').forEach(b => b.addEventListener('click', () => showCalendarOrderModal(b.dataset.id)));
   }
 
+  async function setDpHasCT(id, checked){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    rec.dpHasCT = !!checked;
+    pushTimeline(rec, { type:'note', label: checked ? '標記已有CT板' : '取消「已有CT板」' });
+    try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
+  }
   async function setDpRomexis(id, checked){
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
@@ -3558,8 +3616,21 @@
     if(clr) clr.addEventListener('click', () => { input.value = ''; applyTechSearch(); input.focus(); });
   })();
   let dpStageFilter = 'all';
+  let dpLayout = (function(){ try{ return localStorage.getItem('dpLayout') || 'board'; }catch(e){ return 'board'; } })();
+  document.querySelectorAll('.dp-layout button').forEach(b => b.addEventListener('click', () => {
+    dpLayout = b.dataset.layout;
+    try{ localStorage.setItem('dpLayout', dpLayout); }catch(e){}
+    drawDigitalPlanList();
+  }));
+  document.querySelectorAll('#dpSubNav .side-subitem').forEach(b => b.addEventListener('click', () => {
+    dpStageFilter = b.dataset.dpf;
+    setTechPanel('orders', 'dp');
+    drawDigitalPlanList();
+  }));
+  let dpCtFilter = 'all';
+  document.getElementById('dpCtFilter').addEventListener('change', e => { dpCtFilter = e.target.value; drawDigitalPlanList(); });
   let dpCardMode = (function(){ try{ return localStorage.getItem('dpCardMode') || 'compact'; }catch(e){ return 'compact'; } })();
-  document.querySelectorAll('.dp-mode button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.dp-mode:not(.dp-layout) button').forEach(b => b.addEventListener('click', () => {
     dpCardMode = b.dataset.mode;
     try{ localStorage.setItem('dpCardMode', dpCardMode); }catch(e){}
     drawDigitalPlanList();
@@ -3586,7 +3657,9 @@
     // 篩選：全部 / 尚未選擇情形 / I / II
     const filterSel = document.getElementById('dpStageFilter');
     const noneList = list.filter(r => !dpFlowOf(r));
-    const flowList = f => list.filter(r => dpFlowOf(r) === f);
+    const flowListRaw = f => list.filter(r => dpFlowOf(r) === f);
+    const ctOk = r => dpCtFilter === 'all' || (dpCtFilter === 'yes') === !!r.dpHasCT;
+    const flowList = f => flowListRaw(f).filter(r => f !== 'II' || dpStageFilter !== 'II' || ctOk(r));
     if(filterSel){
       const opts = [['all','全部'], ['none',`尚未選擇情形（${noneList.length}）`]]
         .concat(Object.keys(DP_FLOWS).map(f => [f, `${DP_FLOWS[f].label}（${flowList(f).length}）`]));
@@ -3594,12 +3667,29 @@
       const html = opts.map(([v, t]) => `<option value="${v}" ${v===dpStageFilter?'selected':''}>${esc(t)}</option>`).join('');
       if(filterSel.innerHTML !== html) filterSel.innerHTML = html;
     }
+    const dpCounts = { all: list.length, none: noneList.length, I: flowListRaw('I').length, II: flowListRaw('II').length };
+    const ctOpt = document.querySelector('.dp-ct-opt');
+    if(ctOpt){
+      ctOpt.style.display = dpStageFilter === 'II' ? '' : 'none';
+      const iiAll = flowListRaw('II'), yes = iiAll.filter(r => r.dpHasCT).length;
+      const sel = document.getElementById('dpCtFilter');
+      const html = `<option value="all">II 全部（${iiAll.length}）</option><option value="yes">只看有CT（${yes}）</option><option value="no">只看沒CT（${iiAll.length - yes}）</option>`;
+      if(sel.innerHTML !== html) sel.innerHTML = html;
+      sel.value = dpCtFilter;
+    }
+    document.querySelectorAll('#dpSubNav [data-dpc]').forEach(e => { e.textContent = dpCounts[e.dataset.dpc]; });
+    const titles = { all:'全部單子', none:'尚未選擇情形', I:'I. 已有CT板', II:'II. 需蠟型設計' };
+    const vt = document.getElementById('dpViewTitle'); if(vt) vt.textContent = `${titles[dpStageFilter] || '全部單子'}（${dpStageFilter === 'II' ? flowList('II').length : (dpCounts[dpStageFilter] ?? list.length)}）`;
+    document.querySelectorAll('.dp-layout button').forEach(b => b.classList.toggle('on', b.dataset.layout === dpLayout));
+    document.querySelectorAll('.dp-card-opt').forEach(e => { e.style.display = dpLayout === 'board' ? '' : 'none'; });
+    if(typeof syncSideNav === 'function') syncSideNav();
     if(list.length === 0){ listEl.innerHTML = '<div class="rec-empty">目前沒有進行中的數位規劃</div>'; return; }
 
     const miniHTML = r => {
       const h = handoffState(r);
       const badges = [r.rush ? '<span class="badge-rush">急件</span>' : '',
         r.dpNoNextAppt ? '<span class="badge-nonext">未約後續</span>' : '',
+        (r.dpHasCT && dpFlowOf(r) === 'II') ? '<span class="badge-ct">有CT</span>' : '',
         h ? `<span class="badge-handoff ${h.to === currentTechIdentity ? '' : (h.overdue ? 'overdue' : 'waiting')}">${h.to === currentTechIdentity ? '待你接手' : `等${esc(h.to)}接手`}</span>` : '',
         r.modelReady ? '<span class="badge-model">模型好</span>' : ''].join('');
       const due = r.items && r.items.dueDate ? r.items.dueDate.slice(5).replace('-', '/') : '';
@@ -3626,6 +3716,7 @@
           <div class="dp-card-badges">
             ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
             ${r.dpNoNextAppt ? '<span class="badge-nonext">未約後續</span>' : ''}
+            ${(r.dpHasCT && flow === 'II') ? '<span class="badge-ct">有CT</span>' : ''}
             ${r.dpRomexis ? '<span class="badge-model">已疊 ROMEXIS</span>' : ''}
             ${modelBadgeHTML(r)}
             ${(() => { const h = handoffState(r); if(!h) return '';
@@ -3668,8 +3759,37 @@
         <div class="dp-section-cols">${colHTML('請先選 I 或 II', noneList, 'dp-col-none')}</div>
       </div>`;
 
+    // 條列：依情形 → 步驟分組，每列一張單
+    const listTableHTML = () => {
+      const pool = dpStageFilter === 'none' ? noneList : (DP_FLOWS[dpStageFilter] ? flowList(dpStageFilter) : list);
+      const today = todayISO();
+      const groups = [];
+      const pushGroup = (cls, title, rows) => { if(rows.length) groups.push({ cls, title, rows }); };
+      const byDue = (a, b) => ((a.items && a.items.dueDate) || '9').localeCompare((b.items && b.items.dueDate) || '9');
+      pushGroup('g-none', '尚未選擇情形', pool.filter(r => !dpFlowOf(r)).sort(byDue));
+      Object.keys(DP_FLOWS).forEach(f => {
+        const fl = pool.filter(r => dpFlowOf(r) === f);
+        DP_FLOWS[f].steps.filter(st => !st.finish).forEach(st =>
+          pushGroup('g-' + f, `${DP_FLOWS[f].label} › ${st.t}`, fl.filter(r => r.dpStage === st.k && !(f === 'II' && r.dpNoNextAppt)).sort(byDue)));
+        pushGroup('g-' + f, `${DP_FLOWS[f].label} › 未設定階段`, fl.filter(r => !DP_FLOWS[f].steps.some(st => st.k === r.dpStage)).sort(byDue));
+      });
+      const row = r => {
+        const due = (r.items && r.items.dueDate) || '';
+        const who = r.assignedTo ? `<span class="dpt-who ${TECH_NAMES.indexOf(r.assignedTo) === 1 ? 'b' : 'a'}">${esc(r.assignedTo)}</span>` : '<span class="dpt-who n">未指派</span>';
+        const h = handoffState(r);
+        const tags = [r.rush ? '<span class="badge-rush">急件</span>' : '', (r.dpHasCT && dpFlowOf(r) === 'II') ? '<span class="badge-ct">有CT</span>' : '', r.dpNoNextAppt ? '<span class="badge-nonext">未約後續</span>' : '',
+          h ? `<span class="badge-handoff">${h.to === currentTechIdentity ? '待你接手' : '等' + esc(h.to) + '接手'}</span>` : '',
+          r.dpRomexis ? '<span class="badge-model">疊ROMEXIS</span>' : '', r.modelReady ? '<span class="badge-model">模型好</span>' : ''].join('');
+        return `<tr class="dpt-row" data-id="${r.id}"><td class="dpt-name">${esc(r.patient || '(未填患者)')}</td><td>${esc(r.chartNo || '-')}</td><td>${esc(r.doctor || '-')}</td>
+          <td>${r.dpStage ? esc(stepLabelOf(r, r.dpStage)) : '—'}</td><td>${who}</td><td class="dpt-due${due && due < today ? ' over' : ''}">${esc(due)}</td><td class="dpt-tags">${tags}</td></tr>`;
+      };
+      return `<div class="dp-table-wrap"><table class="dp-table"><thead><tr><th>患者</th><th>病歷號</th><th>醫師</th><th>目前步驟</th><th>負責人</th><th>完成日</th><th>標記</th></tr></thead><tbody>`
+        + groups.map(g => `<tr class="dpt-group ${g.cls}"><td colspan="7">${esc(g.title)}（${g.rows.length}）</td></tr>` + g.rows.map(row).join('')).join('')
+        + '</tbody></table></div>';
+    };
     let html;
-    if(dpStageFilter === 'none') html = noneSection();
+    if(dpLayout === 'list') html = null;
+    else if(dpStageFilter === 'none') html = noneSection();
     else if(DP_FLOWS[dpStageFilter]) html = flowSection(dpStageFilter);
     else html = (noneList.length ? noneSection() : '') + Object.keys(DP_FLOWS).map(flowSection).join('');
     // 重畫前記住「待約後續」裡正在輸入的內容
@@ -3678,6 +3798,14 @@
     const focused = document.activeElement && listEl.contains(document.activeElement) && document.activeElement.matches('.fu-note, .fu-date')
       ? document.activeElement.className + '|' + document.activeElement.dataset.id : null;
     const scrollX = (listEl.querySelector('.dp-board') || {}).scrollLeft || 0;
+    if(dpLayout === 'list'){
+      const showFu = dpStageFilter === 'all' || dpStageFilter === 'II';
+      listEl.innerHTML = (showFu ? followUpBlockHTML(flowList('II')) : '') + listTableHTML();
+      listEl.querySelectorAll('.dpt-row').forEach(tr => tr.addEventListener('click', () => showCalendarOrderModal(tr.dataset.id)));
+      bindFollowUp(listEl);
+      listEl.querySelectorAll('.dpOpenBtn').forEach(b => b.addEventListener('click', () => showCalendarOrderModal(b.dataset.id)));
+      return;
+    }
     listEl.innerHTML = `<div class="dp-board">${html}</div>`;
     listEl.querySelectorAll('.fu-note, .fu-date').forEach(el => {
       const k = el.className + '|' + el.dataset.id;
@@ -3695,7 +3823,7 @@
       setDpStage(sel.dataset.id, sel.value);
     }));
     listEl.querySelectorAll('.dpOpenBtn, .dp-mini').forEach(b => b.addEventListener('click', () => showCalendarOrderModal(b.dataset.id)));
-    document.querySelectorAll('.dp-mode button').forEach(b => b.classList.toggle('on', b.dataset.mode === dpCardMode));
+    document.querySelectorAll('.dp-mode:not(.dp-layout) button').forEach(b => b.classList.toggle('on', b.dataset.mode === dpCardMode));
     listEl.querySelectorAll('.dpDelBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
     listEl.querySelectorAll('.assignSel').forEach(sel => sel.addEventListener('change', () => setAssignee(sel.dataset.id, sel.value)));
     listEl.querySelectorAll('.dpHandoffBtn').forEach(b => b.addEventListener('click', () => openHandoffModal(b.dataset.id)));
@@ -3723,7 +3851,7 @@
           <div class="fu-days"><b>${days}</b><span>天</span>${days > 14 ? '<em>逾期</em>' : ''}</div>
           <div class="fu-main">
             <div class="fu-name">${esc(r.patient || '(未填患者)')}<span>病歷號 ${esc(r.chartNo || '-')}・${esc(r.doctor || '-')}・${r.assignedTo ? esc(r.assignedTo) : '未指派'}</span></div>
-            <div class="fu-stage">目前：${esc(stage)}　<span class="fu-wait">待約：${esc(waitFor)}</span>${r.dpRomexis ? '　<span class="badge-model">已疊 ROMEXIS</span>' : ''}</div>
+            <div class="fu-stage">目前：${esc(stage)}　<span class="fu-wait">待約：${esc(waitFor)}</span>${r.dpHasCT ? '　<span class="badge-ct">有CT</span>' : ''}${r.dpRomexis ? '　<span class="badge-model">已疊 ROMEXIS</span>' : ''}</div>
             <div class="fu-last">${last ? `最近聯絡：${new Date(last.ts).getMonth()+1}/${new Date(last.ts).getDate()} ${esc(last.by || '')}－${esc(last.text)}${logs.length > 1 ? `<button type="button" class="fu-more" data-id="${r.id}">共 ${logs.length} 筆</button>` : ''}` : '<span class="fu-none">尚無聯絡紀錄</span>'}</div>
             <div class="fu-log-all" id="fuLog_${r.id}" style="display:none;">${logs.slice().reverse().map(l =>
               `<div>${new Date(l.ts).toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})} ${esc(l.by || '')}－${esc(l.text)}</div>`).join('')}</div>
