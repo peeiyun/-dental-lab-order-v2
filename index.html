@@ -660,6 +660,9 @@
   /* ---- 已接單／未接單底色 ---- */
   .model-chk{ display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:600; color:#7A5410; background:#fff; border:1px solid #E0A526; padding:5px 10px; cursor:pointer; white-space:nowrap; }
   .model-chk input{ accent-color:#2E8B72; width:15px; height:15px; }
+  .badge-wax{ display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; background:#E8EEF8; color:#2E5AA8; border:1px solid #BFD0EE; cursor:pointer; line-height:1.4; }
+  .badge-wax:hover{ background:#DCE6F7; }
+  .modal-wax-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 14px; margin-bottom:12px; background:#EEF3FB; border:1px solid #CFDCF2; font-size:13px; color:#2E5AA8; }
   .badge-ct{ display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; background:#E4E0F7; color:#4A3D99; }
   .dp-ct-chk{ display:inline-flex; align-items:center; gap:4px; margin-left:10px; font-weight:700; color:#4A3D99; cursor:pointer; white-space:nowrap; }
   .dp-ct-chk input{ width:auto !important; margin:0; }
@@ -3255,6 +3258,7 @@
           ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
           ${dueDateBadgeHTML(r)}
           ${modelBadgeHTML(r)}
+          ${waxLinkBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS[status] || 'st-pending'}">${STATUS_LABEL[status] || status}</span>
           ${assigneeBadgeHTML(r)}
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
@@ -3263,6 +3267,7 @@
         <div class="rec-actions">
           ${modelReadyHTML(r)}
           ${takeOrAssignHTML(r)}
+          ${canConvertToWax(r) ? `<button data-id="${r.id}" class="ghost toWaxBtn" title="需要設計蠟型時，開一張數位規劃 II 單接續">轉蠟型設計 II</button>` : ''}
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
@@ -3284,6 +3289,8 @@
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
     listEl.querySelectorAll('.editBtnTech').forEach(b => b.addEventListener('click', () => startEditRecordFromTech(b.dataset.id)));
     listEl.querySelectorAll('.lineBtn').forEach(b => b.addEventListener('click', () => openLineDoctorModal(b.dataset.id)));
+    listEl.querySelectorAll('.toWaxBtn').forEach(b => b.addEventListener('click', () => convertBiteRimToWax(b.dataset.id)));
+    bindWaxLinks(listEl);
   }
 
   function enableDragReorder(listEl){
@@ -3765,7 +3772,8 @@
         r.dpNoNextAppt ? '<span class="badge-nonext">未約後續</span>' : '',
         (r.dpHasCT && dpFlowOf(r) === 'II') ? '<span class="badge-ct">有CT</span>' : '',
         h ? `<span class="badge-handoff ${h.to === currentTechIdentity ? '' : (h.overdue ? 'overdue' : 'waiting')}">${h.to === currentTechIdentity ? '待你接手' : `等${esc(h.to)}接手`}</span>` : '',
-        r.modelReady ? '<span class="badge-model">模型好</span>' : ''].join('');
+        r.modelReady ? '<span class="badge-model">模型好</span>' : '',
+        r.fromBiteRimId ? '<span class="badge-wax">咬合蠟堤轉入</span>' : ''].join('');
       const due = r.items && r.items.dueDate ? r.items.dueDate.slice(5).replace('-', '/') : '';
       return `<button type="button" class="dp-mini ${assigneeColorClass(r)}" data-id="${r.id}" title="點開看詳情、改階段、交接">
           <span class="dpm-l1"><b>${esc(r.patient || '(未填患者)')}</b>${due ? `<span class="dpm-due">完成 ${esc(due)}</span>` : ''}</span>
@@ -3790,6 +3798,7 @@
           <div class="dp-card-badges">
             ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
             ${r.dpNoNextAppt ? '<span class="badge-nonext">未約後續</span>' : ''}
+            ${waxLinkBadgeHTML(r)}
             ${(r.dpHasCT && flow === 'II') ? '<span class="badge-ct">有CT</span>' : ''}
             ${r.dpRomexis ? '<span class="badge-model">已疊 ROMEXIS</span>' : ''}
             ${modelBadgeHTML(r)}
@@ -3853,7 +3862,8 @@
         const h = handoffState(r);
         const tags = [r.rush ? '<span class="badge-rush">急件</span>' : '', (r.dpHasCT && dpFlowOf(r) === 'II') ? '<span class="badge-ct">有CT</span>' : '', r.dpNoNextAppt ? '<span class="badge-nonext">未約後續</span>' : '',
           h ? `<span class="badge-handoff">${h.to === currentTechIdentity ? '待你接手' : '等' + esc(h.to) + '接手'}</span>` : '',
-          r.dpRomexis ? '<span class="badge-model">疊ROMEXIS</span>' : '', r.modelReady ? '<span class="badge-model">模型好</span>' : ''].join('');
+          r.dpRomexis ? '<span class="badge-model">疊ROMEXIS</span>' : '', r.modelReady ? '<span class="badge-model">模型好</span>' : '',
+          r.fromBiteRimId ? '<span class="badge-wax">咬合蠟堤轉入</span>' : ''].join('');
         return `<tr class="dpt-row" data-id="${r.id}"><td class="dpt-name">${esc(r.patient || '(未填患者)')}</td><td>${esc(r.chartNo || '-')}</td><td>${esc(r.doctor || '-')}</td>
           <td>${r.dpStage ? esc(stepLabelOf(r, r.dpStage)) : '—'}</td><td>${who}</td><td class="dpt-due${due && due < today ? ' over' : ''}">${esc(due)}</td><td class="dpt-tags">${tags}</td></tr>`;
       };
@@ -3897,6 +3907,7 @@
       setDpStage(sel.dataset.id, sel.value);
     }));
     listEl.querySelectorAll('.dpOpenBtn, .dp-mini').forEach(b => b.addEventListener('click', () => showCalendarOrderModal(b.dataset.id)));
+    bindWaxLinks(listEl);
     document.querySelectorAll('.dp-mode:not(.dp-layout) button').forEach(b => b.classList.toggle('on', b.dataset.mode === dpCardMode));
     listEl.querySelectorAll('.dpDelBtn').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
     listEl.querySelectorAll('.assignSel').forEach(sel => sel.addEventListener('change', () => setAssignee(sel.dataset.id, sel.value)));
@@ -4110,6 +4121,7 @@
       div.innerHTML = `<div class="meta">
           ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
           ${dueDateBadgeHTML(r)}
+          ${waxLinkBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS.done}">已完成</span>
           ${assigneeBadgeHTML(r)}
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
@@ -4117,6 +4129,7 @@
         </div>
         <div class="rec-actions">
           ${assigneeSelectHTML(r)}
+          ${canConvertToWax(r) ? `<button data-id="${r.id}" class="ghost toWaxBtn" title="需要設計蠟型時，開一張數位規劃 II 單接續">轉蠟型設計 II</button>` : ''}
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
@@ -4134,6 +4147,8 @@
     listEl.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
     listEl.querySelectorAll('.editBtnTech').forEach(b => b.addEventListener('click', () => startEditRecordFromTech(b.dataset.id)));
     listEl.querySelectorAll('.lineBtn').forEach(b => b.addEventListener('click', () => openLineDoctorModal(b.dataset.id)));
+    listEl.querySelectorAll('.toWaxBtn').forEach(b => b.addEventListener('click', () => convertBiteRimToWax(b.dataset.id)));
+    bindWaxLinks(listEl);
   }
   (function(){
     const hs = document.getElementById('histSearch'); if(!hs) return;
@@ -4612,7 +4627,13 @@
     const dpBar = isDigitalPlan(rec)
       ? `<div class="modal-dp-bar">${dpFlowBarHTML(rec)}</div>`
       : '';
-    body.innerHTML = dpBar + buildFullOrderHTML(rec);
+    const wb = waxLinkBadgeHTML(rec);
+    const waxBar = canConvertToWax(rec)
+      ? `<div class="modal-wax-bar"><span>這張咬合蠟堤之後需要設計蠟型嗎？</span><button type="button" class="ghost toWaxBtn" data-id="${rec.id}">轉蠟型設計 II</button></div>`
+      : (wb ? `<div class="modal-wax-bar"><span>${rec.fromBiteRimId ? '這張單是從咬合蠟堤接續過來的' : '這張咬合蠟堤已接續數位規劃'}</span>${wb}</div>` : '');
+    body.innerHTML = waxBar + dpBar + buildFullOrderHTML(rec);
+    body.querySelectorAll('.toWaxBtn').forEach(b => b.addEventListener('click', () => convertBiteRimToWax(b.dataset.id)));
+    bindWaxLinks(body);
     body.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
     bindDpHandlers(body);
     // 標題列：狀態與負責人可直接改
@@ -4817,6 +4838,44 @@
   function modelReadyHTML(r){
     if((r.status || 'pending') !== 'pending') return '';
     return `<label class="model-chk" title="模型已灌好、可以開始製作"><input type="checkbox" class="modelChk" data-id="${r.id}" ${r.modelReady ? 'checked' : ''} /> 模型已做好</label>`;
+  }
+  // ---- 咬合蠟堤 → 需設計蠟型時，接續開數位規劃 II ----
+  function waxLinkedRec(id){ return id ? cachedRecords.find(x => x.id === id && !x.deleted) : null; }
+  function canConvertToWax(r){
+    return !!(r.items && r.items.bite_rim) && !isDigitalPlan(r) && !r.deleted && !waxLinkedRec(r.toWaxDpId);
+  }
+  function waxLinkBadgeHTML(r){
+    const to = waxLinkedRec(r.toWaxDpId);
+    if(to) return `<button type="button" class="badge-wax waxLink" data-id="${to.id}" title="點開數位規劃單">已轉蠟型設計 II${to.status === 'done' ? '・已完成' : (to.dpStage ? '・' + esc(stepLabelOf(to, to.dpStage)) : '')}</button>`;
+    const from = waxLinkedRec(r.fromBiteRimId);
+    if(from) return `<button type="button" class="badge-wax waxLink" data-id="${from.id}" title="點開原本的咬合蠟堤單">由咬合蠟堤轉入</button>`;
+    return '';
+  }
+  function bindWaxLinks(root){
+    root.querySelectorAll('.waxLink').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); showCalendarOrderModal(b.dataset.id); }));
+  }
+  async function convertBiteRimToWax(id){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec || !canConvertToWax(rec)) return;
+    if(!currentTechIdentity){ alert('請先在上方選擇你的身份。'); return; }
+    if(!confirm(`${rec.patient || '此病人'} 需要設計蠟型？\n\n會另外開一張「數位規劃 II. 需蠟型設計」的單，從「待設計蠟型」開始，病人、病歷號、醫師沿用這張咬合蠟堤單。\n咬合蠟堤這張單照原本流程完成即可。`)) return;
+    const now = Date.now();
+    const nid = now.toString(36) + Math.random().toString(36).slice(2,7);
+    const nrec = {
+      id: nid, ts: now, patient: rec.patient || '', chartNo: rec.chartNo || '', doctor: rec.doctor || '',
+      registrar: currentTechIdentity, receiveDate: todayISO(),
+      items: { digital_plan: true, dp_deadline_notes: '由咬合蠟堤單轉入（需設計蠟型）' },
+      status: 'in_progress', assignedTo: rec.assignedTo || currentTechIdentity,
+      dpFlow: 'II', dpStage: 'wax', fromBiteRimId: rec.id
+    };
+    pushTimeline(nrec, { type:'note', label:'由咬合蠟堤單轉入，開始「待設計蠟型」' });
+    rec.toWaxDpId = nid;
+    pushTimeline(rec, { type:'note', label:'需設計蠟型，已轉數位規劃 II' });
+    try{
+      await fsSet(nid, nrec);
+      await fsSet(rec.id, rec);
+      if(confirm('已建立數位規劃 II 單。要現在打開它嗎？')) showCalendarOrderModal(nid);
+    }catch(e){ console.error(e); delete rec.toWaxDpId; alert('建立失敗，請確認網路連線後再試。'); }
   }
   function modelBadgeHTML(r){
     if(!r.modelReady) return '';
