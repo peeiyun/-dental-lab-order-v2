@@ -479,6 +479,9 @@
   .lb-send input{ width:160px; }
   .lb-id{ font-size:13px !important; }
   .lb-warn{ color:var(--danger); font-weight:700; margin-top:14px; }
+  .link-btn{ background:none; border:none; padding:4px 6px; color:var(--muted); font-size:12.5px; text-decoration:underline; cursor:pointer; }
+  .link-btn:hover{ color:var(--accent-dark); background:none; }
+  .copy-toast{ position:fixed; left:50%; bottom:32px; transform:translateX(-50%); background:#2B2725; color:#fff; padding:12px 22px; font-size:14px; z-index:10000; box-shadow:0 6px 20px rgba(0,0,0,.2); }
   .records{
     max-width:900px; margin:26px auto 0; padding:0 16px;
   }
@@ -1985,7 +1988,8 @@
           <option value="desc">完成日期（新→舊）</option>
           <option value="asc">完成日期（舊→新）</option>
         </select>
-        <button class="ghost" id="btnExportDone">匯出這個月份 Excel</button>
+        <button class="ghost" id="btnCopyDone" title="複製後到 Excel 按 Ctrl + V 貼上">複製這個月份表格（貼進 Excel）</button>
+        <button class="link-btn" id="btnExportDone" title="可以下載檔案的電腦才用">下載 Excel 檔</button>
       </div>
     <div id="doneList"><div class="rec-empty">載入中…</div></div>
   </div>
@@ -2003,7 +2007,8 @@
       <div class="history-toolbar">
         <label class="hist-select-all"><input type="checkbox" id="histSelectAll" /> 全選</label>
         <button class="ghost danger-ghost" id="btnDeleteSelected">永久刪除選取</button>
-        <button class="ghost" id="btnExportHistory">匯出 Excel</button>
+        <button class="ghost" id="btnCopyHistory" title="複製後到 Excel 按 Ctrl + V 貼上">複製表格（貼進 Excel）</button>
+        <button class="link-btn" id="btnExportHistory" title="可以下載檔案的電腦才用">下載 Excel 檔</button>
       </div>
       <div id="historyList"><div class="rec-empty">載入中…</div></div>
     </details>
@@ -4273,6 +4278,74 @@
     XLSX.writeFile(wb, `${filenamePrefix}_${fileTag || todayISO()}.xlsx`);
     return true;
   }
+  // ---- 複製表格：不用下載檔案，直接貼進 Excel ----
+  function rowsToHTMLTable(rows){
+    const cols = Object.keys(rows[0]);
+    const cell = v => esc(String(v == null ? '' : v)).replace(/\n/g, '<br style="mso-data-placement:same-cell">');
+    // mso-number-format:\@ 讓 Excel 當文字處理，病歷號前面的 0 不會不見
+    return '<table border="1" style="border-collapse:collapse"><thead><tr>' + cols.map(c => `<th style="background:#F3E6E3">${esc(c)}</th>`).join('') + '</tr></thead><tbody>'
+      + rows.map(r => '<tr>' + cols.map(c => `<td style="mso-number-format:'\\@'">${cell(r[c])}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
+  }
+  function rowsToTSV(rows){
+    const cols = Object.keys(rows[0]);
+    const clean = v => String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ');
+    return [cols.join('\t')].concat(rows.map(r => cols.map(c => clean(r[c])).join('\t'))).join('\r\n');
+  }
+  function showCopyToast(msg){
+    const t = document.createElement('div'); t.className = 'copy-toast'; t.textContent = msg;
+    document.body.appendChild(t); setTimeout(() => t.remove(), 3500);
+  }
+  async function copyRowsToClipboard(rows){
+    if(rows.length === 0){ alert('目前沒有東西可以複製'); return false; }
+    const html = rowsToHTMLTable(rows), text = rowsToTSV(rows);
+    try{
+      if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+        await navigator.clipboard.write([new ClipboardItem({
+          'text/html': new Blob([html], { type:'text/html' }),
+          'text/plain': new Blob([text], { type:'text/plain' })
+        })]);
+        return true;
+      }
+    }catch(e){ console.warn('clipboard.write 失敗，改用備用方式', e); }
+    // 備用：選取隱藏的表格再複製
+    try{
+      const box = document.createElement('div');
+      box.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      box.innerHTML = html; document.body.appendChild(box);
+      const range = document.createRange(); range.selectNodeContents(box);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      const ok = document.execCommand('copy');
+      sel.removeAllRanges(); box.remove();
+      if(ok) return true;
+    }catch(e){ console.warn(e); }
+    alert('複製失敗，請重新整理頁面後再試一次。');
+    return false;
+  }
+  async function copyHistoryTable(){
+    const deleted = cachedRecords.filter(r => r.deleted).sort((a,b) => (b.deletedAt||0) - (a.deletedAt||0));
+    if(await copyRowsToClipboard(deleted.map(buildExcelRow))) showCopyToast(`已複製 ${deleted.length} 筆，請到 Excel 點 A1 儲存格按 Ctrl + V 貼上`);
+  }
+  async function copyDoneTable(){
+    if(!doneMonth){ alert('目前沒有已完成的單子可以複製'); return; }
+    const month = doneMonth;
+    const done = doneRecordsForMonth(month);
+    if(!(await copyRowsToClipboard(done.map(buildExcelRow)))) return;
+    const label = month.replace('-','年') + '月';
+    showCopyToast(`已複製 ${label} 共 ${done.length} 張，請到 Excel 按 Ctrl + V 貼上`);
+    await new Promise(res => setTimeout(res, 300));
+    if(!confirm(`已複製 ${label} 共 ${done.length} 張單子。\n\n請先到 Excel 按 Ctrl + V 貼上並存檔。\n確認貼好了，再按「確定」把這些單子移到「歷史紀錄」；還沒貼好請按「取消」。\n（移過去後仍可在歷史紀錄中還原）`)) return;
+    await moveDoneToHistory(done, label);
+  }
+  async function moveDoneToHistory(done, label){
+    const now = Date.now();
+    try{
+      await Promise.all(done.map(r => fsSet(r.id, Object.assign({}, r, { deleted:true, deletedAt:now }))));
+      alert(`已將 ${label} 的 ${done.length} 張單子移到歷史紀錄。`);
+    }catch(e){
+      console.error(e);
+      alert('移到歷史紀錄時發生錯誤，部分單子可能沒有移動成功，請重新整理後確認。');
+    }
+  }
   function exportHistoryToExcel(){
     const deleted = cachedRecords.filter(r => r.deleted).sort((a,b) => (b.deletedAt||0) - (a.deletedAt||0));
     exportRowsToExcel(deleted.map(buildExcelRow), '歷史紀錄', '技工單歷史紀錄');
@@ -4301,6 +4374,10 @@
   if(btnExportHistoryEl) btnExportHistoryEl.addEventListener('click', exportHistoryToExcel);
   const btnExportDoneEl = document.getElementById('btnExportDone');
   if(btnExportDoneEl) btnExportDoneEl.addEventListener('click', exportDoneToExcel);
+  const btnCopyDoneEl = document.getElementById('btnCopyDone');
+  if(btnCopyDoneEl) btnCopyDoneEl.addEventListener('click', copyDoneTable);
+  const btnCopyHistoryEl = document.getElementById('btnCopyHistory');
+  if(btnCopyHistoryEl) btnCopyHistoryEl.addEventListener('click', copyHistoryTable);
 
   // ---- 統計 ----
   let statsRange = '30';
