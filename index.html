@@ -1745,6 +1745,10 @@
           <label for="q_chartNo">病歷號</label>
           <input id="q_chartNo" type="text" inputmode="numeric" placeholder="例如 12345" />
         </div>
+        <div class="q-field">
+          <label for="q_patient">患者姓名</label>
+          <input id="q_patient" type="text" placeholder="可只打部分，例如 王" />
+        </div>
       </div>
       <div class="query-foot">
         <div class="q-status">
@@ -1757,7 +1761,7 @@
           <button type="button" class="primary" id="btnQuery">查詢</button>
         </div>
       </div>
-      <p class="q-hint">醫師、開單區間、病歷號至少填一項。查到的單可以按「編輯」修改，儲存時需要輸入修改人，並會留下修改紀錄。</p>
+      <p class="q-hint">醫師、開單區間、病歷號、患者姓名至少填一項。查到的單可以按「編輯」修改，儲存時需要輸入修改人，並會留下修改紀錄。</p>
     </div>
     <div id="queryResultInfo" class="q-result-info"></div>
     <div id="queryResults"></div>
@@ -2399,7 +2403,7 @@
     items = items || {};
     const lines = [];
     ITEM_DEFS.forEach(def => {
-      if(!items[def.key]) return;
+      if(!itemOn(items, def)) return;
       const subLabels = (def.subs || [])
         .filter(s => items[s.key])
         .map(s => s.text && items[s.text] ? `${s.label}：${esc(items[s.text])}` : s.label);
@@ -2424,9 +2428,13 @@
     return lines.join('');
   }
 
+  // 主項目是否算有勾：主項目有勾，或任一子項目有勾（例如只勾「植牙」沒勾「數位規劃」）
+  const SUB_PARENT = {};
+  ITEM_DEFS.forEach(d => (d.subs || []).forEach(sub => { SUB_PARENT[sub.key] = d.key; }));
+  function itemOn(items, def){ return !!(items && (items[def.key] || (def.subs || []).some(sub => items[sub.key]))); }
   // ---- full read-only ticket (complete order, mirrors the submit form layout) ----
   function renderItemRO(def, items){
-    const checked = !!items[def.key];
+    const checked = itemOn(items, def);
     const activeSubs = (def.subs || [])
       .filter(s => items[s.key])
       .map(s => s.text && items[s.text] ? `${esc(s.label)}：${esc(items[s.text])}` : esc(s.label));
@@ -2714,6 +2722,8 @@
       if(el.type === 'checkbox') data.items[el.dataset.key] = el.checked;
       else data.items[el.dataset.key] = el.value;
     });
+    // 勾了子項目（例如「植牙」）就自動算主項目（「數位規劃」）有勾
+    Object.keys(SUB_PARENT).forEach(k => { if(data.items[k] === true) data.items[SUB_PARENT[k]] = true; });
     return data;
   }
 
@@ -2735,7 +2745,7 @@
     return { rush:true, shortDays, requiredDays: info.days, earliest: info.earliest };
   }
 
-  function isDigitalPlan(r){ return !!(r.items && r.items.digital_plan); }
+  function isDigitalPlan(r){ return !!(r.items && (r.items.digital_plan || ['dp_implant','dp_apic','dp_other','dp_romexis','dp_surg_template','dp_vacuum'].some(k => r.items[k]))); }
   // 同醫師同病患若已有未結單的數位規劃，提醒是否重新開單
   function checkDuplicateDigitalPlan(data){
     if(!data.items || !data.items.digital_plan) return null;
@@ -2754,7 +2764,7 @@
 
   // 一張單只能勾一個主項目
   function checkedMainItems(items){
-    return ITEM_DEFS.filter(d => items[d.key]).map(d => d.label);
+    return ITEM_DEFS.filter(d => itemOn(items, d)).map(d => d.label);
   }
 
   function validateRequiredFields(){
@@ -2804,6 +2814,11 @@
   document.getElementById('submitView').addEventListener('change', e => {
     if(e.target.matches('[data-key], #f_receiveDate')) refreshDueDateHint();
     if(e.target.matches('.arch-bar input, .q-head input')) refreshToothAreaHighlight();
+    // 勾子項目時，自動把主項目一起勾起來
+    if(e.target.matches('input[type="checkbox"][data-key]') && e.target.checked && SUB_PARENT[e.target.dataset.key]){
+      const parent = document.querySelector(`#submitView input[type="checkbox"][data-key="${SUB_PARENT[e.target.dataset.key]}"]`);
+      if(parent && !parent.checked){ parent.checked = true; refreshDueDateHint(); }
+    }
     if(e.target.matches('[data-key="dp_implant"]') && e.target.checked){
       alert('植牙規劃，若缺牙、假牙多、沒有咬合關係，請先印模做 CT 模板。');
     }
@@ -4167,7 +4182,7 @@
     const defs = ITEM_DEFS.filter(d => d.section === section);
     const parts = [];
     defs.forEach(def => {
-      if(!items[def.key]) return;
+      if(!itemOn(items, def)) return;
       const subLabels = (def.subs || [])
         .filter(s => items[s.key])
         .map(s => s.text && items[s.text] ? `${s.label}:${items[s.text]}` : s.label);
@@ -4232,7 +4247,6 @@
       '醫師': r.doctor || '',
       '登記者': r.registrar || '',
       '收件日': r.receiveDate || '',
-      '目前負責人': r.assignedTo || '未處理',
       '轉單紀錄': (Array.isArray(r.assignLog) ? r.assignLog : [])
         .map(e => `${e.ts ? new Date(e.ts).toLocaleString('zh-TW') : ''} ${e.from || ''}→${e.to || ''}（操作者 ${e.by || '未知'}${e.stage ? '，階段 ' + e.stage : ''}）`)
         .join('；'),
@@ -4332,7 +4346,7 @@
       byDoctor[r.doctor || '(未填醫師)'] = (byDoctor[r.doctor || '(未填醫師)']||0) + 1;
       byTech[r.assignedTo || '未處理'] = (byTech[r.assignedTo || '未處理']||0) + 1;
       byRegistrar[r.registrar || '(未填)'] = (byRegistrar[r.registrar || '(未填)']||0) + 1;
-      ITEM_DEFS.forEach(d => { if(r.items && r.items[d.key]) byItem[d.label] = (byItem[d.label]||0) + 1; });
+      ITEM_DEFS.forEach(d => { if(r.items && itemOn(r.items, d)) byItem[d.label] = (byItem[d.label]||0) + 1; });
     });
 
     const pending = active.filter(r => r.status !== 'done' && !isDigitalPlan(r)).length;
@@ -4515,7 +4529,7 @@
     for(let i = 0; i < leading; i++) html += '<div class="cal-cell empty"></div>';
     for(const dateStr of dayList){
       const day = parseInt(dateStr.slice(8), 10);
-      const orders = dueMap[dateStr] || [];
+      const orders = (dueMap[dateStr] || []).slice().sort((a, b) => ((a.status === 'done') - (b.status === 'done')));
       const isToday = dateStr === todayStr;
       const hasOverdue = orders.some(x => x.status !== 'done' && dateStr < todayStr);
       const gov = govCalendar[dateStr];
@@ -5020,6 +5034,7 @@
       from: document.getElementById('q_from').value,
       to: document.getElementById('q_to').value,
       chartNo,
+      patient: document.getElementById('q_patient').value.trim(),
       undone: document.getElementById('q_undone').checked,
       done: document.getElementById('q_done').checked
     };
@@ -5038,6 +5053,7 @@
       if(!isDone && !q.undone) return false;
       if(q.doctor && (r.doctor || '') !== q.doctor) return false;
       if(q.chartNo && normalizeChartNo(r.chartNo || '') !== q.chartNo) return false;
+      if(q.patient && !String(r.patient || '').replace(/\s/g, '').includes(q.patient.replace(/\s/g, ''))) return false;
       if(from || to){
         const d = r.receiveDate || (r.ts ? new Date(r.ts - new Date(r.ts).getTimezoneOffset()*60000).toISOString().slice(0,10) : '');
         if(!d) return false;
@@ -5084,14 +5100,15 @@
     populateQueryDoctorSelect();
     btn.addEventListener('click', () => {
       const q = readQueryForm();
-      if(!q.doctor && !q.from && !q.to && !q.chartNo){ alert('請至少選擇一個查詢條件：醫師、開單區間或病歷號。'); return; }
+      if(!q.doctor && !q.from && !q.to && !q.chartNo && !q.patient){ alert('請至少選擇一個查詢條件：醫師、開單區間、病歷號或患者姓名。'); return; }
       if(!q.undone && !q.done){ alert('請至少勾選「未完成」或「已完成」其中一項。'); return; }
       lastQuery = q;
       runQuery(q);
     });
     document.getElementById('q_chartNo').addEventListener('keydown', e => { if(e.key === 'Enter') btn.click(); });
+    document.getElementById('q_patient').addEventListener('keydown', e => { if(e.key === 'Enter') btn.click(); });
     document.getElementById('btnQueryClear').addEventListener('click', () => {
-      ['q_doctor','q_from','q_to','q_chartNo'].forEach(id => { document.getElementById(id).value = ''; });
+      ['q_doctor','q_from','q_to','q_chartNo','q_patient'].forEach(id => { document.getElementById(id).value = ''; });
       document.getElementById('q_undone').checked = true;
       document.getElementById('q_done').checked = true;
       lastQuery = null;
