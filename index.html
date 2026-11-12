@@ -640,6 +640,17 @@
   .tech-main [data-panel].panel-off, .tech-main [data-spanel].panel-off{ display:none !important; }
   .sender-main .sheet{ margin-top:0; }
   .submit-done-box{ text-align:center; max-width:400px; }
+  .item-need-teeth{ display:none; margin-left:10px; font-size:12.5px; color:var(--danger); font-weight:700; }
+  .item:has(input[data-key="clear_retainer"]:checked) .item-need-teeth{ display:inline; }
+  /* 送單成功頁 */
+  .done-page{ max-width:640px; margin:30px auto; background:#fff; border:1px solid var(--line); padding:40px 44px 36px; text-align:center; }
+  .done-page .sd-icon{ width:84px; height:84px; } .done-page .sd-icon svg{ width:84px; height:84px; }
+  .done-page h2{ font-size:28px; margin:8px 0 6px; }
+  .done-page .dp-sub{ color:var(--muted); font-size:14px; margin:0 0 20px; }
+  .done-page .sd-body{ font-size:15px; }
+  .done-actions{ display:flex; gap:12px; justify-content:center; margin-top:26px; flex-wrap:wrap; }
+  .done-actions button{ min-width:150px; padding:12px 20px; font-size:15px; }
+  .done-actions small{ display:block; font-size:11.5px; font-weight:400; opacity:.8; margin-top:2px; }
   .sd-icon{ width:64px; height:64px; margin:0 auto 6px; color:#2E8B72; }
   .sd-icon svg{ width:64px; height:64px; }
   .submit-done-box h3{ font-size:22px; margin:4px 0 12px; }
@@ -666,6 +677,8 @@
   .badge-wax{ display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; background:#E8EEF8; color:#2E5AA8; border:1px solid #BFD0EE; cursor:pointer; line-height:1.4; }
   .badge-wax:hover{ background:#DCE6F7; }
   .modal-wax-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 14px; margin-bottom:12px; background:#EEF3FB; border:1px solid #CFDCF2; font-size:13px; color:#2E5AA8; }
+  .join-dp-chk{ display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:700; color:#2E5AA8; background:#EEF3FB; border:1px solid #CFDCF2; padding:5px 10px; cursor:pointer; white-space:nowrap; }
+  .join-dp-chk input{ width:auto !important; margin:0; }
   .badge-ct{ display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; background:#E4E0F7; color:#4A3D99; }
   .dp-ct-chk{ display:inline-flex; align-items:center; gap:4px; margin-left:10px; font-weight:700; color:#4A3D99; cursor:pointer; white-space:nowrap; }
   .dp-ct-chk input{ width:auto !important; margin:0; }
@@ -1559,6 +1572,9 @@
             <label class="chip chip-sub"><input type="checkbox" data-key="dp_vacuum" /><span>VACUUM 式導板</span></label>
           </div>
         </div>
+
+        <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="romexis" /><span>疊 ROMEXIS</span></label></div>
+        <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="vacuum_guide" /><span>VACUUM 式導板</span></label></div>
       </div>
 
       <!-- Two column section -->
@@ -1566,7 +1582,7 @@
         <div class="section">
           <h2>模型 / 咬合相關</h2>
 
-          <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="clear_retainer" /><span>透明維持板（硬 1MM）</span></label></div>
+          <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="clear_retainer" /><span>透明維持板（硬 1MM）</span></label><span class="item-need-teeth" id="retainerTeethHint">※ 請在下方牙位圖選擇牙齒（顆數會算入工作天）</span></div>
           <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="whitening_tray" /><span>美白牙托</span></label></div>
 
           <div class="item">
@@ -1726,6 +1742,17 @@
     </div>
   </div>
 
+  <div class="done-page panel-off" data-spanel="done">
+    <div class="sd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.5 12.5l3 3 6-6.5"/></svg></div>
+    <h2>送單成功</h2>
+    <p class="dp-sub">牙技師端已即時收到這張單。</p>
+    <div class="sd-body" id="donePageBody"></div>
+    <div class="done-actions">
+      <button type="button" class="primary" id="doneConfirm">確認<small>回到首頁</small></button>
+      <button type="button" class="ghost" id="doneEdit">修改<small>返回剛剛的送單畫面</small></button>
+      <button type="button" class="ghost" id="doneNext">繼續送單<small>開一張新的單</small></button>
+    </div>
+  </div>
   <p class="note-shared" data-spanel="home">送出後會自動存入共用清單，牙技師端會即時看到並收到通知。</p>
 
   <div class="records sender-query" data-spanel="query">
@@ -2381,6 +2408,8 @@
       {key:'dp_implant', label:'植牙'}, {key:'dp_apic', label:'根尖切除'}, {key:'dp_other', label:'其他', text:'dp_other_text'},
       {key:'dp_romexis', label:'疊 ROMEXIS'}, {key:'dp_surg_template', label:'3D 列印手術導板'}, {key:'dp_vacuum', label:'VACUUM 式導板'}
     ], extra:['dp_explain_date','dp_appt_surgery_date','dp_with_dr'], note:'dp_deadline_notes' },
+    { key:'romexis', label:'疊 ROMEXIS', section:'digital' },
+    { key:'vacuum_guide', label:'VACUUM 式導板', section:'digital' },
     { key:'clear_retainer', label:'透明維持板（硬 1MM）', section:'left' },
     { key:'whitening_tray', label:'美白牙托', section:'left' },
     { key:'pour_model', label:'灌模', section:'left', subs:[{key:'pour_boxing', label:'要 BOXING'}] },
@@ -2750,7 +2779,7 @@
     return { rush:true, shortDays, requiredDays: info.days, earliest: info.earliest };
   }
 
-  function isDigitalPlan(r){ return !!(r.items && (r.items.digital_plan || ['dp_implant','dp_apic','dp_other','dp_romexis','dp_surg_template','dp_vacuum'].some(k => r.items[k]))); }
+  function isDigitalPlan(r){ return !!(r.dpJoined || r.items && (r.items.digital_plan || ['dp_implant','dp_apic','dp_other','dp_romexis','dp_surg_template','dp_vacuum'].some(k => r.items[k]))); }
   // 同醫師同病患若已有未結單的數位規劃，提醒是否重新開單
   function checkDuplicateDigitalPlan(data){
     if(!data.items || !data.items.digital_plan) return null;
@@ -2813,6 +2842,17 @@
         invalids.push('完成日');
       }
     }
+    // 透明維持板必須選牙位
+    const retChk = document.querySelector('#submitView input[data-key="clear_retainer"]');
+    const toothBox = document.querySelector('#submitView .arch-bar') ? document.querySelector('#submitView .arch-bar').closest('.section, .tooth-section, .sheet-section') : null;
+    if(retChk && retChk.checked){
+      const items = {};
+      document.querySelectorAll('#submitView [data-key^="tooth_"]').forEach(el => { items[el.dataset.key] = el.type === 'checkbox' ? el.checked : el.value; });
+      if(!hasAnyToothArea(items)){
+        invalids.push('透明維持板的牙位（請在牙位圖選擇牙齒）');
+        if(toothBox) toothBox.classList.add('field-invalid');
+      }else if(toothBox) toothBox.classList.remove('field-invalid');
+    }
     return invalids;
   }
 
@@ -2873,8 +2913,9 @@
     ct_locator: 'byTeeth',          // CT模板－加定位珠
     ct_denture: 11,                 // CT模板－活動假牙複製
     dp_romexis: 'byTeeth',          // 數位規劃－疊 ROMEXIS
+    romexis: 'byTeeth',             // 疊 ROMEXIS（獨立項目）
     dp_surg_template: { base: 14, plusTeeth: true },  // 3D列印手術導板：14 天 ＋ 疊ROMEXIS 的顆數天數
-    clear_retainer: 4,              // 透明維持板（硬 1MM）
+    clear_retainer: { base: 4, plusTeeth: true, archCount: true }, // 透明維持板：4 天 ＋ 顆數天數（整顎、象限也算顆數）
     whitening_tray: 5,              // 美白牙托
     pour_model: 2,                  // 灌模
     bite_rim: 3,                    // 咬合蠟堤
@@ -2896,6 +2937,17 @@
     return ['tooth_ur','tooth_ul','tooth_lr','tooth_ll']
       .reduce((n, k) => n + String(items[k] || '').split(',').filter(Boolean).length, 0);
   }
+  // 透明維持板用：勾整個上顎／下顎或象限時，該象限以 7 顆計
+  function countTeethWithArch(items){
+    const qs = { tooth_ur:['tooth_q1','tooth_upper'], tooth_ul:['tooth_q2','tooth_upper'], tooth_ll:['tooth_q3','tooth_lower'], tooth_lr:['tooth_q4','tooth_lower'] };
+    return Object.keys(qs).reduce((n, k) => {
+      if(qs[k].some(a => items[a])) return n + 7;
+      return n + String(items[k] || '').split(',').filter(Boolean).length;
+    }, 0);
+  }
+  function hasAnyToothArea(items){
+    return countTeethWithArch(items) > 0;
+  }
   // 回傳 {days, reasons:[{label, days}]}；days 取所有已勾選項目中的最大值
   function requiredWorkdays(items){
     const teeth = countSelectedTeeth(items);
@@ -2907,12 +2959,15 @@
       if(rule === 'byTeeth'){
         days = teethTierDays(teeth); byTeeth = true;
       }else if(rule && typeof rule === 'object' && rule.plusTeeth){
-        days = rule.base + teethTierDays(teeth); byTeeth = true;
-        note = `${rule.base}＋${teethTierDays(teeth)}`;
+        const t = rule.archCount ? countTeethWithArch(items) : teeth;
+        days = rule.base + teethTierDays(t); byTeeth = true;
+        note = `${rule.base}＋${teethTierDays(t)}`;
+        reasons.push({ label: itemFieldLabel(key), days, byTeeth, note, teeth: t });
+        return;
       }else{
         days = rule;
       }
-      reasons.push({ label: itemFieldLabel(key), days, byTeeth, note });
+      reasons.push({ label: itemFieldLabel(key), days, byTeeth, note, teeth });
     });
     const days = reasons.reduce((m, r) => Math.max(m, r.days), 0);
     return { days, reasons, teeth };
@@ -3034,7 +3089,7 @@
       return;
     }
     const detail = info.reasons.map(r =>
-      `${r.label} ${r.days}天${r.note ? `（${r.note}）` : ''}${r.byTeeth ? `（${info.teeth || 0} 顆）` : ''}`).join('、');
+      `${r.label} ${r.days}天${r.note ? `（${r.note}）` : ''}${r.byTeeth ? `（${r.teeth != null ? r.teeth : (info.teeth || 0)} 顆）` : ''}`).join('、');
     hint.innerHTML = `需要 <b>${info.days}</b> 個工作天（六日與休假日不計，收件日當天不算）。最早完成日：<b>${info.earliest}</b><br><span class="due-hint-detail">依據：${esc(detail)}</span>`;
     hint.className = 'due-hint active';
     const cur = input.value;
@@ -3144,6 +3199,7 @@
     const active = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r) && inMyScope(r));
     const counts = { all: active.length, pending:0, in_progress:0 };
     active.forEach(r => { const s = r.status||'pending'; if(counts[s]!==undefined) counts[s]++; });
+    counts.pending += cachedRecords.filter(r => !r.deleted && isDigitalPlan(r) && (r.status || 'pending') === 'pending' && !r.assignedTo && inMyScope(r)).length;
     counts.dp = cachedRecords.filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done' && inMyScope(r)).length;
     counts.done = cachedRecords.filter(r => !r.deleted && r.status === 'done' && inMyScope(r)).length;
     document.querySelectorAll('.filter-tab').forEach(tab => {
@@ -3219,7 +3275,8 @@
   function drawRecordsList(){
     const listEl = document.getElementById('recordsList');
     const openIds = new Set(Array.from(listEl.querySelectorAll('.rec-details[open]')).map(d => d.dataset.id));
-    const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r) && matchesSearch(r) && inMyScope(r));
+    const dpPendingOK = r => currentFilter === 'pending' && isDigitalPlan(r) && (r.status || 'pending') === 'pending' && !r.assignedTo;
+    const nonDeleted = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && (!isDigitalPlan(r) || dpPendingOK(r)) && matchesSearch(r) && inMyScope(r));
     let filtered = currentFilter === 'all' ? nonDeleted : nonDeleted.filter(r => (r.status||'pending') === currentFilter);
     if(myOrdersOnly) filtered = filtered.filter(r => r.assignedTo === currentTechIdentity);
     // 牙技師／日期篩選
@@ -3288,6 +3345,7 @@
           ${modelReadyHTML(r)}
           ${takeOrAssignHTML(r)}
           ${canConvertToWax(r) ? `<button data-id="${r.id}" class="ghost toWaxBtn" title="需要設計蠟型時，開一張數位規劃 II 單接續">轉蠟型設計 II</button>` : ''}
+          ${canJoinDp(r) ? `<label class="join-dp-chk"><input type="checkbox" class="joinDpChk" data-id="${r.id}" /> 加入數位規劃</label>` : ''}
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
@@ -3311,6 +3369,7 @@
     listEl.querySelectorAll('.lineBtn').forEach(b => b.addEventListener('click', () => openLineDoctorModal(b.dataset.id)));
     listEl.querySelectorAll('.toWaxBtn').forEach(b => b.addEventListener('click', () => convertBiteRimToWax(b.dataset.id)));
     bindWaxLinks(listEl);
+    bindJoinDp(listEl);
   }
 
   function enableDragReorder(listEl){
@@ -3681,7 +3740,8 @@
     const general = cachedRecords.filter(r => !r.deleted && r.status !== 'done' && !isDigitalPlan(r) && hit(r));
     const cnt = {
       all: general.length,
-      pending: general.filter(r => (r.status||'pending') === 'pending').length,
+      pending: general.filter(r => (r.status||'pending') === 'pending').length
+        + cachedRecords.filter(r => !r.deleted && isDigitalPlan(r) && (r.status || 'pending') === 'pending' && !r.assignedTo && hit(r)).length,
       in_progress: general.filter(r => r.status === 'in_progress').length,
       dp: cachedRecords.filter(r => !r.deleted && isDigitalPlan(r) && r.status !== 'done' && hit(r)).length,
       done: cachedRecords.filter(r => !r.deleted && r.status === 'done' && hit(r)).length
@@ -4150,6 +4210,7 @@
         <div class="rec-actions">
           ${assigneeSelectHTML(r)}
           ${canConvertToWax(r) ? `<button data-id="${r.id}" class="ghost toWaxBtn" title="需要設計蠟型時，開一張數位規劃 II 單接續">轉蠟型設計 II</button>` : ''}
+          ${canJoinDp(r) ? `<label class="join-dp-chk"><input type="checkbox" class="joinDpChk" data-id="${r.id}" /> 加入數位規劃</label>` : ''}
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
           <button data-id="${r.id}" class="danger-ghost delBtn">刪除</button>
@@ -4169,6 +4230,7 @@
     listEl.querySelectorAll('.lineBtn').forEach(b => b.addEventListener('click', () => openLineDoctorModal(b.dataset.id)));
     listEl.querySelectorAll('.toWaxBtn').forEach(b => b.addEventListener('click', () => convertBiteRimToWax(b.dataset.id)));
     bindWaxLinks(listEl);
+    bindJoinDp(listEl);
   }
   (function(){
     const hs = document.getElementById('histSearch'); if(!hs) return;
@@ -4722,7 +4784,9 @@
     const waxBar = canConvertToWax(rec)
       ? `<div class="modal-wax-bar"><span>這張咬合蠟堤之後需要設計蠟型嗎？</span><button type="button" class="ghost toWaxBtn" data-id="${rec.id}">轉蠟型設計 II</button></div>`
       : (wb ? `<div class="modal-wax-bar"><span>${rec.fromBiteRimId ? '這張單是從咬合蠟堤接續過來的' : '這張咬合蠟堤已接續數位規劃'}</span>${wb}</div>` : '');
-    body.innerHTML = waxBar + dpBar + buildFullOrderHTML(rec);
+    const joinBar = canJoinDp(rec) ? `<div class="modal-wax-bar"><span>這張單要接著走數位規劃流程嗎？</span><label class="join-dp-chk"><input type="checkbox" class="joinDpChk" data-id="${rec.id}" /> 加入數位規劃</label></div>` : '';
+    body.innerHTML = waxBar + joinBar + dpBar + buildFullOrderHTML(rec);
+    bindJoinDp(body);
     body.querySelectorAll('.toWaxBtn').forEach(b => b.addEventListener('click', () => convertBiteRimToWax(b.dataset.id)));
     bindWaxLinks(body);
     body.querySelectorAll('.techSaveBtn').forEach(b => b.addEventListener('click', () => saveTechFieldsFromUI(b.dataset.id)));
@@ -4847,7 +4911,24 @@
   let currentEditReturnRole = null;
   // 送出成功視窗：顯示摘要，按「回到首頁」或 5 秒後自動回到首頁
   let submitDoneTimer = null;
+  let lastSubmitted = null;
   function showSubmitDone(d){
+    lastSubmitted = JSON.parse(JSON.stringify(d));
+    const items = checkedMainItems(d.items || {}).join('、') || '-';
+    document.getElementById('donePageBody').innerHTML =
+      `<div><b>患者</b>${esc(d.patient || '-')}</div><div><b>病歷號</b>${esc(d.chartNo || '-')}</div>`
+      + `<div><b>醫師</b>${esc(d.doctor || '-')}</div><div><b>項目</b>${esc(items)}</div>`
+      + `<div><b>完成日</b>${esc((d.items && d.items.dueDate) || '-')}${d.rush ? '　<span class="sd-rush">急件</span>' : ''}</div>`;
+    setSenderPanel('done');
+  }
+  document.getElementById('doneConfirm').addEventListener('click', () => { setSenderPanel('home'); showRoleSelect(); });
+  document.getElementById('doneNext').addEventListener('click', () => { clearForm(); setSenderPanel('home'); });
+  document.getElementById('doneEdit').addEventListener('click', () => {
+    if(!lastSubmitted) { setSenderPanel('home'); return; }
+    if(!cachedRecords.some(r => r.id === lastSubmitted.id)) cachedRecords.push(lastSubmitted);
+    startEditRecord(lastSubmitted.id);
+  });
+  function showSubmitDoneModalOld(d){
     const items = checkedMainItems(d.items || {}).join('、') || '-';
     document.getElementById('submitDoneBody').innerHTML =
       `<div><b>患者</b>${esc(d.patient || '-')}</div><div><b>病歷號</b>${esc(d.chartNo || '-')}</div>`
@@ -4929,6 +5010,46 @@
   function modelReadyHTML(r){
     if((r.status || 'pending') !== 'pending') return '';
     return `<label class="model-chk" title="模型已灌好、可以開始製作"><input type="checkbox" class="modelChk" data-id="${r.id}" ${r.modelReady ? 'checked' : ''} /> 模型已做好</label>`;
+  }
+  // ---- 疊 ROMEXIS／VACUUM 式導板（非數位規劃單）→ 加入數位規劃的某個階段 ----
+  function canJoinDp(r){
+    return !!(r.items && (r.items.romexis || r.items.vacuum_guide)) && !isDigitalPlan(r) && !r.deleted && r.status !== 'done';
+  }
+  function bindJoinDp(root){
+    root.querySelectorAll('.joinDpChk').forEach(cb => cb.addEventListener('change', () => {
+      if(cb.checked) openJoinDpModal(cb.dataset.id, () => { cb.checked = false; });
+    }));
+  }
+  function openJoinDpModal(id, onCancel){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay'; ov.style.display = 'flex'; ov.style.zIndex = 9500;
+    const flowOpts = Object.keys(DP_FLOWS).map(f => `<option value="${f}">${esc(DP_FLOWS[f].label)}</option>`).join('');
+    ov.innerHTML = `<div class="modal-box" style="max-width:440px">
+      <h3>加入數位規劃</h3>
+      <p style="font-size:13.5px;color:var(--muted);margin:4px 0 14px">${esc(rec.patient || '')}（${esc(checkedMainItems(rec.items || {}).join('、'))}）要從哪個階段開始？</p>
+      <label class="ro-field-label">情形</label>
+      <select id="joinFlow" style="width:100%;margin-bottom:12px">${flowOpts}</select>
+      <label class="ro-field-label">加入的階段</label>
+      <select id="joinStage" style="width:100%"></select>
+      <div class="modal-actions" style="margin-top:18px"><button type="button" class="ghost" id="joinCancel">取消</button><button type="button" class="primary" id="joinOk">加入</button></div>
+    </div>`;
+    document.body.appendChild(ov);
+    const fSel = ov.querySelector('#joinFlow'), sSel = ov.querySelector('#joinStage');
+    const fillStages = () => { sSel.innerHTML = DP_FLOWS[fSel.value].steps.filter(st => !st.finish).map(st => `<option value="${st.k}">${esc(st.t)}</option>`).join(''); };
+    fSel.addEventListener('change', fillStages); fillStages();
+    const close = () => ov.remove();
+    ov.querySelector('#joinCancel').addEventListener('click', () => { close(); if(onCancel) onCancel(); });
+    ov.querySelector('#joinOk').addEventListener('click', async () => {
+      const flow = fSel.value, stage = sSel.value;
+      const stLabel = (DP_FLOWS[flow].steps.find(st => st.k === stage) || {}).t || stage;
+      rec.dpJoined = true; rec.dpFlow = flow; rec.dpStage = stage;
+      pushTimeline(rec, { type:'note', label:`加入數位規劃：${DP_FLOWS[flow].label}・${stLabel}` });
+      close();
+      try{ await fsSet(rec.id, rec); showCopyToast(`已加入數位規劃（${DP_FLOWS[flow].label}・${stLabel}），請到「數位規劃」查看`); }
+      catch(e){ console.error(e); delete rec.dpJoined; alert('儲存失敗，請確認網路連線後再試。'); if(onCancel) onCancel(); }
+    });
   }
   // ---- 咬合蠟堤 → 需設計蠟型時，接續開數位規劃 II ----
   function waxLinkedRec(id){ return id ? cachedRecords.find(x => x.id === id && !x.deleted) : null; }
