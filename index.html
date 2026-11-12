@@ -641,7 +641,7 @@
   .sender-main .sheet{ margin-top:0; }
   .submit-done-box{ text-align:center; max-width:400px; }
   .item-need-teeth{ display:none; margin-left:10px; font-size:12.5px; color:var(--danger); font-weight:700; }
-  .item:has(input[data-key="clear_retainer"]:checked) .item-need-teeth{ display:inline; }
+  .item:has(input[data-key="clear_retainer_teeth"]:checked) .item-need-teeth{ display:inline; align-self:center; }
   /* 送單成功頁 */
   .done-page{ max-width:640px; margin:30px auto; background:#fff; border:1px solid var(--line); padding:40px 44px 36px; text-align:center; }
   .done-page .sd-icon{ width:84px; height:84px; } .done-page .sd-icon svg{ width:84px; height:84px; }
@@ -1573,8 +1573,7 @@
           </div>
         </div>
 
-        <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="romexis" /><span>疊 ROMEXIS</span></label></div>
-        <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="vacuum_guide" /><span>VACUUM 式導板</span></label></div>
+        <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="implant_vac_romexis" /><span>植牙 VACUUM 導板＋疊 ROMEXIS</span></label></div>
       </div>
 
       <!-- Two column section -->
@@ -1582,7 +1581,10 @@
         <div class="section">
           <h2>模型 / 咬合相關</h2>
 
-          <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="clear_retainer" /><span>透明維持板（硬 1MM）</span></label><span class="item-need-teeth" id="retainerTeethHint">※ 請在下方牙位圖選擇牙齒（顆數會算入工作天）</span></div>
+          <div class="item">
+            <label class="chip chip-main"><input type="checkbox" data-key="clear_retainer" /><span>透明維持板（硬 1MM）</span></label>
+            <div class="subs"><label class="chip chip-sub"><input type="checkbox" data-key="clear_retainer_teeth" /><span>需要加牙齒</span></label><span class="item-need-teeth" id="retainerTeethHint">※ 請在下方牙位圖選擇牙齒（顆數會算入工作天）</span></div>
+          </div>
           <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="whitening_tray" /><span>美白牙托</span></label></div>
 
           <div class="item">
@@ -2408,9 +2410,11 @@
       {key:'dp_implant', label:'植牙'}, {key:'dp_apic', label:'根尖切除'}, {key:'dp_other', label:'其他', text:'dp_other_text'},
       {key:'dp_romexis', label:'疊 ROMEXIS'}, {key:'dp_surg_template', label:'3D 列印手術導板'}, {key:'dp_vacuum', label:'VACUUM 式導板'}
     ], extra:['dp_explain_date','dp_appt_surgery_date','dp_with_dr'], note:'dp_deadline_notes' },
+    { key:'implant_vac_romexis', label:'植牙 VACUUM 導板＋疊 ROMEXIS', section:'digital' },
+    // 舊單用（表單已不再顯示）
     { key:'romexis', label:'疊 ROMEXIS', section:'digital' },
     { key:'vacuum_guide', label:'VACUUM 式導板', section:'digital' },
-    { key:'clear_retainer', label:'透明維持板（硬 1MM）', section:'left' },
+    { key:'clear_retainer', label:'透明維持板（硬 1MM）', section:'left', subs:[{key:'clear_retainer_teeth', label:'需要加牙齒'}] },
     { key:'whitening_tray', label:'美白牙托', section:'left' },
     { key:'pour_model', label:'灌模', section:'left', subs:[{key:'pour_boxing', label:'要 BOXING'}] },
     { key:'bite_rim', label:'咬合蠟堤', section:'left', subs:[{key:'bite_base', label:'基底'}] },
@@ -2843,13 +2847,13 @@
       }
     }
     // 透明維持板必須選牙位
-    const retChk = document.querySelector('#submitView input[data-key="clear_retainer"]');
+    const retChk = document.querySelector('#submitView input[data-key="clear_retainer_teeth"]');
     const toothBox = document.querySelector('#submitView .arch-bar') ? document.querySelector('#submitView .arch-bar').closest('.section, .tooth-section, .sheet-section') : null;
     if(retChk && retChk.checked){
       const items = {};
       document.querySelectorAll('#submitView [data-key^="tooth_"]').forEach(el => { items[el.dataset.key] = el.type === 'checkbox' ? el.checked : el.value; });
       if(!hasAnyToothArea(items)){
-        invalids.push('透明維持板的牙位（請在牙位圖選擇牙齒）');
+        invalids.push('透明維持板「需要加牙齒」的牙位（請在牙位圖選擇牙齒）');
         if(toothBox) toothBox.classList.add('field-invalid');
       }else if(toothBox) toothBox.classList.remove('field-invalid');
     }
@@ -2913,9 +2917,11 @@
     ct_locator: 'byTeeth',          // CT模板－加定位珠
     ct_denture: 11,                 // CT模板－活動假牙複製
     dp_romexis: 'byTeeth',          // 數位規劃－疊 ROMEXIS
-    romexis: 'byTeeth',             // 疊 ROMEXIS（獨立項目）
+    romexis: 'byTeeth',             // 疊 ROMEXIS（舊的獨立項目）
+    implant_vac_romexis: 'byTeeth', // 植牙 VACUUM 導板＋疊 ROMEXIS
     dp_surg_template: { base: 14, plusTeeth: true },  // 3D列印手術導板：14 天 ＋ 疊ROMEXIS 的顆數天數
-    clear_retainer: { base: 4, plusTeeth: true, archCount: true }, // 透明維持板：4 天 ＋ 顆數天數（整顎、象限也算顆數）
+    clear_retainer: 4,              // 透明維持板（硬 1MM）
+    clear_retainer_teeth: { base: 4, plusTeeth: true, archCount: true }, // 透明維持板－需要加牙齒：4 天 ＋ 顆數天數（整顎、象限以 7 顆計）
     whitening_tray: 5,              // 美白牙托
     pour_model: 2,                  // 灌模
     bite_rim: 3,                    // 咬合蠟堤
@@ -2954,6 +2960,7 @@
     const reasons = [];
     Object.keys(WORKDAY_RULES).forEach(key => {
       if(!items[key]) return;
+      if(key === 'clear_retainer' && items.clear_retainer_teeth) return; // 有勾「需要加牙齒」就只看加牙齒的天數
       const rule = WORKDAY_RULES[key];
       let days, byTeeth = false, note = '';
       if(rule === 'byTeeth'){
@@ -4035,7 +4042,7 @@
           </div>
         </div>`;
     }).join('');
-    return `<details class="fu-block" open>
+    return `<details class="fu-block" ${fuBlockOpen ? 'open' : ''}>
         <summary>待約後續 <span class="fu-count">${list.length}</span><span class="fu-hint">還沒跟醫師約好「討論蠟型設計」或「確認植牙規劃」的單，約好後會回到下方步驟（等最久的排最上面；超過 7 天黃色、14 天紅色）</span></summary>
         ${list.length ? `<div class="fu-list">${rows}</div>` : '<div class="fu-empty">目前沒有待約後續的單</div>'}
       </details>`;
@@ -4068,7 +4075,9 @@
     pushTimeline(rec, { type:'note', label:`已約好「${label}」（${date}）` });
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
+  let fuBlockOpen = false; // 待約後續預設收起，點開後在這次使用中保持展開
   function bindFollowUp(root){
+    root.querySelectorAll('.fu-block').forEach(d => d.addEventListener('toggle', () => { fuBlockOpen = d.open; }));
     root.querySelectorAll('.fu-add').forEach(b => b.addEventListener('click', () => {
       const inp = root.querySelector(`.fu-note[data-id="${b.dataset.id}"]`);
       const v = inp ? inp.value.trim() : '';
@@ -5013,7 +5022,7 @@
   }
   // ---- 疊 ROMEXIS／VACUUM 式導板（非數位規劃單）→ 加入數位規劃的某個階段 ----
   function canJoinDp(r){
-    return !!(r.items && (r.items.romexis || r.items.vacuum_guide)) && !isDigitalPlan(r) && !r.deleted && r.status !== 'done';
+    return !!(r.items && (r.items.implant_vac_romexis || r.items.romexis || r.items.vacuum_guide)) && !isDigitalPlan(r) && !r.deleted && r.status !== 'done';
   }
   function bindJoinDp(root){
     root.querySelectorAll('.joinDpChk').forEach(cb => cb.addEventListener('change', () => {
