@@ -641,7 +641,7 @@
   .sender-main .sheet{ margin-top:0; }
   .submit-done-box{ text-align:center; max-width:400px; }
   .item-need-teeth{ display:none; margin-left:10px; font-size:12.5px; color:var(--danger); font-weight:700; }
-  .item:has(input[data-key="clear_retainer_teeth"]:checked) .item-need-teeth{ display:inline; align-self:center; }
+    .item:has(input[data-key="clear_retainer_teeth"]:checked) .item-need-teeth{ display:inline; align-self:center; }
   /* 送單成功頁 */
   .done-page{ max-width:640px; margin:30px auto; background:#fff; border:1px solid var(--line); padding:40px 44px 36px; text-align:center; }
   .done-page .sd-icon{ width:84px; height:84px; } .done-page .sd-icon svg{ width:84px; height:84px; }
@@ -1573,7 +1573,7 @@
           </div>
         </div>
 
-        <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="implant_vac_romexis" /><span>植牙 VACUUM 導板＋疊 ROMEXIS</span></label></div>
+        <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="handwax_vac" /><span>手雕蠟＋植牙 VACUUM 導板（限 2 顆以下）</span></label></div>
       </div>
 
       <!-- Two column section -->
@@ -2410,8 +2410,9 @@
       {key:'dp_implant', label:'植牙'}, {key:'dp_apic', label:'根尖切除'}, {key:'dp_other', label:'其他', text:'dp_other_text'},
       {key:'dp_romexis', label:'疊 ROMEXIS'}, {key:'dp_surg_template', label:'3D 列印手術導板'}, {key:'dp_vacuum', label:'VACUUM 式導板'}
     ], extra:['dp_explain_date','dp_appt_surgery_date','dp_with_dr'], note:'dp_deadline_notes' },
-    { key:'implant_vac_romexis', label:'植牙 VACUUM 導板＋疊 ROMEXIS', section:'digital' },
+    { key:'handwax_vac', label:'手雕蠟＋植牙 VACUUM 導板（限 2 顆以下）', section:'digital', subs:[{key:'handwax_romexis', label:'疊 ROMEXIS'}] },
     // 舊單用（表單已不再顯示）
+    { key:'implant_vac_romexis', label:'植牙 VACUUM 導板＋疊 ROMEXIS', section:'digital' },
     { key:'romexis', label:'疊 ROMEXIS', section:'digital' },
     { key:'vacuum_guide', label:'VACUUM 式導板', section:'digital' },
     { key:'clear_retainer', label:'透明維持板（硬 1MM）', section:'left', subs:[{key:'clear_retainer_teeth', label:'需要加牙齒'}] },
@@ -2918,7 +2919,8 @@
     ct_denture: 11,                 // CT模板－活動假牙複製
     dp_romexis: 'byTeeth',          // 數位規劃－疊 ROMEXIS
     romexis: 'byTeeth',             // 疊 ROMEXIS（舊的獨立項目）
-    implant_vac_romexis: 'byTeeth', // 植牙 VACUUM 導板＋疊 ROMEXIS
+    implant_vac_romexis: 'byTeeth', // 植牙 VACUUM 導板＋疊 ROMEXIS（舊項目）
+    handwax_vac: 'byTeeth',         // 手雕蠟＋植牙 VACUUM 導板（限 2 顆以下 → 8 天）
     dp_surg_template: { base: 14, plusTeeth: true },  // 3D列印手術導板：14 天 ＋ 疊ROMEXIS 的顆數天數
     clear_retainer: 4,              // 透明維持板（硬 1MM）
     clear_retainer_teeth: { base: 4, plusTeeth: true, archCount: true }, // 透明維持板－需要加牙齒：4 天 ＋ 顆數天數（整顎、象限以 7 顆計）
@@ -3352,6 +3354,7 @@
           ${modelReadyHTML(r)}
           ${takeOrAssignHTML(r)}
           ${canConvertToWax(r) ? `<button data-id="${r.id}" class="ghost toWaxBtn" title="需要設計蠟型時，開一張數位規劃 II 單接續">轉蠟型設計 II</button>` : ''}
+          ${hwRomexisHTML(r)}
           ${canJoinDp(r) ? `<label class="join-dp-chk"><input type="checkbox" class="joinDpChk" data-id="${r.id}" /> 加入數位規劃</label>` : ''}
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
@@ -4219,6 +4222,7 @@
         <div class="rec-actions">
           ${assigneeSelectHTML(r)}
           ${canConvertToWax(r) ? `<button data-id="${r.id}" class="ghost toWaxBtn" title="需要設計蠟型時，開一張數位規劃 II 單接續">轉蠟型設計 II</button>` : ''}
+          ${hwRomexisHTML(r)}
           ${canJoinDp(r) ? `<label class="join-dp-chk"><input type="checkbox" class="joinDpChk" data-id="${r.id}" /> 加入數位規劃</label>` : ''}
           <button data-id="${r.id}" class="editBtnTech">編輯</button>
           <button data-id="${r.id}" class="ghost lineBtn">通知醫師</button>
@@ -4794,7 +4798,8 @@
       ? `<div class="modal-wax-bar"><span>這張咬合蠟堤之後需要設計蠟型嗎？</span><button type="button" class="ghost toWaxBtn" data-id="${rec.id}">轉蠟型設計 II</button></div>`
       : (wb ? `<div class="modal-wax-bar"><span>${rec.fromBiteRimId ? '這張單是從咬合蠟堤接續過來的' : '這張咬合蠟堤已接續數位規劃'}</span>${wb}</div>` : '');
     const joinBar = canJoinDp(rec) ? `<div class="modal-wax-bar"><span>這張單要接著走數位規劃流程嗎？</span><label class="join-dp-chk"><input type="checkbox" class="joinDpChk" data-id="${rec.id}" /> 加入數位規劃</label></div>` : '';
-    body.innerHTML = waxBar + joinBar + dpBar + buildFullOrderHTML(rec);
+    const hwBar = (rec.items && rec.items.handwax_vac && !rec.deleted) ? `<div class="modal-wax-bar"><span>手雕蠟＋植牙 VACUUM 導板：</span>${hwRomexisHTML(rec)}</div>` : '';
+    body.innerHTML = waxBar + hwBar + joinBar + dpBar + buildFullOrderHTML(rec);
     bindJoinDp(body);
     body.querySelectorAll('.toWaxBtn').forEach(b => b.addEventListener('click', () => convertBiteRimToWax(b.dataset.id)));
     bindWaxLinks(body);
@@ -5022,9 +5027,21 @@
   }
   // ---- 疊 ROMEXIS／VACUUM 式導板（非數位規劃單）→ 加入數位規劃的某個階段 ----
   function canJoinDp(r){
-    return !!(r.items && (r.items.implant_vac_romexis || r.items.romexis || r.items.vacuum_guide)) && !isDigitalPlan(r) && !r.deleted && r.status !== 'done';
+    return !!(r.items && (r.items.handwax_vac || r.items.implant_vac_romexis || r.items.romexis || r.items.vacuum_guide)) && !isDigitalPlan(r) && !r.deleted && r.status !== 'done';
+  }
+  function hwRomexisHTML(r){
+    if(!(r.items && r.items.handwax_vac) || r.deleted) return '';
+    return `<label class="join-dp-chk" title="勾選後會記錄到匯出的「製作項目」"><input type="checkbox" class="hwRomexisChk" data-id="${r.id}" ${r.items.handwax_romexis ? 'checked' : ''} /> 疊 ROMEXIS</label>`;
+  }
+  async function setHwRomexis(id, checked){
+    const rec = cachedRecords.find(x => x.id === id);
+    if(!rec) return;
+    rec.items = Object.assign({}, rec.items, { handwax_romexis: !!checked });
+    pushTimeline(rec, { type:'note', label: checked ? '已疊 ROMEXIS' : '取消「疊 ROMEXIS」' });
+    try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
   function bindJoinDp(root){
+    root.querySelectorAll('.hwRomexisChk').forEach(cb => cb.addEventListener('change', () => setHwRomexis(cb.dataset.id, cb.checked)));
     root.querySelectorAll('.joinDpChk').forEach(cb => cb.addEventListener('change', () => {
       if(cb.checked) openJoinDpModal(cb.dataset.id, () => { cb.checked = false; });
     }));
