@@ -679,6 +679,7 @@
   .modal-wax-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 14px; margin-bottom:12px; background:#EEF3FB; border:1px solid #CFDCF2; font-size:13px; color:#2E5AA8; }
   .join-dp-chk{ display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:700; color:#2E5AA8; background:#EEF3FB; border:1px solid #CFDCF2; padding:5px 10px; cursor:pointer; white-space:nowrap; }
   .join-dp-chk input{ width:auto !important; margin:0; }
+  .badge-test{ display:inline-block; font-size:11px; font-weight:800; padding:2px 8px; background:#3A3A3A; color:#fff; letter-spacing:1px; }
   .badge-ct{ display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; background:#E4E0F7; color:#4A3D99; }
   .dp-ct-chk{ display:inline-flex; align-items:center; gap:4px; margin-left:10px; font-weight:700; color:#4A3D99; cursor:pointer; white-space:nowrap; }
   .dp-ct-chk input{ width:auto !important; margin:0; }
@@ -2742,6 +2743,12 @@
   document.getElementById('f_receiveDate').value = todayISO();
 
   // 病歷號：純數字且不足 8 碼時前面補 0
+  // ---- 測試單：病歷號 99999999 ----
+  // 只有管理者（16659）登入技師端時看得到；其他技師看不到；不列入統計、匯出，也不發 LINE
+  const TEST_CHART_NO = '99999999';
+  function isTestRecord(r){ return !!r && normalizeChartNo(r.chartNo || '') === TEST_CHART_NO; }
+  function isAdminUser(){ return !!(authUser && authUser.email && authUser.email.toLowerCase().startsWith('16659@')); }
+  function testBadgeHTML(r){ return isTestRecord(r) ? '<span class="badge-test">測試</span>' : ''; }
   function normalizeChartNo(v){
     const t = String(v || '').trim();
     return (/^\d{1,8}$/.test(t)) ? t.padStart(8, '0') : t;
@@ -3354,7 +3361,7 @@
           ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
           ${dueDateBadgeHTML(r)}
           ${modelBadgeHTML(r)}
-          ${waxLinkBadgeHTML(r)}
+          ${testBadgeHTML(r)}${waxLinkBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS[status] || 'st-pending'}">${STATUS_LABEL[status] || status}</span>
           ${assigneeBadgeHTML(r)}
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
@@ -3547,10 +3554,10 @@
       pushTimeline(rec, { type:'step', step: stepKey, label: stepLabelOf(rec, stepKey) });
     }
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
-    if(!turningOff && stepKey === 'waxdone' && LINE_NOTIFY_ON.waxdone){
+    if(!turningOff && stepKey === 'waxdone' && LINE_NOTIFY_ON.waxdone && !isTestRecord(rec)){
       sendLineMessage(`【模型設計好了】\n${lineOrderLines(rec)}${rec.dpNoNextAppt ? '\n※ 未約後續' : ''}`);
     }
-    if(!turningOff && stepKey === 'done' && LINE_NOTIFY_ON.finished){
+    if(!turningOff && stepKey === 'done' && LINE_NOTIFY_ON.finished && !isTestRecord(rec)){
       sendLineMessage(`【技工單完成】\n${lineOrderLines(rec)}\n完成日期：${rec.completedDate || '-'}`);
     }
   }
@@ -3898,7 +3905,7 @@
           <div class="dp-card-badges">
             ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
             ${r.dpNoNextAppt ? '<span class="badge-nonext">未約後續</span>' : ''}
-            ${waxLinkBadgeHTML(r)}
+            ${testBadgeHTML(r)}${waxLinkBadgeHTML(r)}
             ${(r.dpHasCT && flow === 'II') ? '<span class="badge-ct">有CT</span>' : ''}
             ${r.dpRomexis ? '<span class="badge-model">已疊 ROMEXIS</span>' : ''}
             ${modelBadgeHTML(r)}
@@ -4223,7 +4230,7 @@
       div.innerHTML = `<div class="meta">
           ${r.rush ? '<span class="badge-rush">急件</span>' : ''}
           ${dueDateBadgeHTML(r)}
-          ${waxLinkBadgeHTML(r)}
+          ${testBadgeHTML(r)}${waxLinkBadgeHTML(r)}
           <span class="status-badge ${STATUS_CLASS.done}">已完成</span>
           ${assigneeBadgeHTML(r)}
           <b>${r.patient || '(未填患者)'}</b> ・ 病歷號 ${r.chartNo || '-'}
@@ -4408,13 +4415,13 @@
   }
   async function copyHistoryTable(){
     const deleted = cachedRecords.filter(r => r.deleted).sort((a,b) => (b.deletedAt||0) - (a.deletedAt||0));
-    if(await copyRowsToClipboard(deleted.map(buildExcelRow))) showCopyToast(`已複製 ${deleted.length} 筆，請到 Excel 點 A1 儲存格按 Ctrl + V 貼上`);
+    if(await copyRowsToClipboard(deleted.filter(r => !isTestRecord(r)).map(buildExcelRow))) showCopyToast(`已複製 ${deleted.length} 筆，請到 Excel 點 A1 儲存格按 Ctrl + V 貼上`);
   }
   async function copyDoneTable(){
     if(!doneMonth){ alert('目前沒有已完成的單子可以複製'); return; }
     const month = doneMonth;
     const done = doneRecordsForMonth(month);
-    if(!(await copyRowsToClipboard(done.map(buildExcelRow)))) return;
+    if(!(await copyRowsToClipboard(done.filter(r => !isTestRecord(r)).map(buildExcelRow)))) return;
     const label = month.replace('-','年') + '月';
     showCopyToast(`已複製 ${label} 共 ${done.length} 張，請到 Excel 按 Ctrl + V 貼上`);
     await new Promise(res => setTimeout(res, 300));
@@ -4433,13 +4440,13 @@
   }
   function exportHistoryToExcel(){
     const deleted = cachedRecords.filter(r => r.deleted).sort((a,b) => (b.deletedAt||0) - (a.deletedAt||0));
-    exportRowsToExcel(deleted.map(buildExcelRow), '歷史紀錄', '技工單歷史紀錄');
+    exportRowsToExcel(deleted.filter(r => !isTestRecord(r)).map(buildExcelRow), '歷史紀錄', '技工單歷史紀錄');
   }
   async function exportDoneToExcel(){
     if(!doneMonth){ alert('目前沒有已完成的單子可以匯出'); return; }
     const month = doneMonth;
     const done = doneRecordsForMonth(month);
-    const ok = exportRowsToExcel(done.map(buildExcelRow), `已完成${month}`, '技工單已完成紀錄', month);
+    const ok = exportRowsToExcel(done.filter(r => !isTestRecord(r)).map(buildExcelRow), `已完成${month}`, '技工單已完成紀錄', month);
     if(!ok) return;
     const label = month.replace('-','年') + '月';
     if(!confirm(`已匯出 ${label} 共 ${done.length} 張單子。\n\n是否將這些單子移到「歷史紀錄」？\n（移過去後仍可在歷史紀錄中還原）`)) return;
@@ -4467,6 +4474,9 @@
   // ---- 統計 ----
   let statsRange = '30';
   function statsRecords(){
+    return statsRecordsAll().filter(r => !isTestRecord(r));
+  }
+  function statsRecordsAll(){
     const now = new Date();
     let from = 0;
     if(statsRange === 'month') from = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -5028,7 +5038,7 @@
     }
     rec.status = status;
     try{ await fsSet(id, rec); }catch(e){ alert('更新狀態失敗'); }
-    if(status === 'done' && LINE_NOTIFY_ON.finished){
+    if(status === 'done' && LINE_NOTIFY_ON.finished && !isTestRecord(rec)){
       sendLineMessage(`【技工單完成】\n${lineOrderLines(rec)}\n完成日期：${rec.completedDate || '-'}`);
     }
   }
@@ -5289,6 +5299,7 @@
     if(from && to && from > to){ const t = from; from = to; to = t; }
     const res = cachedRecords.filter(r => {
       if(r.deleted) return false;
+      if(isTestRecord(r) && q.chartNo !== TEST_CHART_NO) return false;
       const isDone = (r.status || 'pending') === 'done';
       if(isDone && !q.done) return false;
       if(!isDone && !q.undone) return false;
@@ -5475,7 +5486,7 @@
     try{
       await fsSet(data.id, data);
       localSet(LAST_SEEN_KEY, String(data.ts)); // the person submitting doesn't need a notification for their own order
-      if(LINE_NOTIFY_ON.newOrder) sendLineMessage(`【新技工單】\n${lineOrderLines(data)}`);
+      if(LINE_NOTIFY_ON.newOrder && !isTestRecord(data)) sendLineMessage(`【新技工單】\n${lineOrderLines(data)}`);
       clearForm(); // ready for the next order
       showSubmitDone(data);
     }catch(e){
@@ -5515,6 +5526,7 @@
   function openLineDoctorModal(id, presetText, onSent){
     const r = cachedRecords.find(x => x.id === id);
     if(!r) return;
+    if(isTestRecord(r)){ alert('這是測試單（病歷號 99999999），不會真的發 LINE 給醫師。'); if(onSent) onSent(); return; }
     if(!lineConfigured()){ alert('LINE 尚未設定完成，請先完成 Apps Script 設定。'); return; }
     const code = doctorCodeOf(r.doctor);
     const modal = document.getElementById('lineMsgModal');
@@ -5650,6 +5662,8 @@
 
   const OLD_I_STAGE_MAP = { ct:'planwait', plan:'plandone' };
   function handleRecordsUpdate(recs){
+    // 測試單：技師端只有管理者看得到（送單端靠查詢病歷號 99999999 才會出現）
+    if(techNameOf(authUser) && !isAdminUser()) recs = recs.filter(r => !isTestRecord(r));
     cachedRecords = recs;
     if(techNameOf(authUser)) recs.forEach(r => {
       if(r.deleted) return;
