@@ -1573,7 +1573,6 @@
           </div>
         </div>
 
-        <div class="item"><label class="chip chip-main"><input type="checkbox" data-key="handwax_vac" /><span>手雕蠟＋植牙 VACUUM 導板（限 2 顆以下）</span></label></div>
       </div>
 
       <!-- Two column section -->
@@ -2410,11 +2409,12 @@
       {key:'dp_implant', label:'植牙'}, {key:'dp_apic', label:'根尖切除'}, {key:'dp_other', label:'其他', text:'dp_other_text'},
       {key:'dp_romexis', label:'疊 ROMEXIS'}, {key:'dp_surg_template', label:'3D 列印手術導板'}, {key:'dp_vacuum', label:'VACUUM 式導板'}
     ], extra:['dp_explain_date','dp_appt_surgery_date','dp_with_dr'], note:'dp_deadline_notes' },
-    { key:'handwax_vac', label:'手雕蠟＋植牙 VACUUM 導板（限 2 顆以下）', section:'digital', subs:[{key:'handwax_romexis', label:'疊 ROMEXIS'}] },
+    // 只勾數位規劃底下的「VACUUM 式導板」、沒勾數位規劃其他選項時，存成這個獨立項目（不進數位規劃）
+    { key:'vacuum_guide', label:'VACUUM 式導板', section:'digital', subs:[{key:'vac_romexis', label:'疊 ROMEXIS'}] },
     // 舊單用（表單已不再顯示）
+    { key:'handwax_vac', label:'手雕蠟＋植牙 VACUUM 導板（限 2 顆以下）', section:'digital', subs:[{key:'handwax_romexis', label:'疊 ROMEXIS'}] },
     { key:'implant_vac_romexis', label:'植牙 VACUUM 導板＋疊 ROMEXIS', section:'digital' },
     { key:'romexis', label:'疊 ROMEXIS', section:'digital' },
-    { key:'vacuum_guide', label:'VACUUM 式導板', section:'digital' },
     { key:'clear_retainer', label:'透明維持板（硬 1MM）', section:'left', subs:[{key:'clear_retainer_teeth', label:'需要加牙齒'}] },
     { key:'whitening_tray', label:'美白牙托', section:'left' },
     { key:'pour_model', label:'灌模', section:'left', subs:[{key:'pour_boxing', label:'要 BOXING'}] },
@@ -2761,6 +2761,15 @@
       if(el.type === 'checkbox') data.items[el.dataset.key] = el.checked;
       else data.items[el.dataset.key] = el.value;
     });
+    // 只勾「VACUUM 式導板」、沒勾數位規劃本身或其他數位規劃選項 → 存成獨立項目，不進數位規劃
+    // （可以同時勾「疊 ROMEXIS」，一樣不進數位規劃，並記成送單時已勾疊 ROMEXIS）
+    if(data.items.dp_vacuum === true && !data.items.digital_plan && !['dp_implant','dp_apic','dp_other','dp_surg_template'].some(k => data.items[k])){
+      data.items.dp_vacuum = false;
+      data.items.vacuum_guide = true;
+      data.items.vac_romexis_sender = data.items.dp_romexis === true;
+      if(data.items.vac_romexis_sender) data.items.vac_romexis = true;
+      data.items.dp_romexis = false;
+    }
     // 勾了子項目（例如「植牙」）就自動算主項目（「數位規劃」）有勾
     Object.keys(SUB_PARENT).forEach(k => { if(data.items[k] === true) data.items[SUB_PARENT[k]] = true; });
     return data;
@@ -2784,7 +2793,8 @@
     return { rush:true, shortDays, requiredDays: info.days, earliest: info.earliest };
   }
 
-  function isDigitalPlan(r){ return !!(r.dpJoined || r.items && (r.items.digital_plan || ['dp_implant','dp_apic','dp_other','dp_romexis','dp_surg_template','dp_vacuum'].some(k => r.items[k]))); }
+  function dpOtherChosen(items){ return !!(items.digital_plan || ['dp_implant','dp_apic','dp_other','dp_romexis','dp_surg_template'].some(k => items[k])); }
+  function isDigitalPlan(r){ return !!(r.dpJoined || r.items && (r.items.digital_plan || ['dp_implant','dp_apic','dp_other','dp_romexis','dp_surg_template'].some(k => r.items[k]))); }
   // 同醫師同病患若已有未結單的數位規劃，提醒是否重新開單
   function checkDuplicateDigitalPlan(data){
     if(!data.items || !data.items.digital_plan) return null;
@@ -2865,7 +2875,7 @@
     if(e.target.matches('[data-key], #f_receiveDate')) refreshDueDateHint();
     if(e.target.matches('.arch-bar input, .q-head input')) refreshToothAreaHighlight();
     // 勾子項目時，自動把主項目一起勾起來
-    if(e.target.matches('input[type="checkbox"][data-key]') && e.target.checked && SUB_PARENT[e.target.dataset.key]){
+    if(e.target.matches('input[type="checkbox"][data-key]') && e.target.checked && SUB_PARENT[e.target.dataset.key] && !['dp_vacuum','dp_romexis'].includes(e.target.dataset.key)){
       const parent = document.querySelector(`#submitView input[type="checkbox"][data-key="${SUB_PARENT[e.target.dataset.key]}"]`);
       if(parent && !parent.checked){ parent.checked = true; refreshDueDateHint(); }
     }
@@ -4798,7 +4808,7 @@
       ? `<div class="modal-wax-bar"><span>這張咬合蠟堤之後需要設計蠟型嗎？</span><button type="button" class="ghost toWaxBtn" data-id="${rec.id}">轉蠟型設計 II</button></div>`
       : (wb ? `<div class="modal-wax-bar"><span>${rec.fromBiteRimId ? '這張單是從咬合蠟堤接續過來的' : '這張咬合蠟堤已接續數位規劃'}</span>${wb}</div>` : '');
     const joinBar = canJoinDp(rec) ? `<div class="modal-wax-bar"><span>這張單要接著走數位規劃流程嗎？</span><label class="join-dp-chk"><input type="checkbox" class="joinDpChk" data-id="${rec.id}" /> 加入數位規劃</label></div>` : '';
-    const hwBar = (rec.items && rec.items.handwax_vac && !rec.deleted) ? `<div class="modal-wax-bar"><span>手雕蠟＋植牙 VACUUM 導板：</span>${hwRomexisHTML(rec)}</div>` : '';
+    const hwBar = hwRomexisHTML(rec) ? `<div class="modal-wax-bar"><span>${rec.items.handwax_vac ? '手雕蠟＋植牙 VACUUM 導板' : 'VACUUM 式導板'}：</span>${hwRomexisHTML(rec)}</div>` : '';
     body.innerHTML = waxBar + hwBar + joinBar + dpBar + buildFullOrderHTML(rec);
     bindJoinDp(body);
     body.querySelectorAll('.toWaxBtn').forEach(b => b.addEventListener('click', () => convertBiteRimToWax(b.dataset.id)));
@@ -4914,6 +4924,10 @@
       if(el.type === 'checkbox') el.checked = !!v;
       else el.value = v;
     });
+    if(r.items && r.items.vacuum_guide){
+      const v = document.querySelector('#submitView input[data-key="dp_vacuum"]'); if(v) v.checked = true;
+      const x = document.querySelector('#submitView input[data-key="dp_romexis"]'); if(x) x.checked = !!r.items.vac_romexis_sender;
+    }
     syncToothButtonsFromHidden();
     refreshDueDateHint();
     refreshToothAreaHighlight();
@@ -5030,13 +5044,16 @@
     return !!(r.items && (r.items.handwax_vac || r.items.implant_vac_romexis || r.items.romexis || r.items.vacuum_guide)) && !isDigitalPlan(r) && !r.deleted && r.status !== 'done';
   }
   function hwRomexisHTML(r){
-    if(!(r.items && r.items.handwax_vac) || r.deleted) return '';
-    return `<label class="join-dp-chk" title="勾選後會記錄到匯出的「製作項目」"><input type="checkbox" class="hwRomexisChk" data-id="${r.id}" ${r.items.handwax_romexis ? 'checked' : ''} /> 疊 ROMEXIS</label>`;
+    if(!(r.items && (r.items.handwax_vac || r.items.vacuum_guide)) || r.deleted) return '';
+    if(r.items.vacuum_guide && r.items.vac_romexis_sender) return ''; // 送單時已勾疊 ROMEXIS，技師端不用再勾
+    const k = r.items.handwax_vac ? 'handwax_romexis' : 'vac_romexis';
+    return `<label class="join-dp-chk" title="勾選後會記錄到匯出的「製作項目」"><input type="checkbox" class="hwRomexisChk" data-id="${r.id}" ${r.items[k] ? 'checked' : ''} /> 疊 ROMEXIS</label>`;
   }
   async function setHwRomexis(id, checked){
     const rec = cachedRecords.find(x => x.id === id);
     if(!rec) return;
-    rec.items = Object.assign({}, rec.items, { handwax_romexis: !!checked });
+    const k = rec.items && rec.items.handwax_vac ? 'handwax_romexis' : 'vac_romexis';
+    rec.items = Object.assign({}, rec.items, { [k]: !!checked });
     pushTimeline(rec, { type:'note', label: checked ? '已疊 ROMEXIS' : '取消「疊 ROMEXIS」' });
     try{ await fsSet(id, rec); }catch(e){ alert('儲存失敗'); }
   }
@@ -5424,6 +5441,10 @@
     if(currentEditingId){
       const original = cachedRecords.find(x => x.id === currentEditingId);
       if(!original){ alert('找不到原始資料，無法儲存修改'); return; }
+      const oi = original.items || {};
+      if(oi.handwax_romexis !== undefined) data.items.handwax_romexis = oi.handwax_romexis;
+      // 技師自己勾的疊 ROMEXIS 要保留；送單者勾的以這次表單為準
+      if(data.items.vacuum_guide && !data.items.vac_romexis_sender && !oi.vac_romexis_sender && oi.vac_romexis !== undefined) data.items.vac_romexis = oi.vac_romexis;
       const changes = buildChangeSummary(original, data);
       if(original.rush && data.rush === false) changes.push('急件：是 → 否（完成日已符合所需工作天）');
       if(!original.rush && data.rush === true) changes.push('急件：否 → 是');
